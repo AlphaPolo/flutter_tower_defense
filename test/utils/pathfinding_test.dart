@@ -42,7 +42,7 @@ void main() {
           manager.addBuilding(emptyBuilding(neighbor));
         }
 
-        expect(manager.buildings.length, 2, reason: '因為3個都放置後出口會被擋住，所以成功放置的建築只會有2個');
+        expect(manager.buildingsMap.length, 2, reason: '因為3個都放置後出口會被擋住，所以成功放置的建築只會有2個');
       });
 
       test('擋住入口', () {
@@ -52,7 +52,7 @@ void main() {
           manager.addBuilding(emptyBuilding(neighbor));
         }
 
-        expect(manager.buildings.length, 2, reason: '因為3個都放置後入口會被擋住，所以成功放置的建築只會有2個');
+        expect(manager.buildingsMap.length, 2, reason: '因為3個都放置後入口會被擋住，所以成功放置的建築只會有2個');
       });
     });
 

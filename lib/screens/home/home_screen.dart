@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/iterable_extension.dart';
 
 import '../../manager/game_manager.dart';
-import '../../providers/building_provider.dart';
+import '../../manager/buildings_manager.dart';
 import '../../providers/game_event_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../widget/game/tool/left_col.dart';
@@ -40,9 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
       body: MultiProvider(
         providers: [
           Provider(create: (context) => GameEventProvider(), dispose: (context, manager) => manager.dispose(), lazy: false),
+          Provider(create: (context) => BuildingsManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => GameManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           ChangeNotifierProvider(create: (context) => PlayerProvider(context)),
-          Provider(create: (context) => BuildingProvider()),
 
         ],
         child: Container(
@@ -140,7 +140,7 @@ class BuildingListview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<BuildingProvider>();
+    final provider = context.watch<BuildingsManager>();
     final templates = provider.buildingTemplates;
     final entries = templates.entries.toList();
     return Padding(

@@ -4,8 +4,9 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
-import 'package:tower_defense/extension/kotlin_like_extensions.dart';
+import 'package:tower_defense/manager/buildings_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 
 import '../model/enemy/enemy.dart';
@@ -15,9 +16,11 @@ typedef CanMovePredicate = bool Function(BoardPoint);
 
 class GameManager {
 
+  late final BuildingsManager buildingsManager;
+
   int clock = 0;
   List<Enemy> _enemies = [];
-  Map<BoardPoint, BuildingModel> buildings = {};
+  Map<BoardPoint, BuildingModel> buildingsMap = {};
   Map<BoardPoint, HexagonDirection> guide = {};
 
   Board? board;
@@ -34,6 +37,18 @@ class GameManager {
 
   Stream<List<Enemy>> onEnemiesStream() => _enemiesEvent;
   Stream<List<BuildingModel>> onBuildingsStream() => _buildingEvent;
+
+
+  /// 注入模式
+  GameManager.from(BuildContext context) {
+    buildingsManager = context.read<BuildingsManager>()..init(this);
+  }
+
+  GameManager.setting(
+    // this.buildingsManager,
+  );
+
+  GameManager();
 
   void dispose() {
     _enemiesStreamController.close();
@@ -52,13 +67,13 @@ class GameManager {
 
     if(!isPlaceable(model)) return;
     // buildings = {...buildings, model.location: model};
-    buildings[model.location] = model;
+    buildingsMap[model.location] = model;
     guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
-    _buildingsStreamController.add(buildings.values.toList());
+    _buildingsStreamController.add(buildingsMap.values.toList());
   }
 
   bool isPlaceable(BuildingModel model) {
-    if(buildings[model.location] != null) return false; // 已經有建築物
+    if(buildingsMap[model.location] != null) return false; // 已經有建築物
     if(_enemies.any((enemy) => enemy.currentLocation == model.location ||
                             enemy.goalLocation == model.location)) return false; // 有敵人正在上面
     if(model.location == spawnLocation || model.location == targetLocation) return false; // 不可蓋在出生點與目的地
@@ -80,53 +95,11 @@ class GameManager {
 
   bool isPointCanMove(BoardPoint point) {
     final board = this.board;
-    return board!.validateBoardPoint(point) && !buildings.containsKey(point);
+    return board!.validateBoardPoint(point) && !buildingsMap.containsKey(point);
   }
 
   bool isPointInside(Offset point, double radius) =>
       pow(point.dx, 2) + pow(point.dy, 2) < pow(radius, 2);
-
-  void lookAt(BoardPoint point) {
-    Offset toOffset(BoardPoint point) => board!.boardPointToPoint(point).let((e) => Offset(e.x, e.y));
-    final target = toOffset(point);
-    for (final tower in buildings.values) {
-      final from = toOffset(tower.location);
-
-      final diff = (target - from);
-      final range = tower.range * board!.hexagonRadius;
-      // print('range: $range, diff: ${diff.distance}');
-      if(diff.distance >= range) {
-        continue;
-      }
-
-      final direction = diff.direction;
-      buildings[tower.location] = tower.copyWith(direction: direction);
-      print(buildings[tower.location].runtimeType);
-    }
-    _buildingsStreamController.add(buildings.values.toList());
-  }
-
-  void lookAtPosition(Offset point) {
-    Offset toOffset(BoardPoint point) => board!.boardPointToPoint(point).let((e) => Offset(e.x, e.y));
-    final target = point;
-    for (final tower in buildings.values) {
-      final from = toOffset(tower.location);
-
-      final diff = (target - from);
-      final range = tower.range * board!.hexagonRadius;
-      print('range: $range, diff: ${diff.distance}');
-      if(diff.distance >= range) {
-        continue;
-      }
-
-      final direction = diff.direction;
-      buildings[tower.location] = tower.copyWith(direction: direction);
-      print(buildings[tower.location].runtimeType);
-      _buildingsStreamController.add(buildings.values.toList());
-    }
-    // buildings = {...buildings};
-    // notifyListeners();
-  }
 
 
   void start() async {
@@ -165,13 +138,13 @@ class GameManager {
         enemy.tick(this, perTick.inMilliseconds);
       }
 
-      for (final building in buildings.values) {
+      for (final building in buildingsMap.values) {
         building.tick(this, perTick.inMilliseconds);
       }
 
       _enemies.removeWhere((enemy) => enemy.currentLocation == targetLocation);
       _enemiesStreamController.add(_enemies);
-      _buildingsStreamController.add(buildings.values.toList());
+      _buildingsStreamController.add(buildingsMap.values.toList());
 
       if(_enemies.isEmpty && wave.isEmpty) {
         isGameStart = false;
