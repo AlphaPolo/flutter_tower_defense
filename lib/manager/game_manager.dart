@@ -13,7 +13,7 @@ import '../widget/game/board/board_painter.dart';
 
 typedef CanMovePredicate = bool Function(BoardPoint);
 
-class GameManager with ChangeNotifier {
+class GameManager {
 
   int clock = 0;
   List<Enemy> _enemies = [];
@@ -26,27 +26,23 @@ class GameManager with ChangeNotifier {
 
   bool isGameStart = false;
 
-
   final StreamController<List<Enemy>> _enemiesStreamController = StreamController();
   final StreamController<List<BuildingModel>> _buildingsStreamController = StreamController();
-
 
   late final Stream<List<Enemy>> _enemiesEvent = _enemiesStreamController.stream.asBroadcastStream();
   late final Stream<List<BuildingModel>> _buildingEvent = _buildingsStreamController.stream.asBroadcastStream();
 
-  // final StreamController<List<Enemy>> _enemyStreamController = StreamController();
-  // final StreamController<List<Enemy>> _enemyStreamController = StreamController();
+  Stream<List<Enemy>> onEnemiesStream() => _enemiesEvent;
+  Stream<List<BuildingModel>> onBuildingsStream() => _buildingEvent;
 
-  @override
   void dispose() {
-    super.dispose();
     _enemiesStreamController.close();
     _buildingsStreamController.close();
   }
 
-  Stream<List<Enemy>> onEnemiesStream() => _enemiesEvent;
-  Stream<List<BuildingModel>> onBuildingsStream() => _buildingEvent;
-
+  List<Enemy> getEnemies() {
+    return _enemies;
+  }
 
   void addUnit(Enemy unit) {
     _enemies.add(unit);
@@ -59,7 +55,6 @@ class GameManager with ChangeNotifier {
     buildings[model.location] = model;
     guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
     _buildingsStreamController.add(buildings.values.toList());
-    notifyListeners();
   }
 
   bool isPlaceable(BuildingModel model) {
@@ -99,7 +94,7 @@ class GameManager with ChangeNotifier {
 
       final diff = (target - from);
       final range = tower.range * board!.hexagonRadius;
-      print('range: $range, diff: ${diff.distance}');
+      // print('range: $range, diff: ${diff.distance}');
       if(diff.distance >= range) {
         continue;
       }
@@ -109,8 +104,6 @@ class GameManager with ChangeNotifier {
       print(buildings[tower.location].runtimeType);
     }
     _buildingsStreamController.add(buildings.values.toList());
-    // buildings = {...buildings};
-    // notifyListeners();
   }
 
   void lookAtPosition(Offset point) {
@@ -140,8 +133,9 @@ class GameManager with ChangeNotifier {
     if(isGameStart) return;
 
     isGameStart = true;
-    notifyListeners();
 
+    Duration previousGenerate = 0.ms;
+    Duration generateInterval = 1000.ms;
     Duration currentClock = 0.ms;
     Duration perTick = 16.ms;
 
@@ -149,30 +143,47 @@ class GameManager with ChangeNotifier {
       final point = board!.boardPointToPoint(position);
       return Offset(point.x, point.y);
     };
-    final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
-    enemy.init(this);
-    addUnit(enemy);
+
+    // final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
+    // enemy.init(this);
+    // addUnit(enemy);
+
+    final wave = Queue.of(List.generate(5, (index) {
+      final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
+      enemy.init(this);
+      return enemy;
+    }));
 
     while(isGameStart) {
+      if(wave.isNotEmpty && currentClock - previousGenerate >= generateInterval) {
+        final enemy = wave.removeFirst();
+        addUnit(enemy);
+        previousGenerate = currentClock;
+      }
+
       for (final enemy in _enemies) {
-        // print('tick');
         enemy.tick(this, perTick.inMilliseconds);
       }
 
-      // for (final building in buildings.values) {
-      //   // building.tick(clock);
-      // }
+      for (final building in buildings.values) {
+        building.tick(this, perTick.inMilliseconds);
+      }
 
       _enemies.removeWhere((enemy) => enemy.currentLocation == targetLocation);
       _enemiesStreamController.add(_enemies);
+      _buildingsStreamController.add(buildings.values.toList());
 
-      if(_enemies.isEmpty) {
+      if(_enemies.isEmpty && wave.isEmpty) {
         isGameStart = false;
       }
 
       await Future.delayed(perTick);
       currentClock += perTick;
     }
+  }
+
+  void waveCheck() {
+
   }
 }
 
@@ -248,12 +259,3 @@ Map<BoardPoint, HexagonDirection> recalculate(BoardPoint target, CanMovePredicat
   return guideMap;
 }
 
-
-
-
-abstract class GameUnit {
-  Widget render(Board board);
-  Future<void> tick(int clock);
-  int get clock => 0;
-  int get requiredClock => 100;
-}

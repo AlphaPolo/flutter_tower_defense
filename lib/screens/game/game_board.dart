@@ -9,7 +9,6 @@ import 'package:tower_defense/constant/game_constant.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
-import 'package:tower_defense/model/building/building_model.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
 import 'package:tower_defense/widget/game/character/enemy_widget.dart';
 import 'package:tuple/tuple.dart';
@@ -122,7 +121,6 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
     final boardPoint = _board.pointToBoardPoint(scenePoint);
 
     gameEventManager.pushSelectedEvent(boardPoint);
-    gameManager.lookAtPosition(scenePoint);
 
     // /// place Ball
     // final point = boardPoint?.let(_board.boardPointToPoint);
@@ -421,6 +419,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
   }
 
   Widget towerBuildings() {
+
     return StreamBuilder(
       stream: gameManager.onBuildingsStream(),
       builder: (context, snapshot) {
@@ -434,39 +433,15 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
           children: value.map((e) {
             final point = _board.boardPointToPoint(e.location);
             return Positioned.fromRect(
-                rect: Rect.fromCircle(center: Offset(point.x, point.y - _kHexagonMargin), radius: _kHexagonRadius * 0.7),
-                child: TowerWidget(model: e),
+              key: ValueKey(e.location),
+              rect: Rect.fromCircle(center: Offset(point.x, point.y - _kHexagonMargin), radius: _kHexagonRadius * 0.7),
+              child: TowerWidget(model: e),
             );
           }).toList(),
         );
       }
     );
 
-    // return Selector<GameManager, Map<BoardPoint, BuildingModel>>(
-    //   selector: (context, vm) => vm.buildings,
-    //   builder: (context, value, _) {
-    //     return Stack(
-    //       fit: StackFit.expand,
-    //       children: value.entries.map((e) {
-    //         final point = _board.boardPointToPoint(e.key);
-    //         return Positioned.fromRect(
-    //             rect: Rect.fromCircle(center: Offset(point.x, point.y - _kHexagonMargin), radius: _kHexagonRadius * 0.7),
-    //             child: selectorBuilding(e.key),
-    //         );
-    //       }).toList(),
-    //     );
-    //   }
-    // );
-
-  }
-
-  Selector<GameManager, BuildingModel> selectorBuilding(BoardPoint point) {
-    return Selector<GameManager, BuildingModel>(
-      selector: (context, vm) => vm.buildings[point]!,
-      builder: (context, building, _) {
-        return TowerWidget(model: building);
-      }
-    );
   }
 
   Widget rectPositionedGenerate(Rect rect, Widget child) {

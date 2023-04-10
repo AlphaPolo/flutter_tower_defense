@@ -39,8 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: MultiProvider(
         providers: [
-          Provider(create: (context) => GameEventProvider(), dispose: (context, manager) => manager.dispose()),
-          ChangeNotifierProvider(create: (context) => GameManager()),
+          Provider(create: (context) => GameEventProvider(), dispose: (context, manager) => manager.dispose(), lazy: false),
+          Provider(create: (context) => GameManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           ChangeNotifierProvider(create: (context) => PlayerProvider(context)),
           Provider(create: (context) => BuildingProvider()),
 

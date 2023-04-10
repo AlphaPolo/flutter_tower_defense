@@ -1,5 +1,13 @@
 
+import 'dart:ui';
+
+import 'package:collection/collection.dart';
+import 'package:tower_defense/extension/kotlin_like_extensions.dart';
+import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tuple/tuple.dart';
+
 import '../../widget/game/board/board_painter.dart';
+import '../enemy/enemy.dart';
 
 enum BuildingType {
   tower,
@@ -9,15 +17,17 @@ enum BuildingType {
 
 class BuildingModel {
 
-  final BuildingType type;
-  final BoardPoint location;
-  final int cost;
-  final int damage;
-  final double range;
-  final int rotate;
-  final double direction;
+  BuildingType type;
+  BoardPoint location;
+  int cost;
+  int damage;
+  double range;
+  int rotate;
+  double direction;
 
-  const BuildingModel({
+  Enemy? target;
+
+  BuildingModel({
     required this.type,
     required this.location,
     required this.cost,
@@ -26,6 +36,55 @@ class BuildingModel {
     required this.rotate,
     this.direction = 0,
   });
+
+  bool isInsideRange(Board board, Offset diff) {
+    return diff.distance <= board.hexagonRadius * range;
+  }
+
+  void tick(GameManager manager, int clock) {
+    final board = manager.board!;
+
+    if(target == null) {
+      final current = Enemy.toOffset!(location);
+      final s = manager
+          .getEnemies()
+          .where((element) => element.renderOffset != null)
+          .map((e) => Tuple2(e.renderOffset! - current, e))
+          .where((element) => isInsideRange(board, element.item1));
+
+      target = minBy(s, (tuple) => tuple.item1.distance)?.item2;
+    }
+
+    target?.let((enemy) {
+      /// 敵人已經不見了
+      if(enemy.renderOffset == null) {
+        target = null;
+        return;
+      }
+      /// 敵人離開射程範圍
+      if(!isInsideRange(board, enemy.renderOffset! - Enemy.toOffset!(location)))
+      {
+        target = null;
+        return;
+      }
+      lookAtPosition(manager.board!, enemy.renderOffset!);
+    });
+  }
+
+  void lookAtPosition(Board board, Offset point) {
+    Offset toOffset(BoardPoint point) => board.boardPointToPoint(point).let((e) => Offset(e.x, e.y));
+    final target = point;
+    final from = toOffset(location);
+
+    final diff = (target - from);
+    final range = this.range * board.hexagonRadius;
+    if(diff.distance >= range) {
+      return;
+    }
+    direction = diff.direction;
+    // buildings = {...buildings};
+    // notifyListeners();
+  }
 
   BuildingModel copyWith({
     BuildingType? type,
@@ -46,29 +105,6 @@ class BuildingModel {
       direction: direction ?? this.direction,
     );
   }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BuildingModel &&
-          runtimeType == other.runtimeType &&
-          type == other.type &&
-          location == other.location &&
-          cost == other.cost &&
-          damage == other.damage &&
-          range == other.range &&
-          rotate == other.rotate &&
-          direction == other.direction;
-
-  @override
-  int get hashCode =>
-      type.hashCode ^
-      location.hashCode ^
-      cost.hashCode ^
-      damage.hashCode ^
-      range.hashCode ^
-      rotate.hashCode ^
-      direction.hashCode;
 }
 
 

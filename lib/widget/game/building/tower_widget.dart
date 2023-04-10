@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/widget/game/board/hexagon_widget.dart';
 
 import '../../../model/building/building_model.dart';
@@ -15,9 +16,10 @@ class TowerWidget extends StatelessWidget {
   }
 
   Widget buildTurret() {
-    return Transform.rotate(
-      angle: model.direction,
-      // angle: getAngle(model.direction),
+    return AnimatedRotation(
+      duration: 100.ms,
+      turns: model.direction / math.pi / 2.0,
+      // angle: model.direction,
       child: FractionalTranslation(
         translation: const Offset(0.5, 0),
         child: Container(

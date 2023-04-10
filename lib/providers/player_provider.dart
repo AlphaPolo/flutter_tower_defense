@@ -52,7 +52,6 @@ class PlayerProvider with ChangeNotifier {
     if(point == null) return;
 
     if(model == null) {
-      // gameManager.lookAt(point);
       return;
     }
 
