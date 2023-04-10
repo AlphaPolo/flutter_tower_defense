@@ -27,18 +27,18 @@ class BuildingsManager {
   final StreamController<List<BuildingModel>> _buildingsStreamController = StreamController();
   late final Stream<List<BuildingModel>> _buildingEvent = _buildingsStreamController.stream.asBroadcastStream();
 
-  void tick(GameManager manager, int clock) {
-    for (final building in buildings) {
-      building.tick(gameManger, clock);
-    }
+  void init(GameManager manager) {
+    gameManger = manager;
   }
 
   void dispose() {
     _buildingsStreamController.close();
   }
 
-  void init(GameManager manager) {
-    gameManger = manager;
+  void tick(GameManager manager, int clock) {
+    for (final building in buildings) {
+      building.tick(gameManger, clock);
+    }
   }
 
   void addBuilding(BuildingModel model) {
@@ -47,12 +47,12 @@ class BuildingsManager {
     notifyListeners();
   }
 
-  void notifyListeners() {
-    _buildingsStreamController.add(buildings);
-  }
-
   bool hasBuildingOn(BoardPoint point) => buildingsMap.containsKey(point);
 
   Stream<List<BuildingModel>> onBuildingsStream() => _buildingEvent;
+
+  void notifyListeners() {
+    _buildingsStreamController.add(buildings);
+  }
 
 }

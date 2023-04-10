@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/buildings_manager.dart';
+import 'package:tower_defense/manager/enemy_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 
 import '../model/enemy/enemy.dart';
@@ -17,9 +18,9 @@ typedef CanMovePredicate = bool Function(BoardPoint);
 class GameManager {
 
   late final BuildingsManager buildingsManager;
+  late final EnemyManager enemyManager;
 
   int clock = 0;
-  List<Enemy> _enemies = [];
   Map<BoardPoint, HexagonDirection> guide = {};
 
   Board? board;
@@ -28,39 +29,32 @@ class GameManager {
 
   bool isGameStart = false;
 
-  final StreamController<List<Enemy>> _enemiesStreamController = StreamController();
-  late final Stream<List<Enemy>> _enemiesEvent = _enemiesStreamController.stream.asBroadcastStream();
-
-  Stream<List<Enemy>> onEnemiesStream() => _enemiesEvent;
-
   /// 被動注入
   GameManager.from(BuildContext context) {
     buildingsManager = context.read<BuildingsManager>()..init(this);
+    enemyManager = context.read<EnemyManager>()..init(this);
   }
 
   /// 外部主動注入
   GameManager.setting({
     BuildingsManager? buildingsManager,
+    EnemyManager? enemyManager,
   }) {
     this.buildingsManager = (buildingsManager ?? BuildingsManager())..init(this);
+    this.enemyManager = (enemyManager ?? EnemyManager())..init(this);
   }
 
   /// 自動注入
   GameManager() {
     buildingsManager = BuildingsManager()..init(this);
+    enemyManager = EnemyManager()..init(this);
   }
 
   void dispose() {
-    _enemiesStreamController.close();
-    // _buildingsStreamController.close();
   }
 
   List<Enemy> getEnemies() {
-    return _enemies;
-  }
-
-  void addUnit(Enemy unit) {
-    _enemies.add(unit);
+    return enemyManager.enemies;
   }
 
   void addBuilding(BuildingModel model) {
@@ -72,8 +66,7 @@ class GameManager {
 
   bool isPlaceable(BuildingModel model) {
     if(buildingsManager.hasBuildingOn(model.location)) return false; // 已經有建築物
-    if(_enemies.any((enemy) => enemy.currentLocation == model.location ||
-                            enemy.goalLocation == model.location)) return false; // 有敵人正在上面
+    if(enemyManager.hasEnemyOn(model.location)) return false; // 有敵人正在上面
     if(model.location == spawnLocation || model.location == targetLocation) return false; // 不可蓋在出生點與目的地
 
     final path = hasPathBetween(
@@ -115,35 +108,26 @@ class GameManager {
       return Offset(point.x, point.y);
     };
 
-    // final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
-    // enemy.init(this);
-    // addUnit(enemy);
-
     final wave = Queue.of(List.generate(5, (index) {
       final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
-      enemy.init(this);
       return enemy;
     }));
 
     while(isGameStart) {
       if(wave.isNotEmpty && currentClock - previousGenerate >= generateInterval) {
         final enemy = wave.removeFirst();
-        addUnit(enemy);
+        enemyManager.addEnemy(enemy);
         previousGenerate = currentClock;
       }
 
-      for (final enemy in _enemies) {
-        enemy.tick(this, perTick.inMilliseconds);
-      }
+      enemyManager.tick(this, perTick.inMilliseconds);      // 更新敵人資訊
+      buildingsManager.tick(this, perTick.inMilliseconds);  // 更新防禦塔資訊
 
-      buildingsManager.tick(this, perTick.inMilliseconds);
-
-      _enemies.removeWhere((enemy) => enemy.currentLocation == targetLocation);
-      _enemiesStreamController.add(_enemies);
+      enemyManager.trimEnemies();                           // 清理該被移除的敵人
+      enemyManager.notifyListeners();
       buildingsManager.notifyListeners();
-      // _buildingsStreamController.add(buildingsMap.values.toList());
 
-      if(_enemies.isEmpty && wave.isEmpty) {
+      if(enemyManager.isEmpty() && wave.isEmpty) {
         isGameStart = false;
       }
 

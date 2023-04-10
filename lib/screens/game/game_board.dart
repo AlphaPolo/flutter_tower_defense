@@ -480,7 +480,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
 
   Widget buildEnemies() {
     return StreamBuilder<List<Enemy>>(
-      stream: gameManager.onEnemiesStream(),
+      stream: gameManager.enemyManager.onEnemiesStream(),
       builder: (context, snapshot) {
         if(!snapshot.hasData) {
           return const SizedBox.shrink();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/iterable_extension.dart';
+import 'package:tower_defense/manager/enemy_manager.dart';
 
 import '../../manager/game_manager.dart';
 import '../../manager/buildings_manager.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
         providers: [
           Provider(create: (context) => GameEventProvider(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => BuildingsManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
+          Provider(create: (context) => EnemyManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => GameManager.from(context), dispose: (context, manager) => manager.dispose(), lazy: false),
           ChangeNotifierProvider(create: (context) => PlayerProvider(context)),
 
