@@ -20,7 +20,6 @@ class GameManager {
 
   int clock = 0;
   List<Enemy> _enemies = [];
-  Map<BoardPoint, BuildingModel> buildingsMap = {};
   Map<BoardPoint, HexagonDirection> guide = {};
 
   Board? board;
@@ -30,29 +29,30 @@ class GameManager {
   bool isGameStart = false;
 
   final StreamController<List<Enemy>> _enemiesStreamController = StreamController();
-  final StreamController<List<BuildingModel>> _buildingsStreamController = StreamController();
-
   late final Stream<List<Enemy>> _enemiesEvent = _enemiesStreamController.stream.asBroadcastStream();
-  late final Stream<List<BuildingModel>> _buildingEvent = _buildingsStreamController.stream.asBroadcastStream();
 
   Stream<List<Enemy>> onEnemiesStream() => _enemiesEvent;
-  Stream<List<BuildingModel>> onBuildingsStream() => _buildingEvent;
 
-
-  /// 注入模式
+  /// 被動注入
   GameManager.from(BuildContext context) {
     buildingsManager = context.read<BuildingsManager>()..init(this);
   }
 
-  GameManager.setting(
-    // this.buildingsManager,
-  );
+  /// 外部主動注入
+  GameManager.setting({
+    BuildingsManager? buildingsManager,
+  }) {
+    this.buildingsManager = (buildingsManager ?? BuildingsManager())..init(this);
+  }
 
-  GameManager();
+  /// 自動注入
+  GameManager() {
+    buildingsManager = BuildingsManager()..init(this);
+  }
 
   void dispose() {
     _enemiesStreamController.close();
-    _buildingsStreamController.close();
+    // _buildingsStreamController.close();
   }
 
   List<Enemy> getEnemies() {
@@ -64,16 +64,14 @@ class GameManager {
   }
 
   void addBuilding(BuildingModel model) {
-
     if(!isPlaceable(model)) return;
-    // buildings = {...buildings, model.location: model};
-    buildingsMap[model.location] = model;
+
+    buildingsManager.addBuilding(model);
     guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
-    _buildingsStreamController.add(buildingsMap.values.toList());
   }
 
   bool isPlaceable(BuildingModel model) {
-    if(buildingsMap[model.location] != null) return false; // 已經有建築物
+    if(buildingsManager.hasBuildingOn(model.location)) return false; // 已經有建築物
     if(_enemies.any((enemy) => enemy.currentLocation == model.location ||
                             enemy.goalLocation == model.location)) return false; // 有敵人正在上面
     if(model.location == spawnLocation || model.location == targetLocation) return false; // 不可蓋在出生點與目的地
@@ -95,7 +93,7 @@ class GameManager {
 
   bool isPointCanMove(BoardPoint point) {
     final board = this.board;
-    return board!.validateBoardPoint(point) && !buildingsMap.containsKey(point);
+    return board!.validateBoardPoint(point) && !buildingsManager.hasBuildingOn(point);
   }
 
   bool isPointInside(Offset point, double radius) =>
@@ -138,13 +136,12 @@ class GameManager {
         enemy.tick(this, perTick.inMilliseconds);
       }
 
-      for (final building in buildingsMap.values) {
-        building.tick(this, perTick.inMilliseconds);
-      }
+      buildingsManager.tick(this, perTick.inMilliseconds);
 
       _enemies.removeWhere((enemy) => enemy.currentLocation == targetLocation);
       _enemiesStreamController.add(_enemies);
-      _buildingsStreamController.add(buildingsMap.values.toList());
+      buildingsManager.notifyListeners();
+      // _buildingsStreamController.add(buildingsMap.values.toList());
 
       if(_enemies.isEmpty && wave.isEmpty) {
         isGameStart = false;
@@ -162,9 +159,6 @@ class GameManager {
 
 /// 只用來搜索是否可以從入口走到終點
 List<BoardPoint>? hasPathBetween(BoardPoint from, BoardPoint to, CanMovePredicate canMoveTo, [Set<BoardPoint>? initVisited]) {
-
-
-
 
   final visited = initVisited ?? {};
   final queue = Queue<List<BoardPoint>>();

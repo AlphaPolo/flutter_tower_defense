@@ -421,7 +421,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
   Widget towerBuildings() {
 
     return StreamBuilder(
-      stream: gameManager.onBuildingsStream(),
+      stream: gameManager.buildingsManager.onBuildingsStream(),
       builder: (context, snapshot) {
         if(!snapshot.hasData) {
           return const SizedBox.shrink();
