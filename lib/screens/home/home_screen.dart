@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/iterable_extension.dart';
 import 'package:tower_defense/manager/enemy_manager.dart';
+import 'package:tower_defense/manager/projectile_manager.dart';
+import 'package:tower_defense/manager/wave_manager.dart';
+import 'package:tower_defense/widget/game/tool/building_bottom_panel.dart';
 
 import '../../manager/game_manager.dart';
 import '../../manager/buildings_manager.dart';
@@ -41,8 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
       body: MultiProvider(
         providers: [
           Provider(create: (context) => GameEventProvider(), dispose: (context, manager) => manager.dispose(), lazy: false),
+          Provider(create: (context) => ProjectileManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => BuildingsManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => EnemyManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
+          Provider(create: (context) => WaveManager(), dispose: (context, manager) => manager.dispose(), lazy: false),
           Provider(create: (context) => GameManager.from(context), dispose: (context, manager) => manager.dispose(), lazy: false),
           ChangeNotifierProvider(create: (context) => PlayerProvider(context)),
 
@@ -57,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Stack(
-                        children: [
+                        children: const [
                           GameBoard(),
                           LeftCol(),
                         ],
@@ -127,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            child: const BuildingListview(),
+            child: const BuildingBottomPanel(),
           ),
         ],
       );
@@ -136,30 +141,4 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 
-class BuildingListview extends StatelessWidget {
-  const BuildingListview({super.key});
 
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<BuildingsManager>();
-    final templates = provider.buildingTemplates;
-    final entries = templates.entries.toList();
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: entries.map<Widget>((entry) => InkWell(
-          onTap: () {
-            context.read<GameEventProvider>().pushSelectedBuildingEvent(entry.key);
-          },
-          child: Container(
-            width: 75,
-            height: 75,
-            color: Colors.redAccent,
-            child: Text('${entry.key.runtimeType}'),
-          ),
-        )).joinElement(const SizedBox(width: 16.0)).toList(),
-      ),
-    );
-  }
-}

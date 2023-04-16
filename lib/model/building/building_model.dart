@@ -2,8 +2,11 @@
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tower_defense/model/building/tower_preview_model.dart';
+import 'package:tower_defense/model/projectile/projectile.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../widget/game/board/board_painter.dart';
@@ -15,17 +18,20 @@ enum BuildingType {
   trap,
 }
 
-class BuildingModel {
+class BuildingModel with RenderTower {
 
   BuildingType type;
   BoardPoint location;
   int cost;
+  int fireCD;
   int damage;
   double range;
   int rotate;
   double direction;
 
+  /// not data
   Enemy? target;
+  int prepareShoot = 0;
 
   BuildingModel({
     required this.type,
@@ -34,6 +40,7 @@ class BuildingModel {
     required this.damage,
     required this.range,
     required this.rotate,
+    this.fireCD = 300,
     this.direction = 0,
   });
 
@@ -42,6 +49,7 @@ class BuildingModel {
   }
 
   void tick(GameManager manager, int clock) {
+    prepareShoot = (prepareShoot - clock).clamp(0, fireCD);
     final board = manager.board!;
 
     if(target == null) {
@@ -62,12 +70,13 @@ class BuildingModel {
         return;
       }
       /// 敵人離開射程範圍
-      if(!isInsideRange(board, enemy.renderOffset! - Enemy.toOffset!(location)))
+      if(!isInsideRange(board, enemy.renderOffset! - Enemy.toOffset!(location)) || enemy.isDead || enemy.isGoal)
       {
         target = null;
         return;
       }
       lookAtPosition(manager.board!, enemy.renderOffset!);
+      attemptShoot(manager, enemy);
     });
   }
 
@@ -85,6 +94,7 @@ class BuildingModel {
     // buildings = {...buildings};
     // notifyListeners();
   }
+
 
   BuildingModel copyWith({
     BuildingType? type,
@@ -105,6 +115,54 @@ class BuildingModel {
       direction: direction ?? this.direction,
     );
   }
+
+  void attemptShoot(GameManager manager, Enemy enemy) {
+    if (prepareShoot > 0) return;
+    final projectile = NormalProjectile(
+      1,
+      Enemy.toOffset!(location) + Offset.fromDirection(direction, 32),  /// 讓砲彈從接近炮口的地方出來
+      Offset.fromDirection(direction),
+      1,
+    );
+    projectile.target = enemy;
+    manager.projectileManager.addProjectile(projectile);
+    prepareShoot = fireCD;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type,
+      'location': location,
+      'cost': cost,
+      'fireCD': fireCD,
+      'damage': damage,
+      'range': range,
+      'rotate': rotate,
+      'direction': direction,
+    };
+  }
+
+  BuildingModel.fromMap(Map<String, dynamic> map) :
+    this(
+      type: map['type'] as BuildingType,
+      location: map['location'] as BoardPoint,
+      cost: map['cost'] as int,
+      fireCD: map['fireCD'] as int,
+      damage: map['damage'] as int,
+      range: map['range'] as double,
+      rotate: map['rotate'] as int,
+      direction: map['direction'] as double,
+    );
+
+  @override
+  Widget getRenderWidget({Key? key}) {
+    return const SizedBox.shrink();
+  }
+}
+
+
+abstract class RenderTower {
+  Widget getRenderWidget({Key? key});
 }
 
 

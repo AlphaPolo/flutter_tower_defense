@@ -24,8 +24,14 @@ dev_dependencies:
   flutter_lints: ^2.0.0
 flutter:
   uses-material-design: true
+  assets:
+  - assets/images/air.png
+  - assets/images/electricity.png
+  - assets/images/fire.png
+  - assets/images/ice.png
 flr:
   core_version: 3.2.0
   dartfmt_line_length: 80
-  assets: []
+  assets:
+  - assets/images
   fonts: []

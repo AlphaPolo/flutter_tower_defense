@@ -8,6 +8,7 @@ import '../model/building/building_model.dart';
 import '../model/building/canon_tower.dart';
 import '../model/building/flame_tower.dart';
 import '../model/building/freezing_tower.dart';
+import '../r.g.dart';
 import 'game_manager.dart';
 
 class BuildingsManager {
@@ -15,10 +16,26 @@ class BuildingsManager {
   late final GameManager gameManger;
 
   final Map<BuildingModel, List> buildingTemplates = Map.unmodifiable({
-    FreezingTower.template() : [],
-    FlameTower.template() : [],
-    ArrowTower.template() : [],
-    CanonTower.template() : [],
+    FreezingTower.template() : [
+      R.image.ice(),
+      '冰凍塔',
+      '傷害較低但能夠減緩周圍的敵人'
+    ],
+    FlameTower.template() : [
+      R.image.fire(),
+      '火焰塔',
+      '能夠噴射一直線的火焰，使其在直線範圍上的敵人受到持續地延燒傷害'
+    ],
+    ArrowTower.template() : [
+      R.image.air(),
+      '風刃塔',
+      '能夠製造旋轉的風刃對周圍的敵人造成不錯的劈砍傷害'
+    ],
+    CanonTower.template() : [
+      R.image.electricity(),
+      '雷電塔',
+      '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人'
+    ],
   });
 
   List<BuildingModel> buildings = [];

@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/buildings_manager.dart';
 import 'package:tower_defense/manager/enemy_manager.dart';
+import 'package:tower_defense/manager/projectile_manager.dart';
+import 'package:tower_defense/manager/wave_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 
 import '../model/enemy/enemy.dart';
@@ -17,8 +19,10 @@ typedef CanMovePredicate = bool Function(BoardPoint);
 
 class GameManager {
 
+  late final ProjectileManager projectileManager;
   late final BuildingsManager buildingsManager;
   late final EnemyManager enemyManager;
+  late final WaveManager waveManager;
 
   int clock = 0;
   Map<BoardPoint, HexagonDirection> guide = {};
@@ -31,23 +35,31 @@ class GameManager {
 
   /// 被動注入
   GameManager.from(BuildContext context) {
+    projectileManager = context.read<ProjectileManager>()..init(this);
     buildingsManager = context.read<BuildingsManager>()..init(this);
     enemyManager = context.read<EnemyManager>()..init(this);
+    waveManager = context.read<WaveManager>()..init(this);
   }
 
   /// 外部主動注入
   GameManager.setting({
+    ProjectileManager? projectileManager,
     BuildingsManager? buildingsManager,
     EnemyManager? enemyManager,
+    WaveManager? waveManager,
   }) {
+    this.projectileManager = (projectileManager ?? ProjectileManager())..init(this);
     this.buildingsManager = (buildingsManager ?? BuildingsManager())..init(this);
     this.enemyManager = (enemyManager ?? EnemyManager())..init(this);
+    this.waveManager = (waveManager ?? WaveManager())..init(this);
   }
 
   /// 自動注入
   GameManager() {
+    projectileManager = ProjectileManager()..init(this);
     buildingsManager = BuildingsManager()..init(this);
     enemyManager = EnemyManager()..init(this);
+    waveManager = WaveManager()..init(this);
   }
 
   void dispose() {
@@ -98,8 +110,8 @@ class GameManager {
 
     isGameStart = true;
 
-    Duration previousGenerate = 0.ms;
-    Duration generateInterval = 1000.ms;
+    // Duration previousGenerate = 0.ms;
+    // Duration generateInterval = 1000.ms;
     Duration currentClock = 0.ms;
     Duration perTick = 16.ms;
 
@@ -108,32 +120,44 @@ class GameManager {
       return Offset(point.x, point.y);
     };
 
-    final wave = Queue.of(List.generate(5, (index) {
-      final enemy = Enemy(spawnLocation!, const EnemyStatus(totalHp: 100, currentHp: 100, speed: 1));
-      return enemy;
-    }));
+    waveManager.prepareWaves();
+
+    final listen = Stream.periodic(20.ms, (count) => count).listen((event) {
+      enemyManager.notifyListeners();
+      projectileManager.notifyListeners();
+      buildingsManager.notifyListeners();
+    });
 
     while(isGameStart) {
-      if(wave.isNotEmpty && currentClock - previousGenerate >= generateInterval) {
-        final enemy = wave.removeFirst();
-        enemyManager.addEnemy(enemy);
-        previousGenerate = currentClock;
-      }
-
+      // if(wave.isNotEmpty && currentClock - previousGenerate >= generateInterval) {
+      //   final enemy = wave.removeFirst();
+      //   enemyManager.addEnemy(enemy);
+      //   previousGenerate = currentClock;
+      // }
+      waveManager.tick(this, perTick.inMilliseconds);
       enemyManager.tick(this, perTick.inMilliseconds);      // 更新敵人資訊
       buildingsManager.tick(this, perTick.inMilliseconds);  // 更新防禦塔資訊
+      projectileManager.tick(this, perTick.inMilliseconds);
 
       enemyManager.trimEnemies();                           // 清理該被移除的敵人
-      enemyManager.notifyListeners();
-      buildingsManager.notifyListeners();
+      projectileManager.trimProjectile();
 
-      if(enemyManager.isEmpty() && wave.isEmpty) {
+      // enemyManager.notifyListeners();
+      // projectileManager.notifyListeners();
+      // if(clock % 96 == 0) {
+      //   buildingsManager.notifyListeners();
+      // }
+
+      if(enemyManager.isEmpty() && waveManager.isDone) {
         isGameStart = false;
       }
 
       await Future.delayed(perTick);
       currentClock += perTick;
+      clock = currentClock.inMilliseconds;
     }
+
+    listen.cancel();
   }
 
   void waveCheck() {

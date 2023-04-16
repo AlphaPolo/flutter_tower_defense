@@ -1,7 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
+import 'package:tuple/tuple.dart';
+
+import '../../../providers/player_provider.dart';
 
 
 class StatusPanel extends StatefulWidget {
@@ -21,7 +25,7 @@ class _LeftColState extends State<StatusPanel> {
       margin: const EdgeInsets.all(12),
       width: 100,
       constraints: BoxConstraints(
-          maxHeight: fold ? 50 : 200
+          maxHeight: fold ? 50 : 125
       ),
       duration: 300.ms,
       curve: Curves.easeOutQuart,
@@ -41,7 +45,7 @@ class _LeftColState extends State<StatusPanel> {
       child: Stack(
         children: [
           closeButton(),
-          // buildStatus(),
+          buildStatus(),
         ],
       ),
     );
@@ -71,48 +75,37 @@ class _LeftColState extends State<StatusPanel> {
     );
   }
 
-  // Widget buildStatus() {
-  //   return Positioned.fill(
-  //     top: 50,
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(8.0),
-  //       child: Selector<PlayerProvider, Tuple2<CharacterStatus, double?>>(
-  //           selector: (context, vm) => Tuple2(vm.status, vm.costStamina),
-  //           builder: (context, tuple, _) {
-  //             final status = tuple.item1;
-  //             final costStamina = tuple.item2;
-  //             return Row(
-  //               crossAxisAlignment: CrossAxisAlignment.stretch,
-  //               children: [
-  //                 SizedBox(
-  //                   width: 20,
-  //                   child: StatusBar(
-  //                     backgroundColor: Colors.grey,
-  //                     statusColor: Colors.redAccent,
-  //                     totalAmount: status.totalHp,
-  //                     currentAmount: status.currentHp,
-  //                     // costPreview: costStamina,
-  //                   ),
-  //                 ),
-  //                 // Container(width: 20, color: Colors.redAccent),
-  //                 const SizedBox(width: 8.0),
-  //                 SizedBox(
-  //                   width: 20,
-  //                   child: StatusBar(
-  //                     backgroundColor: Colors.grey,
-  //                     statusColor: Colors.greenAccent,
-  //                     totalAmount: status.totalStamina,
-  //                     currentAmount: status.currentStamina,
-  //                     costPreview: costStamina,
-  //                   ),
-  //                 ),
-  //               ],
-  //             );
-  //           }
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget buildStatus() {
+    return Positioned.fill(
+      top: 50,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Selector<PlayerProvider, PlayerStatus>(
+              selector: (context, player) => player.status,
+              builder: (context, status, _) {
+                if(fold) return const SizedBox.shrink();
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.favorite),
+                      const SizedBox(width: 16.0),
+                      Text(status.heart.toString()),
+                    ]),
+                    Row(children: [
+                      const Icon(Icons.attach_money),
+                      const SizedBox(width: 16.0),
+                      Text(status.coin.toString()),
+                    ]),
+                  ],
+                );
+              }
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 

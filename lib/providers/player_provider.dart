@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 
+import '../model/building/arrow_tower.dart';
+import '../model/building/canon_tower.dart';
+import '../model/building/flame_tower.dart';
+import '../model/building/freezing_tower.dart';
 import '../widget/game/board/board_painter.dart';
 import 'game_event_provider.dart';
 
@@ -19,6 +24,8 @@ class PlayerProvider with ChangeNotifier {
   late final StreamSubscription<BuildingModel?> _selectedBuildingListen;
 
   Completer? _completer;
+
+  PlayerStatus status = const PlayerStatus(coin: 50, heart: 20);
 
   BuildingModel? selectingModel;
 
@@ -75,7 +82,54 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void placeBuilding(BoardPoint position, BuildingModel model) {
-    gameManager.addBuilding(model.copyWith(location: position));
+    switch(model.runtimeType) {
+      case FlameTower: model = FlameTower(rotate: 0, location: position); break;
+      case FreezingTower: model = FreezingTower(rotate: 0, location: position); break;
+      case ArrowTower: model = ArrowTower(rotate: 0, location: position); break;
+      case CanonTower: model = CanonTower(rotate: 0, location: position); break;
+      default: break;
+    }
+    gameManager.addBuilding(model);
   }
 
+}
+
+class PlayerStatus {
+  final int coin;
+  final int heart;
+
+  const PlayerStatus({
+    required this.coin,
+    required this.heart,
+  });
+
+  PlayerStatus copyWith({
+    int? coin,
+    int? heart,
+  }) {
+    return PlayerStatus(
+      coin: coin ?? this.coin,
+      heart: heart ?? this.heart,
+    );
+  }
+
+  PlayerStatus add({
+    int? coin,
+    int? heart,
+  }) {
+    return copyWith(
+      coin: coin?.let((x) => this.coin + x),
+      heart: heart?.let((x) => this.heart + x),
+    );
+  }
+
+  PlayerStatus sub({
+    int? heart,
+    int? coin,
+  }) {
+    return copyWith(
+      coin: coin?.let((x) => this.coin - x),
+      heart: heart?.let((x) => this.heart - x),
+    );
+  }
 }

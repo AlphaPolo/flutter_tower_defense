@@ -15,14 +15,19 @@ class Enemy {
   BoardPoint? goalLocation;
   Offset? renderOffset;
   EnemyStatus status;
-  Enemy(this.currentLocation, this.status);
 
+  int id = 0;
   int clock = 0;
+  bool _dead = false;
+  bool _goal = false;
 
   static Offset Function(BoardPoint)? toOffset;
 
   late Iterator<BoardPoint> pathFinder;
   late Iterator<Offset> bodyMover;
+
+
+  Enemy(this.currentLocation, this.status);
 
   void init(GameManager manager) {
     pathFinder = pathGenerator(manager, this).iterator;
@@ -47,6 +52,9 @@ class Enemy {
     else {
       currentLocation = goalLocation!;
       goalLocation = null;
+      if(currentLocation == manager.targetLocation) {
+        _goal = true;
+      }
     }
 
 
@@ -67,16 +75,46 @@ class Enemy {
     // }
   }
 
+  void dealDamage(double damage) {
+    if(isDead) return;
+    status = status.sub(hp: damage);
+
+    if(status.currentHp <= 0) _dead = true;
+  }
+
+  bool get isDead {
+    return _dead;
+  }
+
+  bool get isGoal {
+    return _goal;
+  }
+
+
+
   Iterable<Offset> renderGenerator(Enemy enemy, BoardPoint from, BoardPoint to) sync* {
     final begin = Enemy.toOffset!(from);
     final goal = Enemy.toOffset!(to);
 
     double complete = 0;
     while(complete < speedComplete) {
+      // if(enemy.id == 1) {
+      //   print('progress: ${complete/speedComplete}');
+      // }
       final current = Offset.lerp(begin, goal, complete / speedComplete)!;
       yield current;
       complete += enemy.clock * enemy.status.speed;
     }
+  }
+
+  Enemy copyWith({
+    BoardPoint? currentLocation,
+    EnemyStatus? status,
+  }) {
+    return Enemy(
+      currentLocation ?? this.currentLocation,
+      status ?? this.status,
+    );
   }
 }
 
@@ -121,20 +159,20 @@ class EnemyStatus {
     );
   }
 
-  EnemyStatus add(
-      double? hp,
-      double? speed,
-  ) {
+  EnemyStatus add({
+    double? hp,
+    double? speed,
+  }) {
     return copyWith(
       currentHp: hp?.let((x) => currentHp + x),
       speed: speed?.let((x) => this.speed + x),
     );
   }
 
-  EnemyStatus sub(
-      double? hp,
-      double? speed,
-      ) {
+  EnemyStatus sub({
+    double? hp,
+    double? speed,
+  }) {
     return copyWith(
       currentHp: hp?.let((x) => currentHp - x),
       speed: speed?.let((x) => this.speed - x),

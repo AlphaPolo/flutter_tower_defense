@@ -9,6 +9,7 @@ import 'package:tower_defense/constant/game_constant.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tower_defense/model/projectile/projectile.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
 import 'package:tower_defense/widget/game/character/enemy_widget.dart';
 import 'package:tuple/tuple.dart';
@@ -222,6 +223,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
                       guideIndicator(),
                       hoverIndicator(),
                       buildEnemies(),
+                      buildProjectiles(),
                       // drawUnits(),
                       // ball(),
                       // buildEnemy(),
@@ -435,7 +437,8 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
             return Positioned.fromRect(
               key: ValueKey(e.location),
               rect: Rect.fromCircle(center: Offset(point.x, point.y - _kHexagonMargin), radius: _kHexagonRadius * 0.7),
-              child: TowerWidget(model: e),
+              // child: TowerWidgetBuilder(model: e),
+              child: e.getRenderWidget(),
             );
           }).toList(),
         );
@@ -501,6 +504,41 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
           }).toList(),
         );
       }
+    );
+  }
+
+  Widget buildProjectiles() {
+    return StreamBuilder<List<Projectile>>(
+      stream: gameManager.projectileManager.onProjectileStream(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final projectiles = snapshot.data!;
+        return Stack(
+          children: projectiles.map(
+            (e) => e.render()
+            // (e) => TweenAnimationBuilder(
+            //   key: ObjectKey(e),
+            //   tween: RectTween(
+            //     begin: Rect.fromCircle(center: e.position, radius: 5),
+            //     end: Rect.fromCircle(center: e.goal!, radius: 5),
+            //   ),
+            //   duration: e.lifeTime.ms,
+            //   builder: (BuildContext context, Rect? value, Widget? child) {
+            //     return Positioned.fromRect(rect: value!, child: child!);
+            //   },
+            //   child: Container(
+            //     decoration: const BoxDecoration(
+            //       color: Colors.grey,
+            //       shape: BoxShape.circle,
+            //     ),
+            //   )
+            // )
+          ).toList(),
+        );
+      },
     );
   }
 

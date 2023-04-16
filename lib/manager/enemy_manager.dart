@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
@@ -37,8 +38,8 @@ class EnemyManager {
 
   void trimEnemies() {
     enemies.removeWhere((enemy) {
-      if(enemy.currentLocation == gameManager.targetLocation) return true;  // 當敵人到達主堡時移除
-      // 當敵人死亡時移除
+      if(enemy.isGoal) return true;   // 當敵人到達主堡時移除
+      if(enemy.isDead) return true;   // 當敵人死亡時移除
       return false;
     });
   }
@@ -56,4 +57,10 @@ class EnemyManager {
   void notifyListeners() {
     _enemiesStreamController.add(enemies);
   }
+
+  // StreamSubscription startLoopRender() {
+  //   return Stream.periodic(20.ms).listen((event) {
+  //     notifyListeners();
+  //   });
+  // }
 }
