@@ -30,11 +30,8 @@ class ProjectileManager {
   }
 
   void addProjectile(Projectile projectile) {
-    final targetOffset = projectile.target?.renderOffset;
-    if(targetOffset == null) return;
-    projectile.goal = targetOffset;
-    projectile.lifeTime = (projectile.position - targetOffset).distance ~/ (projectile.speed / 3);
-    // print('shooted: ${projectile.lifeTime}');
+    projectile.init(gameManager);
+    if(projectile.isDead) return;     /// not valid
     projectiles.add(projectile);
   }
 

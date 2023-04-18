@@ -184,7 +184,7 @@ class AirTowerWidget extends StatelessWidget {
         translation: const Offset(0.5, 0),
         child: Container(
           color: Colors.blueGrey,
-          width: 30,
+          width: 90,
           height: 5,
         ),
       ),

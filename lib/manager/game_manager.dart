@@ -13,6 +13,7 @@ import 'package:tower_defense/manager/wave_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 
 import '../model/enemy/enemy.dart';
+import '../utils/game_utils.dart';
 import '../widget/game/board/board_painter.dart';
 
 typedef CanMovePredicate = bool Function(BoardPoint);
@@ -106,6 +107,9 @@ class GameManager {
 
 
   void start() async {
+    final board = this.board;
+
+    if(board == null) return;
     if(isGameStart) return;
 
     isGameStart = true;
@@ -115,8 +119,13 @@ class GameManager {
     Duration currentClock = 0.ms;
     Duration perTick = 16.ms;
 
+    GameUtils.toOffset = (BoardPoint position) {
+      final point = board.boardPointToPoint(position);
+      return Offset(point.x, point.y);
+    };
+
     Enemy.toOffset = (BoardPoint position) {
-      final point = board!.boardPointToPoint(position);
+      final point = board.boardPointToPoint(position);
       return Offset(point.x, point.y);
     };
 

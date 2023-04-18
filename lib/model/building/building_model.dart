@@ -7,6 +7,7 @@ import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/building/tower_preview_model.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
+import 'package:tower_defense/utils/game_utils.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../widget/game/board/board_painter.dart';
@@ -24,7 +25,7 @@ class BuildingModel with RenderTower {
   BoardPoint location;
   int cost;
   int fireCD;
-  int damage;
+  double damage;
   double range;
   int rotate;
   double direction;
@@ -51,9 +52,10 @@ class BuildingModel with RenderTower {
   void tick(GameManager manager, int clock) {
     prepareShoot = (prepareShoot - clock).clamp(0, fireCD);
     final board = manager.board!;
+    if(prepareShoot > 0) return;
 
     if(target == null) {
-      final current = Enemy.toOffset!(location);
+      final current = GameUtils.toOffset(location);
       final s = manager
           .getEnemies()
           .where((element) => element.renderOffset != null)
@@ -70,7 +72,7 @@ class BuildingModel with RenderTower {
         return;
       }
       /// 敵人離開射程範圍
-      if(!isInsideRange(board, enemy.renderOffset! - Enemy.toOffset!(location)) || enemy.isDead || enemy.isGoal)
+      if(!isInsideRange(board, enemy.renderOffset! - GameUtils.toOffset(location)) || enemy.isDead || enemy.isGoal)
       {
         target = null;
         return;
@@ -100,7 +102,7 @@ class BuildingModel with RenderTower {
     BuildingType? type,
     BoardPoint? location,
     int? cost,
-    int? damage,
+    double? damage,
     double? range,
     int? rotate,
     double? direction,
@@ -118,15 +120,20 @@ class BuildingModel with RenderTower {
 
   void attemptShoot(GameManager manager, Enemy enemy) {
     if (prepareShoot > 0) return;
+    final projectile = createProjectile(manager, enemy);
+    manager.projectileManager.addProjectile(projectile);
+    prepareShoot = fireCD;
+  }
+
+  Projectile createProjectile(GameManager manager, Enemy enemy) {
     final projectile = NormalProjectile(
       1,
-      Enemy.toOffset!(location) + Offset.fromDirection(direction, 32),  /// 讓砲彈從接近炮口的地方出來
+      GameUtils.toOffset(location) + Offset.fromDirection(direction, 32),  /// 讓砲彈從接近炮口的地方出來
       Offset.fromDirection(direction),
       1,
     );
     projectile.target = enemy;
-    manager.projectileManager.addProjectile(projectile);
-    prepareShoot = fireCD;
+    return projectile;
   }
 
   Map<String, dynamic> toMap() {
@@ -148,7 +155,7 @@ class BuildingModel with RenderTower {
       location: map['location'] as BoardPoint,
       cost: map['cost'] as int,
       fireCD: map['fireCD'] as int,
-      damage: map['damage'] as int,
+      damage: map['damage'] as double,
       range: map['range'] as double,
       rotate: map['rotate'] as int,
       direction: map['direction'] as double,

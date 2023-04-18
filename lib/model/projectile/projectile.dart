@@ -25,6 +25,20 @@ class Projectile {
     this.speed,
   );
 
+  void init(GameManager manager) {
+    final targetOffset = target?.renderOffset;
+    if(targetOffset == null) {
+      isDead = true;
+      return;
+    }
+    goal = targetOffset;
+    lifeTime = calculatorFlyingTime(position, targetOffset, speed);
+  }
+
+  int calculatorFlyingTime(Offset from, Offset to, double speed) {
+    return (position - to).distance ~/ (speed / 3);
+  }
+
   Widget render() {
     return const SizedBox.shrink();
   }

@@ -1,8 +1,13 @@
 
 import 'package:flutter/material.dart';
+import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tower_defense/model/projectile/bounce_projectile.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
 
+import '../../utils/game_utils.dart';
 import '../../widget/game/board/board_painter.dart';
+import '../enemy/enemy.dart';
+import '../projectile/projectile.dart';
 import 'building_model.dart';
 
 class CanonTower extends BuildingModel {
@@ -19,6 +24,20 @@ class CanonTower extends BuildingModel {
     rotate: 0,
     location: const BoardPoint(0, 0),
   );
+
+  @override
+  Projectile createProjectile(GameManager manager, Enemy enemy) {
+    final projectile = BounceProjectile(
+      damage,
+      GameUtils.toOffset(location) + Offset.fromDirection(direction, 32),  /// 讓砲彈從接近炮口的地方出來
+      Offset.fromDirection(direction),
+      1,
+      2,
+    );
+    projectile.target = enemy;
+    return projectile;
+  }
+
 
   @override
   Widget getRenderWidget({Key? key}) {

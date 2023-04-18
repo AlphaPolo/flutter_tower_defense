@@ -4,6 +4,8 @@ import 'package:flutter/animation.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
+
+import '../../utils/game_utils.dart';
 /// 假設怪物的速度是1，那麼他要走完一格必須花費16ms * 60的時間也就是60幀
 ///
 /// 假設怪物的速度是2，那麼他每一幀的完成度是2，所以他只需要花費30幀的時間
@@ -93,8 +95,8 @@ class Enemy {
 
 
   Iterable<Offset> renderGenerator(Enemy enemy, BoardPoint from, BoardPoint to) sync* {
-    final begin = Enemy.toOffset!(from);
-    final goal = Enemy.toOffset!(to);
+    final begin = GameUtils.toOffset(from);
+    final goal = GameUtils.toOffset(to);
 
     double complete = 0;
     while(complete < speedComplete) {
