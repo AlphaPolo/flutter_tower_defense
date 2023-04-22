@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
+import 'package:tower_defense/model/building/obstacle_tower.dart';
 
 import '../model/building/air_blade_tower.dart';
 import '../model/building/thunder_tower.dart';
@@ -87,6 +88,7 @@ class PlayerProvider with ChangeNotifier {
       case FreezingTower: model = FreezingTower(rotate: 0, location: position); break;
       case AirBladeTower: model = AirBladeTower(rotate: 0, location: position); break;
       case ThunderTower: model = ThunderTower(rotate: 0, location: position); break;
+      case ObstacleTower: model = ObstacleTower(location: position); break;
       default: break;
     }
     gameManager.addBuilding(model);

@@ -1,6 +1,7 @@
 
 import 'dart:async';
 
+import 'package:tower_defense/model/building/obstacle_tower.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
 import '../model/building/air_blade_tower.dart';
@@ -36,6 +37,12 @@ class BuildingsManager {
       '雷電塔',
       '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人'
     ],
+
+    ObstacleTower.template() : [
+      R.image.electricity(),
+      '障礙物',
+      '單純阻擋敵人前進的方向，沒有傷害敵人的行為'
+    ],
   });
 
   List<BuildingModel> buildings = [];
@@ -54,6 +61,7 @@ class BuildingsManager {
 
   void tick(GameManager manager, int clock) {
     for (final building in buildings) {
+      if(building is ObstacleTower) continue;
       building.tick(gameManger, clock);
     }
   }

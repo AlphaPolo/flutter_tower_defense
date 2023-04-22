@@ -1,14 +1,15 @@
+library towers;
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:tower_defense/extension/duration_extension.dart';
-import 'package:tower_defense/model/building/air_blade_tower.dart';
-import 'package:tower_defense/model/building/thunder_tower.dart';
-import 'package:tower_defense/model/building/flame_tower.dart';
-import 'package:tower_defense/model/building/freezing_tower.dart';
 import 'package:tower_defense/widget/game/board/hexagon_widget.dart';
 
 import '../../../model/building/building_model.dart';
+
+part 'obstacle_tower_widget.dart';
+
+
 
 double _getAngle(double degree) {
   return degree * math.pi / 180.0;
