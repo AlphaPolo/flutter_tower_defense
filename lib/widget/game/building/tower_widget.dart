@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
-import 'package:tower_defense/model/building/arrow_tower.dart';
-import 'package:tower_defense/model/building/canon_tower.dart';
+import 'package:tower_defense/model/building/air_blade_tower.dart';
+import 'package:tower_defense/model/building/thunder_tower.dart';
 import 'package:tower_defense/model/building/flame_tower.dart';
 import 'package:tower_defense/model/building/freezing_tower.dart';
 import 'package:tower_defense/widget/game/board/hexagon_widget.dart';

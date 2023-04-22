@@ -3,9 +3,9 @@ import 'dart:async';
 
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
-import '../model/building/arrow_tower.dart';
+import '../model/building/air_blade_tower.dart';
 import '../model/building/building_model.dart';
-import '../model/building/canon_tower.dart';
+import '../model/building/thunder_tower.dart';
 import '../model/building/flame_tower.dart';
 import '../model/building/freezing_tower.dart';
 import '../r.g.dart';
@@ -26,12 +26,12 @@ class BuildingsManager {
       '火焰塔',
       '能夠噴射一直線的火焰，使其在直線範圍上的敵人受到持續地延燒傷害'
     ],
-    ArrowTower.template() : [
+    AirBladeTower.template() : [
       R.image.air(),
       '風刃塔',
       '能夠製造旋轉的風刃對周圍的敵人造成不錯的劈砍傷害'
     ],
-    CanonTower.template() : [
+    ThunderTower.template() : [
       R.image.electricity(),
       '雷電塔',
       '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人'

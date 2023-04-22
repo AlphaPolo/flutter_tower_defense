@@ -7,9 +7,9 @@ import 'building_model.dart';
 
 const spinSpeed = 0.2;
 
-class ArrowTower extends BuildingModel {
+class AirBladeTower extends BuildingModel {
 
-  ArrowTower({required super.rotate, required super.location})
+  AirBladeTower({required super.rotate, required super.location})
       : super(
     type: BuildingType.tower,
     cost: 10,
@@ -17,7 +17,7 @@ class ArrowTower extends BuildingModel {
     range: 2,
   );
 
-  ArrowTower.template()
+  AirBladeTower.template()
       : this(
     rotate: 0,
     location: const BoardPoint(0, 0),
