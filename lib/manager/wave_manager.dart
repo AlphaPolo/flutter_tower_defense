@@ -22,8 +22,8 @@ class WaveManager {
   void dispose() {
   }
 
-  void tick(GameManager manager, int clock) {
-    currentClock += clock.ms;
+  void tick(GameManager manager, int timeDelta) {
+    currentClock += timeDelta.ms;
 
     if(currentWave == null && waves.isNotEmpty) {
       currentWave = waves.removeFirst();

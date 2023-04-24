@@ -4,9 +4,6 @@ import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/buildings_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 import 'package:tower_defense/providers/player_provider.dart';
-import 'package:tower_defense/widget/animated/animated_shrink_size.dart';
-import 'package:tower_defense/widget/game/board/hexagon_widget.dart';
-import 'package:tower_defense/widget/game/building/tower_widget.dart';
 
 class BuildingInfoPanel extends StatelessWidget {
   const BuildingInfoPanel({super.key});

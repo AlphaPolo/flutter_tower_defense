@@ -3,9 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/iterable_extension.dart';
 
 import '../../../manager/buildings_manager.dart';
-import '../../../model/building/air_blade_tower.dart';
-import '../../../model/building/flame_tower.dart';
-import '../../../model/building/freezing_tower.dart';
 import '../../../providers/game_event_provider.dart';
 
 class BuildingBottomPanel extends StatelessWidget {

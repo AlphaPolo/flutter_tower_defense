@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:tower_defense/manager/game_manager.dart';
-import 'package:tower_defense/model/projectile/bounce_projectile.dart';
 import 'package:tower_defense/model/projectile/thunder_projectile.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
 

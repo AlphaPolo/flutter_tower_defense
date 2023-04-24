@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tower_defense/widget/game/tool/building_info_panel.dart';
-import 'package:tower_defense/widget/game/tool/skill_panel.dart';
 import 'package:tower_defense/widget/game/tool/status_panel.dart';
 
 

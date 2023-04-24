@@ -1,7 +1,4 @@
 import 'dart:math';
-
-import 'package:flame/components.dart';
-import 'package:flame/extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/src/gestures/events.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +7,6 @@ import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
-import 'package:tower_defense/widget/game/building/tower_widget.dart';
 import 'package:tower_defense/widget/game/character/enemy_widget.dart';
 import 'package:tuple/tuple.dart';
 

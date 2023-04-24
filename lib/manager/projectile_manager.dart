@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:tower_defense/manager/game_manager.dart';
-import 'package:tower_defense/model/enemy/enemy.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
 
 class ProjectileManager {
@@ -23,9 +22,9 @@ class ProjectileManager {
     _projectilesStreamController.close();
   }
 
-  void tick(GameManager manager, int clock) {
+  void tick(GameManager manager, int timeDelta) {
     for (final projectile in projectiles) {
-      projectile.tick(manager, clock);
+      projectile.tick(manager, timeDelta);
     }
   }
 

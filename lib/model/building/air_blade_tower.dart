@@ -24,7 +24,7 @@ class AirBladeTower extends BuildingModel {
   );
 
   @override
-  void tick(GameManager manager, int clock) {
+  void tick(GameManager manager, int timeDelta) {
     direction += spinSpeed;
   }
 

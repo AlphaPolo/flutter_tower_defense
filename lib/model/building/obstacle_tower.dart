@@ -19,7 +19,7 @@ class ObstacleTower extends BuildingModel {
       : this(location: const BoardPoint(0, 0));
 
   @override
-  void tick(GameManager manager, int clock) {
+  void tick(GameManager manager, int timeDelta) {
 
   }
 

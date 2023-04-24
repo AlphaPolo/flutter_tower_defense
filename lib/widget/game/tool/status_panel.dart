@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
-import 'package:tuple/tuple.dart';
 
 import '../../../providers/player_provider.dart';
 

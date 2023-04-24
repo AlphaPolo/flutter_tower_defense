@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 

@@ -26,8 +26,8 @@ class ThunderProjectile extends Projectile {
   List<Offset>? bindEnemies;
 
   @override
-  void tick(GameManager manager, int clock) {
-    this.clock += clock;
+  void tick(GameManager manager, int timeDelta) {
+    clock += timeDelta;
 
     if (isDead) return;
     if (isChainState) return updateChainState();
@@ -48,7 +48,7 @@ class ThunderProjectile extends Projectile {
                     });
 
     lifeTime = 1000;
-    this.clock = 0;
+    clock = 0;
   }
 
   void updateChainState() {

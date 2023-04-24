@@ -59,10 +59,10 @@ class BuildingsManager {
     _buildingsStreamController.close();
   }
 
-  void tick(GameManager manager, int clock) {
+  void tick(GameManager manager, int timeDelta) {
     for (final building in buildings) {
       if(building is ObstacleTower) continue;
-      building.tick(gameManger, clock);
+      building.tick(gameManger, timeDelta);
     }
   }
 

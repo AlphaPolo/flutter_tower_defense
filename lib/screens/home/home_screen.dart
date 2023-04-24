@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tower_defense/extension/iterable_extension.dart';
 import 'package:tower_defense/manager/enemy_manager.dart';
 import 'package:tower_defense/manager/projectile_manager.dart';
 import 'package:tower_defense/manager/wave_manager.dart';

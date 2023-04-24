@@ -1,11 +1,9 @@
 
-import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
-import 'package:tower_defense/model/building/tower_preview_model.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
 import 'package:tower_defense/utils/game_utils.dart';
 import 'package:tuple/tuple.dart';
@@ -49,8 +47,8 @@ class BuildingModel with RenderTower {
     return diff.distance <= board.hexagonRadius * range;
   }
 
-  void tick(GameManager manager, int clock) {
-    prepareShoot = (prepareShoot - clock).clamp(0, fireCD);
+  void tick(GameManager manager, int timeDelta) {
+    prepareShoot = (prepareShoot - timeDelta).clamp(0, fireCD);
     final board = manager.board!;
     if(prepareShoot > 0) return;
 

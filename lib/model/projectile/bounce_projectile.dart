@@ -27,8 +27,8 @@ class BounceProjectile extends Projectile {
   // }
 
   @override
-  void tick(GameManager manager, int clock) {
-    this.clock += clock;
+  void tick(GameManager manager, int timeDelta) {
+    clock += timeDelta;
 
     if(isDead) return;
     if(!atGoal()) return;
@@ -57,7 +57,7 @@ class BounceProjectile extends Projectile {
     target = nextEnemy;
     goal = nextEnemy.renderOffset!;
     lifeTime = calculatorFlyingTime(position, goal!, speed * 2);
-    this.clock = 0;
+    clock = 0;
   }
 
   bool atGoal() {

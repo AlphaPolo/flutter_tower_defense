@@ -124,11 +124,6 @@ class GameManager {
       return Offset(point.x, point.y);
     };
 
-    Enemy.toOffset = (BoardPoint position) {
-      final point = board.boardPointToPoint(position);
-      return Offset(point.x, point.y);
-    };
-
     waveManager.prepareWaves();
 
     final listen = Stream.periodic(20.ms, (count) => count).listen((event) {

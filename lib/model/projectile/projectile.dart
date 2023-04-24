@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
@@ -43,10 +42,10 @@ class Projectile {
     return const SizedBox.shrink();
   }
 
-  void tick(GameManager manager, int clock) {
-    this.clock += clock;
+  void tick(GameManager manager, int timeDelta) {
+    clock += timeDelta;
 
-    if(this.clock >= lifeTime) {
+    if(clock >= lifeTime) {
       isDead = true;
     }
   }

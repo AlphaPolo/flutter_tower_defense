@@ -1,13 +1,10 @@
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
-import 'package:tuple/tuple.dart';
 
 import '../../utils/game_utils.dart';
 import '../../widget/game/board/board_painter.dart';
-import '../enemy/enemy.dart';
 import 'building_model.dart';
 
 class FlameTower extends BuildingModel {
@@ -31,7 +28,7 @@ class FlameTower extends BuildingModel {
   }
 
   @override
-  void tick(GameManager manager, int clock) {
+  void tick(GameManager manager, int timeDelta) {
     final self = GameUtils.toOffset(location);
     // final board = manager.board!;
     // manager.getEnemies()
