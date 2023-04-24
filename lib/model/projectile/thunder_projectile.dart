@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/bool_extension.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
+import 'package:tower_defense/model/effects/slow_movement_effect.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
 
 import '../../manager/game_manager.dart';
@@ -38,10 +39,8 @@ class ThunderProjectile extends Projectile {
 
     /// 連結所有可以到達的目標並且降低跑速
     bindEnemies = chainEnemies(manager, target!)
-                    // .map((e) => e.renderOffset!)
                     .fold<List<Offset>>([], (list, enemy) {
-                      enemy.status = enemy.status.copyWith(speed: enemy.status.speed * 0.5);
-                      // list.add(enemy.renderOffset!);
+                      enemy.addEffect(SlowMovementEffect.flat(800, enemy, 0.0, 300));
                       final offset = enemy.renderOffset! - position;
                       list.add(offset);
                       return list;

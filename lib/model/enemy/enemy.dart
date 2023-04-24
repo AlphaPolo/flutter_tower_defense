@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/animation.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tower_defense/model/effects/base_effect.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
 import '../../utils/game_utils.dart';
@@ -13,17 +14,20 @@ const speedComplete = 16 * 60;
 
 class Enemy {
 
+  late GameManager manager;
   BoardPoint currentLocation;
   BoardPoint? goalLocation;
   Offset? renderOffset;
   EnemyStatus status;
+  EnemyStatus? afterEffects;
 
   int id = 0;
   int clock = 0;
   bool _dead = false;
   bool _goal = false;
+  List<BaseEffect> effects = [];
 
-  static Offset Function(BoardPoint)? toOffset;
+
 
   late Iterator<BoardPoint> pathFinder;
   late Iterator<Offset> bodyMover;
@@ -32,11 +36,16 @@ class Enemy {
   Enemy(this.currentLocation, this.status);
 
   void init(GameManager manager) {
+    this.manager = manager;
     pathFinder = pathGenerator(manager, this).iterator;
   }
 
-  void tick(GameManager manager, int clock) {
-    this.clock = clock;
+  void tick(GameManager manager, int timeDelta) {
+    clock = timeDelta;
+
+    if(isDead) return;
+
+    afterEffects = tickEffects(manager, timeDelta, status);
 
     if(goalLocation == null) {
       if(pathFinder.moveNext()) {
@@ -59,22 +68,6 @@ class Enemy {
       }
     }
 
-
-    // complete += status.speed * clock;
-    // final progress = complete / speedComplete;
-    //
-    //
-    // final current = toOffset!(currentLocation);
-    // final goal = toOffset!(goalLocation!);
-    //
-    // renderOffset = Offset.lerp(current, goal, progress);
-    //
-    // /// 如果到達目的地了，將currentLocation轉為goalLocation
-    // if(progress >= 1) {
-    //   complete = 0;
-    //   currentLocation = goalLocation!;
-    //   goalLocation = null;
-    // }
   }
 
   void dealDamage(double damage) {
@@ -105,7 +98,7 @@ class Enemy {
       // }
       final current = Offset.lerp(begin, goal, complete / speedComplete)!;
       yield current;
-      complete += enemy.clock * enemy.status.speed;
+      complete += enemy.clock * (enemy.afterEffects ?? enemy.status).speed;
     }
   }
 
@@ -117,6 +110,31 @@ class Enemy {
       currentLocation ?? this.currentLocation,
       status ?? this.status,
     );
+  }
+
+  void addEffect(BaseEffect effect) {
+    effect.attach(manager, this);
+    effects.add(effect);
+    effects.sort();
+  }
+
+  EnemyStatus tickEffects(GameManager manager, int clock, EnemyStatus origin) {
+    bool dirty = false;
+    EnemyStatus afterEffects = origin;
+    for(final effect in effects) {
+      effect.tick(manager, clock);
+      afterEffects = effect.calc(manager, afterEffects);
+      if(effect.dead) dirty = true;
+    }
+    /// 清理垃圾
+    if(dirty) {
+      effects.removeWhere((effect) {
+        if(effect.dead) effect.onEnd(manager, this);
+        return effect.dead;
+      });
+    }
+
+    return afterEffects;
   }
 }
 
@@ -181,3 +199,4 @@ class EnemyStatus {
     );
   }
 }
+
