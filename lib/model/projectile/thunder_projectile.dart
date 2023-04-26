@@ -45,7 +45,7 @@ class ThunderProjectile extends Projectile {
     bindEnemies = chainEnemies(manager, target!)
       .fold<List<Offset>>([], (list, enemy) {
         final effect = SlowMovementEffect.flat(
-          kThunderIdWithEffectType,
+          kThunderEffectType,
           800,
           enemy,
           0.0,

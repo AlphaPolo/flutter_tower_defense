@@ -7,6 +7,7 @@ import 'package:tower_defense/model/effects/base_effect.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
 import '../../utils/game_utils.dart';
+import '../effects/effect_duplicate_type.dart';
 /// 假設怪物的速度是1，那麼他要走完一格必須花費16ms * 60的時間也就是60幀
 ///
 /// 假設怪物的速度是2，那麼他每一幀的完成度是2，所以他只需要花費30幀的時間
@@ -113,9 +114,31 @@ class Enemy {
   }
 
   void addEffect(BaseEffect effect) {
-    effect.attach(manager, this);
-    effects.add(effect);
-    effects.sort();
+    final type = effect.idWithType;
+    final index = effects.indexWhere((e) => e.isSameId(effect));
+
+    void packOperation() {
+      effect.attach(manager, this);
+      effects.add(effect);
+      effects.sort();
+    }
+
+    if(index < 0) {
+      packOperation();
+    } else {
+      switch(type.duplicateStrategy) {
+        case EffectDuplicateStrategy.last:
+          effects.removeAt(index);
+          continue append;
+
+        append:
+        case EffectDuplicateStrategy.none:
+          packOperation();
+          break;
+        case EffectDuplicateStrategy.strongest:
+          break;
+      }
+    }
   }
 
   EnemyStatus tickEffects(GameManager manager, int clock, EnemyStatus origin) {

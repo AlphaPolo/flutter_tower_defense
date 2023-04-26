@@ -22,18 +22,18 @@ class SlowMovementEffect extends DefaultTimerEffect {
   ) : type = StatCalcType.multi;
 
   SlowMovementEffect.sub(
-      this.idWithType,
-      super.lifetime,
-      this.target,
-      this.value,
+    this.idWithType,
+    super.lifetime,
+    this.target,
+    this.value,
   ) : type = StatCalcType.sub;
 
   SlowMovementEffect.flat(
-      this.idWithType,
-      super.lifetime,
-      this.target,
-      this.value,
-      [this._order = 300]
+    this.idWithType,
+    super.lifetime,
+    this.target,
+    this.value,
+    [this._order = 300]
   ) : type = StatCalcType.flat;
 
   Enemy target;

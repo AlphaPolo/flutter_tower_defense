@@ -1,7 +1,9 @@
 enum EffectDuplicateStrategy {
   none,
   last,
-  strongest,
+  strongest;
+
+
 }
 
 class IdWithEffectType {

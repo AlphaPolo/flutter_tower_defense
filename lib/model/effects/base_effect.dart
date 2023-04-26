@@ -8,6 +8,7 @@ abstract class BaseEffect implements Comparable<BaseEffect> {
   void tick(GameManager manager, int timeDelta);
   void onEnd(GameManager manager, Enemy enemy);
   EnemyStatus calc(GameManager manager, EnemyStatus status);
+  void updateEffect(GameManager manager, BaseEffect other);
 
   bool get dead;
 
@@ -20,9 +21,9 @@ abstract class BaseEffect implements Comparable<BaseEffect> {
   // int get O
 
   @override
-  int compareTo(other) {
-    return order.compareTo(other.order);
-  }
+  int compareTo(other) => order.compareTo(other.order);
+
+  bool isSameId(BaseEffect other) => idWithType.sameTypeId == other.idWithType.sameTypeId;
 }
 
 /// 基本的時間狀態implements
@@ -50,6 +51,12 @@ abstract class DefaultTimerEffect extends BaseEffect {
 
   @override
   void onEnd(GameManager manager, Enemy enemy) {}
+
+  @override
+  void updateEffect(GameManager manager, covariant DefaultTimerEffect other) {
+    clock = other.clock;
+    lifetime = other.lifetime;
+  }
 
 }
 
