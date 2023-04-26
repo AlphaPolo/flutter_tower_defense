@@ -2,8 +2,10 @@ import 'dart:collection';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:tower_defense/constant/game_constant.dart';
 import 'package:tower_defense/extension/bool_extension.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
+import 'package:tower_defense/model/effects/effect_duplicate_type.dart';
 import 'package:tower_defense/model/effects/slow_movement_effect.dart';
 import 'package:tower_defense/model/projectile/projectile.dart';
 
@@ -37,14 +39,23 @@ class ThunderProjectile extends Projectile {
     /// 到目標點後狀態切換
     position = target?.renderOffset ?? goal!;
 
+
+
     /// 連結所有可以到達的目標並且降低跑速
     bindEnemies = chainEnemies(manager, target!)
-                    .fold<List<Offset>>([], (list, enemy) {
-                      enemy.addEffect(SlowMovementEffect.flat(800, enemy, 0.0, 300));
-                      final offset = enemy.renderOffset! - position;
-                      list.add(offset);
-                      return list;
-                    });
+      .fold<List<Offset>>([], (list, enemy) {
+        final effect = SlowMovementEffect.flat(
+          kThunderIdWithEffectType,
+          800,
+          enemy,
+          0.0,
+          300,
+        );
+        enemy.addEffect(effect);
+        final offset = enemy.renderOffset! - position;
+        list.add(offset);
+        return list;
+      });
 
     lifeTime = 1000;
     clock = 0;

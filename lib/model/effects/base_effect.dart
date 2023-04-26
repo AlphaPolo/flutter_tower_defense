@@ -1,6 +1,7 @@
 import 'package:tower_defense/manager/game_manager.dart';
 
 import '../enemy/enemy.dart';
+import 'effect_duplicate_type.dart';
 
 abstract class BaseEffect implements Comparable<BaseEffect> {
   void attach(GameManager manager, Enemy enemy);
@@ -9,7 +10,14 @@ abstract class BaseEffect implements Comparable<BaseEffect> {
   EnemyStatus calc(GameManager manager, EnemyStatus status);
 
   bool get dead;
+
+  /// 排序的順序
   int get order;
+
+  /// 用來判斷狀態是否是同一種，並且需要要怎麼處理重疊
+  IdWithEffectType get idWithType;
+
+  // int get O
 
   @override
   int compareTo(other) {
