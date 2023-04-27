@@ -86,13 +86,7 @@ class BuildingModel with RenderTower {
     final from = toOffset(location);
 
     final diff = (target - from);
-    final range = this.range * board.hexagonRadius;
-    if(diff.distance >= range) {
-      return;
-    }
     direction = diff.direction;
-    // buildings = {...buildings};
-    // notifyListeners();
   }
 
 

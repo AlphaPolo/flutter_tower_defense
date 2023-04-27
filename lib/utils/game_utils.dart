@@ -18,14 +18,21 @@ class GameUtils {
         .where((element) => element.renderOffset != null);
   }
 
+  static Iterable<Tuple2<Offset, Enemy>> getEnemiesInRangeTuple(GameManager manager, Offset current, double range) {
+    return getEnemiesHasRenderOffset(manager)
+        .map((e) => toOffsetEnemyTuple(e, current))
+        .where((element) => isInsideRange(manager.board!, element.item1, range));
+  }
+
   static Enemy? findNearestEnemyByBoardPoint(GameManager manager, BoardPoint current, double range) {
     return findNearestEnemyByOffset(manager, toOffset(current), range);
   }
 
   static Enemy? findNearestEnemyByOffset(GameManager manager, Offset current, double range) {
-    final enemies = getEnemiesHasRenderOffset(manager)
-        .map((e) => toOffsetEnemyTuple(e, current))
-        .where((element) => isInsideRange(manager.board!, element.item1, range));
+    // final enemies = getEnemiesHasRenderOffset(manager)
+    //     .map((e) => toOffsetEnemyTuple(e, current))
+    //     .where((element) => isInsideRange(manager.board!, element.item1, range));
+    final enemies = getEnemiesInRangeTuple(manager, current, range);
 
     return minBy(enemies, (tuple) => tuple.item1.distance)?.item2;
   }

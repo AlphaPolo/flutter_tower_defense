@@ -146,12 +146,6 @@ class GameManager {
       enemyManager.trimEnemies();                           // 清理該被移除的敵人
       projectileManager.trimProjectile();
 
-      // enemyManager.notifyListeners();
-      // projectileManager.notifyListeners();
-      // if(clock % 96 == 0) {
-      //   buildingsManager.notifyListeners();
-      // }
-
       if(enemyManager.isEmpty() && waveManager.isDone) {
         isGameStart = false;
       }
@@ -160,6 +154,8 @@ class GameManager {
       currentClock += perTick;
       clock = currentClock.inMilliseconds;
     }
+
+    projectileManager.projectiles.clear();
 
     listen.cancel();
   }
