@@ -74,6 +74,11 @@ class GameManager {
     if(!isPlaceable(model)) return;
 
     buildingsManager.addBuilding(model);
+    calculator();
+    // guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
+  }
+
+  void calculator() {
     guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
   }
 

@@ -70,6 +70,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
     gameManager.board = _board;
     gameManager.targetLocation = const BoardPoint(0, -_kBoardRadius);
     gameManager.spawnLocation = const BoardPoint(0, _kBoardRadius);
+    gameManager.calculator();
   }
 
   // Handle reset to home transform animation.
@@ -495,7 +496,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
               // curve: Curves.easeInOutQuart,
               key: ObjectKey(e),
               rect: Rect.fromCircle(center: Offset(offset.dx, offset.dy - _kHexagonMargin), radius: _kHexagonRadius * 0.3),
-              child: const EnemyWidget(),
+              child: EnemyWidget(e),
             );
           }).toList(),
         );
@@ -515,23 +516,6 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
         return Stack(
           children: projectiles.map(
             (e) => e.render()
-            // (e) => TweenAnimationBuilder(
-            //   key: ObjectKey(e),
-            //   tween: RectTween(
-            //     begin: Rect.fromCircle(center: e.position, radius: 5),
-            //     end: Rect.fromCircle(center: e.goal!, radius: 5),
-            //   ),
-            //   duration: e.lifeTime.ms,
-            //   builder: (BuildContext context, Rect? value, Widget? child) {
-            //     return Positioned.fromRect(rect: value!, child: child!);
-            //   },
-            //   child: Container(
-            //     decoration: const BoxDecoration(
-            //       color: Colors.grey,
-            //       shape: BoxShape.circle,
-            //     ),
-            //   )
-            // )
           ).toList(),
         );
       },

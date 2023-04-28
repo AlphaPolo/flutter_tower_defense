@@ -52,6 +52,7 @@ class ThunderProjectile extends Projectile {
           300,
         );
         enemy.addEffect(effect);
+        enemy.dealDamage(damage);
         final offset = enemy.renderOffset! - position;
         list.add(offset);
         return list;

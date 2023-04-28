@@ -15,7 +15,7 @@ class ThunderTower extends BuildingModel {
       : super(
     type: BuildingType.tower,
     cost: 10,
-    damage: 1,
+    damage: 10,
     range: 2,
     fireCD: 2000,
   );

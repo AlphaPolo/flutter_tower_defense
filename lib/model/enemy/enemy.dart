@@ -74,7 +74,6 @@ class Enemy {
   void dealDamage(double damage) {
     if(isDead) return;
     status = status.sub(hp: damage);
-
     if(status.currentHp <= 0) _dead = true;
   }
 

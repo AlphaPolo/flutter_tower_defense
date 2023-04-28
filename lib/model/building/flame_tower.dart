@@ -19,7 +19,7 @@ class FlameTower extends BuildingModel {
       : super(
           type: BuildingType.tower,
           cost: 10,
-          damage: 1,
+          damage: 0.2,
           range: 6,
           fireCD: 100,
         );
@@ -82,10 +82,10 @@ class FlameTower extends BuildingModel {
   @override
   Projectile createProjectile(GameManager manager, Enemy enemy) {
     Random r = Random();
-    const fixRange = 0.15;
+    const fixRange = 0.2;
     final fix = r.nextDouble() * (fixRange * 2) - fixRange;
     final projectile = FlameProjectile(
-      1,
+      damage,
       GameUtils.toOffset(location) + Offset.fromDirection(direction, 32),  /// 讓砲彈從接近炮口的地方出來
       Offset.fromDirection(direction + fix),
       0.5,
