@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
+import 'package:tower_defense/screens/my_app.dart';
 
 import '../model/building/building_model.dart';
 import '../model/enemy/enemy.dart';
+import '../model/message/game_message.dart';
 import '../widget/game/board/board_painter.dart';
 
 
@@ -16,6 +20,8 @@ class GameEventProvider {
   final StreamController<BoardPoint?> _selectedController = StreamController();
   final StreamController<BoardPoint?> _rightClickController = StreamController();
   final StreamController<BuildingModel?> _selectedBuildingController = StreamController();
+  // final StreamController<GameMessage?> _messageController = StreamController();
+
 
   late final Stream<Enemy> _enemyDeadEvent = _enemyDeadController.stream.asBroadcastStream();
   late final Stream<Enemy> _enemyGoalEvent = _enemyGoalController.stream.asBroadcastStream();
@@ -23,6 +29,7 @@ class GameEventProvider {
   late final Stream<BoardPoint?> _selectedEvent = _selectedController.stream.asBroadcastStream();
   late final Stream<BoardPoint?> _rightClickEvent = _rightClickController.stream.asBroadcastStream();
   late final Stream<BuildingModel?> _selectedBuildingEvent = _selectedBuildingController.stream.asBroadcastStream();
+  // late final Stream<GameMessage?> _messageEvent = _messageController.stream.asBroadcastStream();
 
   void dispose() {
     _enemyDeadController.close();
@@ -31,6 +38,7 @@ class GameEventProvider {
     _selectedController.close();
     _rightClickController.close();
     _selectedBuildingController.close();
+    // _messageController.close();
   }
 
   Stream<Enemy> onEnemyDeadStream() => _enemyDeadEvent;
@@ -39,6 +47,15 @@ class GameEventProvider {
   Stream<BoardPoint?> onSelectedStream() => _selectedEvent;
   Stream<BoardPoint?> onRightClickStream() => _rightClickEvent;
   Stream<BuildingModel?> onSelectedBuildingStream() => _selectedBuildingEvent;
+  // Stream<GameMessage?> onMessageStream() => _messageEvent;
+
+  void pushMessageEvent(GameMessage event) {
+    scaffoldMessengerKey.currentState?.let((state) {
+      state.clearSnackBars();
+      state.showSnackBar(SnackBar(content: Text(event.message)));
+    });
+    // _messageController.add(message);
+  }
 
   void pushHoverEvent(BoardPoint? event) {
     _hoverController.add(event);

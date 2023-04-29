@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 import 'package:tower_defense/model/building/obstacle_tower.dart';
 import 'package:tower_defense/model/enemy/enemy.dart';
+import 'package:tower_defense/model/message/game_message.dart';
 
 import '../model/building/air_blade_tower.dart';
 import '../model/building/thunder_tower.dart';
@@ -18,6 +20,7 @@ import 'game_event_provider.dart';
 class PlayerProvider with ChangeNotifier {
 
   late final GameManager gameManager;
+  late final GameEventProvider eventManager;
   // late final TimeLineSystem gameManager;
   late final StreamSubscription<BoardPoint?> _hoverListen;
   late final StreamSubscription<BoardPoint?> _selectedListen;
@@ -28,7 +31,7 @@ class PlayerProvider with ChangeNotifier {
 
   Completer? _completer;
 
-  PlayerStatus status = const PlayerStatus(coin: 50, heart: 20);
+  PlayerStatus status = const PlayerStatus(coin: 100, heart: 20);
 
   BuildingModel? selectingModel;
 
@@ -36,6 +39,7 @@ class PlayerProvider with ChangeNotifier {
   PlayerProvider(BuildContext context) {
     final eventProvider = context.read<GameEventProvider>();
     gameManager = context.read<GameManager>();
+    eventManager = eventProvider;
 
     _hoverListen = eventProvider.onHoverStream().distinct().listen(_onHoverPoint);
     _selectedListen = eventProvider.onSelectedStream().listen(_onSelectedPoint);
@@ -69,7 +73,11 @@ class PlayerProvider with ChangeNotifier {
       return;
     }
 
-    print(point);
+    if(!isAffordable(model)) {
+      eventManager.pushMessageEvent(const GameMessage.goldNotEnough());
+      return;
+    }
+
     placeBuilding(point, model);
     // selectingModel = null;
     notifyListeners();
@@ -101,6 +109,7 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void placeBuilding(BoardPoint position, BuildingModel model) {
+    status = status.sub(coin: model.cost);
     switch(model.runtimeType) {
       case FlameTower: model = FlameTower(rotate: 0, location: position); break;
       case FreezingTower: model = FreezingTower(rotate: 0, location: position); break;
@@ -111,6 +120,11 @@ class PlayerProvider with ChangeNotifier {
     }
     gameManager.addBuilding(model);
   }
+
+  bool isAffordable(BuildingModel building) {
+    return status.coin >= building.cost;
+  }
+
 
 }
 
