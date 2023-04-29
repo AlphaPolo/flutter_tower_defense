@@ -109,16 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Builder(builder: (context) {
       return Column(
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  context.read<GameManager>().start();
-                },
-                icon: const Icon(Icons.play_circle),
-              ),
-            ],
-          ),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -127,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.grey.withOpacity(0.5),
                   spreadRadius: 2,
                   blurRadius: 3,
-                  offset: const Offset(0, 2), // changes position of shadow
+                  offset: const Offset(0, -2), // changes position of shadow
                 ),
               ],
             ),

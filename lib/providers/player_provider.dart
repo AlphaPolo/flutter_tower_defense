@@ -32,6 +32,7 @@ class PlayerProvider with ChangeNotifier {
   Completer? _completer;
 
   PlayerStatus status = const PlayerStatus(coin: 150, heart: 20);
+  int freeObstacleCount = 3;
 
   BuildingModel? selectingModel;
 
@@ -109,7 +110,7 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void placeBuilding(BoardPoint position, BuildingModel model) {
-    status = status.sub(coin: model.cost);
+
     switch(model.runtimeType) {
       case FlameTower: model = FlameTower(rotate: 0, location: position); break;
       case FreezingTower: model = FreezingTower(rotate: 0, location: position); break;
@@ -118,13 +119,21 @@ class PlayerProvider with ChangeNotifier {
       case ObstacleTower: model = ObstacleTower(location: position); break;
       default: break;
     }
-    gameManager.addBuilding(model);
+
+    if(!gameManager.addBuilding(model)) return;
+
+    if(model.runtimeType == ObstacleTower) {
+      freeObstacleCount--;
+    } else {
+      status = status.sub(coin: model.cost);
+    }
+
   }
 
   bool isAffordable(BuildingModel building) {
+    if(building.runtimeType == ObstacleTower) return freeObstacleCount > 0;
     return status.coin >= building.cost;
   }
-
 
 }
 

@@ -75,7 +75,12 @@ class FlameTower extends BuildingModel {
       final diff = (enemyBody - position);
 
       if(!GameUtils.isInsideRange(manager.board!, diff, range)) return;
-      yield direction + min(rotateSpeed, diff.direction - direction);
+      final deltaAngle = diff.direction - direction;
+      final rotateAmount = min(rotateSpeed, deltaAngle.abs());
+
+      // Check the direction to rotate
+      final directionToRotate = deltaAngle.sign;
+      yield direction + directionToRotate * rotateAmount;
     }
   }
 

@@ -76,11 +76,12 @@ class GameManager {
     return enemyManager.enemies;
   }
 
-  void addBuilding(BuildingModel model) {
-    if(!isPlaceable(model)) return;
+  bool addBuilding(BuildingModel model) {
+    if(!isPlaceable(model)) return false;
 
     buildingsManager.addBuilding(model);
     calculator();
+    return true;
     // guide = recalculate(targetLocation!, (position) => isPointCanMove(position));
   }
 
