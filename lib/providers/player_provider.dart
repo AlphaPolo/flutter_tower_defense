@@ -31,7 +31,7 @@ class PlayerProvider with ChangeNotifier {
 
   Completer? _completer;
 
-  PlayerStatus status = const PlayerStatus(coin: 100, heart: 20);
+  PlayerStatus status = const PlayerStatus(coin: 150, heart: 20);
 
   BuildingModel? selectingModel;
 

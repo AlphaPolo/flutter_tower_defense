@@ -14,7 +14,7 @@ class ThunderTower extends BuildingModel {
   ThunderTower({required super.rotate, required super.location})
       : super(
     type: BuildingType.tower,
-    cost: 10,
+    cost: 70,
     damage: 10,
     range: 2,
     fireCD: 2000,

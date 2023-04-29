@@ -10,9 +10,9 @@ class ObstacleTower extends BuildingModel {
       : super(
     type: BuildingType.tower,
     rotate: 0,
-    cost: 10,
-    damage: 1,
-    range: 2.2,
+    cost: 20,
+    damage: 0,
+    range: 0,
   );
 
   ObstacleTower.template()

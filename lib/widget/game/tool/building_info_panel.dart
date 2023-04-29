@@ -69,8 +69,22 @@ class BuildingInfoPanel extends StatelessWidget {
           Text(title),
           const SizedBox(height: 16.0),
           Text(description, textAlign: TextAlign.start),
+          const SizedBox(height: 16.0),
+          buildTowerStuffDescription(model),
         ],
       ),
+    );
+  }
+
+  Widget buildTowerStuffDescription(BuildingModel model) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('花費: ${model.cost}'),
+        Text('範圍: ${model.range}'),
+        // Text('攻擊頻率: ${(1000 / model.fireCD)}'),
+        Text('傷害: ${model.damage}'),
+      ],
     );
   }
 }

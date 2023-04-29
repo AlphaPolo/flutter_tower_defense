@@ -62,11 +62,12 @@ class FreezeProjectile extends Projectile {
 
   @override
   Widget render() {
+    Offset offsetPosition = position - const Offset(0, 4.0);
     return TweenAnimationBuilder(
       key: ObjectKey(this),
       tween: RectTween(
-        begin: Rect.fromCircle(center: position, radius: fromRadius),
-        end: Rect.fromCircle(center: position, radius: toRadius),
+        begin: Rect.fromCircle(center: offsetPosition, radius: fromRadius),
+        end: Rect.fromCircle(center: offsetPosition, radius: toRadius),
       ),
       duration: lifeTime.ms,
       builder: (context, value, child) {

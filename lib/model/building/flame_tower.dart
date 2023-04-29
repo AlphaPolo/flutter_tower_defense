@@ -18,7 +18,7 @@ class FlameTower extends BuildingModel {
   FlameTower({required super.rotate, required super.location, this.rotateSpeed = 0.08})
       : super(
           type: BuildingType.tower,
-          cost: 10,
+          cost: 60,
           damage: 0.2,
           range: 6,
           fireCD: 100,

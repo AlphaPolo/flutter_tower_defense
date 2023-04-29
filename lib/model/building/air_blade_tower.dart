@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
@@ -12,7 +14,7 @@ class AirBladeTower extends BuildingModel {
   AirBladeTower({required super.rotate, required super.location})
       : super(
     type: BuildingType.tower,
-    cost: 10,
+    cost: 60,
     damage: 1,
     range: 2,
   );

@@ -15,9 +15,9 @@ class FreezingTower extends BuildingModel {
   FreezingTower({required super.rotate, required super.location})
       : super(
           type: BuildingType.tower,
-          cost: 10,
-          damage: 1,
-          range: 2.5,
+          cost: 60,
+          damage: 10,
+          range: 3.0,
           fireCD: 1500,
         );
 
