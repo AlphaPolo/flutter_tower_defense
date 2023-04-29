@@ -11,6 +11,7 @@ import 'package:tower_defense/manager/enemy_manager.dart';
 import 'package:tower_defense/manager/projectile_manager.dart';
 import 'package:tower_defense/manager/wave_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
+import 'package:tower_defense/providers/game_event_provider.dart';
 
 import '../model/enemy/enemy.dart';
 import '../utils/game_utils.dart';
@@ -20,6 +21,7 @@ typedef CanMovePredicate = bool Function(BoardPoint);
 
 class GameManager {
 
+  late final GameEventProvider eventManager;
   late final ProjectileManager projectileManager;
   late final BuildingsManager buildingsManager;
   late final EnemyManager enemyManager;
@@ -36,6 +38,7 @@ class GameManager {
 
   /// 被動注入
   GameManager.from(BuildContext context) {
+    eventManager = context.read<GameEventProvider>()..init(this);
     projectileManager = context.read<ProjectileManager>()..init(this);
     buildingsManager = context.read<BuildingsManager>()..init(this);
     enemyManager = context.read<EnemyManager>()..init(this);
@@ -44,11 +47,13 @@ class GameManager {
 
   /// 外部主動注入
   GameManager.setting({
+    GameEventProvider? eventManager,
     ProjectileManager? projectileManager,
     BuildingsManager? buildingsManager,
     EnemyManager? enemyManager,
     WaveManager? waveManager,
   }) {
+    this.eventManager = (eventManager ?? GameEventProvider())..init(this);
     this.projectileManager = (projectileManager ?? ProjectileManager())..init(this);
     this.buildingsManager = (buildingsManager ?? BuildingsManager())..init(this);
     this.enemyManager = (enemyManager ?? EnemyManager())..init(this);
@@ -57,6 +62,7 @@ class GameManager {
 
   /// 自動注入
   GameManager() {
+    eventManager = GameEventProvider()..init(this);
     projectileManager = ProjectileManager()..init(this);
     buildingsManager = BuildingsManager()..init(this);
     enemyManager = EnemyManager()..init(this);

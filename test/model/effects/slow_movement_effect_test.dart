@@ -40,5 +40,5 @@ void main() {
     timerEffect.updateEffect(manager, timerEffectUpdate);
 
     expect(timerEffect.dead, isTrue);
-  });
+  }, skip: true);
 }

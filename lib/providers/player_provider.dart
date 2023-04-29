@@ -6,6 +6,7 @@ import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/model/building/building_model.dart';
 import 'package:tower_defense/model/building/obstacle_tower.dart';
+import 'package:tower_defense/model/enemy/enemy.dart';
 
 import '../model/building/air_blade_tower.dart';
 import '../model/building/thunder_tower.dart';
@@ -22,6 +23,8 @@ class PlayerProvider with ChangeNotifier {
   late final StreamSubscription<BoardPoint?> _selectedListen;
   late final StreamSubscription<BoardPoint?> _rightClickListen;
   late final StreamSubscription<BuildingModel?> _selectedBuildingListen;
+  late final StreamSubscription<Enemy> _enemyGoalListen;
+  late final StreamSubscription<Enemy> _enemyDeadListen;
 
   Completer? _completer;
 
@@ -38,10 +41,14 @@ class PlayerProvider with ChangeNotifier {
     _selectedListen = eventProvider.onSelectedStream().listen(_onSelectedPoint);
     _rightClickListen = eventProvider.onRightClickStream().listen(_onRightClick);
     _selectedBuildingListen = eventProvider.onSelectedBuildingStream().listen(_onSelectedBuilding);
+    _enemyGoalListen = eventProvider.onEnemyGoalStream().listen(_onEnemyArriveGoal);
+    _enemyDeadListen = eventProvider.onEnemyDeadStream().listen(_onEnemyDead);
   }
 
   @override
   void dispose() {
+    _enemyGoalListen.cancel();
+    _enemyDeadListen.cancel();
     _hoverListen.cancel();
     _selectedListen.cancel();
     _rightClickListen.cancel();
@@ -78,6 +85,18 @@ class PlayerProvider with ChangeNotifier {
   /// 建造選單選擇的事件
   void _onSelectedBuilding(BuildingModel? model) {
     selectingModel = model;
+    notifyListeners();
+  }
+
+  /// 當敵人到達主堡時的事件
+  void _onEnemyArriveGoal(Enemy enemy) {
+    status = status.sub(heart: 1);
+    notifyListeners();
+  }
+
+  /// 當敵人被擊殺的事件
+  void _onEnemyDead(Enemy enemy) {
+    status = status.add(coin: 5);
     notifyListeners();
   }
 

@@ -128,9 +128,8 @@ class Enemy {
       switch(type.duplicateStrategy) {
         case EffectDuplicateStrategy.last:
           effects.removeAt(index);
-          continue append;
-
-        append:
+          packOperation();
+          break;
         case EffectDuplicateStrategy.none:
           packOperation();
           break;

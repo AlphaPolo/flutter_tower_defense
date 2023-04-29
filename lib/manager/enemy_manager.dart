@@ -37,8 +37,8 @@ class EnemyManager {
 
   void trimEnemies() {
     enemies.removeWhere((enemy) {
-      if(enemy.isGoal) return true;   // 當敵人到達主堡時移除
-      if(enemy.isDead) return true;   // 當敵人死亡時移除
+      if(enemy.isGoal) return gameManager.eventManager.pushEnemyArriveGoalEvent(enemy);   // 當敵人到達主堡時移除
+      if(enemy.isDead) return gameManager.eventManager.pushEnemyDeadEvent(enemy);   // 當敵人死亡時移除
       return false;
     });
   }
