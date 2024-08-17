@@ -56,7 +56,7 @@ class BoardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    print('board repaint');
+    // print('board repaint');
     void drawBoardPoint(BoardPoint? boardPoint) {
       final color = boardPoint!.color.withOpacity(
         board.selected == boardPoint ? 0.7 : 1,

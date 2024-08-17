@@ -62,7 +62,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    print('setting');
+    // print('setting');
     gameEventManager = context.read<GameEventProvider>();
     gameManager = context.read<GameManager>();
 
@@ -169,7 +169,7 @@ class _GameBoardState extends State<GameBoard> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    print('gameboard rebuild');
+    // print('gameboard rebuild');
     // The scene is drawn by a CustomPaint, but user interaction is handled by
     // the InteractiveViewer parent widget.
     return LayoutBuilder(

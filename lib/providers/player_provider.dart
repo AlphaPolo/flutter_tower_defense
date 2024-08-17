@@ -120,18 +120,21 @@ class PlayerProvider with ChangeNotifier {
 
   void placeBuilding(BoardPoint position, BuildingModel model) {
 
-    switch(model.runtimeType) {
-      case FlameTower: model = FlameTower(rotate: 0, location: position); break;
-      case FreezingTower: model = FreezingTower(rotate: 0, location: position); break;
-      case AirBladeTower: model = AirBladeTower(rotate: 0, location: position); break;
-      case ThunderTower: model = ThunderTower(rotate: 0, location: position); break;
-      case ObstacleTower: model = ObstacleTower(location: position); break;
+    switch(model) {
+      case FlameTower(): model = FlameTower(rotate: 0, location: position); break;
+      case FreezingTower(): model = FreezingTower(rotate: 0, location: position); break;
+      case AirBladeTower(): model = AirBladeTower(rotate: 0, location: position); break;
+      case ThunderTower(): model = ThunderTower(rotate: 0, location: position); break;
+      case ObstacleTower(): model = ObstacleTower(location: position); break;
       default: break;
     }
 
+    /// 如果放置不成功直接返回
     if(!gameManager.addBuilding(model)) return;
 
-    if(model.runtimeType == ObstacleTower) {
+    /// 放置成功的相應邏輯
+    /// 這邊讓障礙物-1或是減去cost
+    if(model case ObstacleTower()) {
       freeObstacleCount--;
     } else {
       status = status.sub(coin: model.cost);
@@ -140,7 +143,7 @@ class PlayerProvider with ChangeNotifier {
   }
 
   bool isAffordable(BuildingModel building) {
-    if(building.runtimeType == ObstacleTower) return freeObstacleCount > 0;
+    if(building case ObstacleTower()) return freeObstacleCount > 0;
     return status.coin >= building.cost;
   }
 

@@ -23,7 +23,7 @@ class BuildingBottomPanel extends StatelessWidget {
       child: Row(
         children: entries
             .map<Widget>((entry) {
-              if(entry.key.runtimeType == ObstacleTower) return createObstacleBuildingIcon(context, entry);
+              if(entry.key case ObstacleTower()) return createObstacleBuildingIcon(context, entry);
               return createBuildingIcon(context, entry);
             })
             .joinElement(const SizedBox(width: 16.0))

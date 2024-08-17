@@ -184,7 +184,6 @@ class GameManager {
   }
 
   void triggerGameOver() {
-    print('triggerGameOver');
     isGameOver = true;
     eventManager.pushGameStateEvent(GameState.gameOver);
   }
