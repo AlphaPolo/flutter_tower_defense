@@ -28,6 +28,7 @@ class PlayerProvider with ChangeNotifier {
   late final StreamSubscription<BuildingModel?> _selectedBuildingListen;
   late final StreamSubscription<Enemy> _enemyGoalListen;
   late final StreamSubscription<Enemy> _enemyDeadListen;
+  bool cheatMode = false;
 
   Completer? _completer;
 
@@ -61,6 +62,11 @@ class PlayerProvider with ChangeNotifier {
     super.dispose();
   }
 
+  void toggleCheat() {
+    cheatMode ^= true;
+    notifyListeners();
+  }
+
   void _onHoverPoint(BoardPoint? point) {
 
   }
@@ -74,7 +80,7 @@ class PlayerProvider with ChangeNotifier {
       return;
     }
 
-    if(!isAffordable(model)) {
+    if(!cheatMode && !isAffordable(model)) {
       eventManager.pushMessageEvent(const GameMessage.goldNotEnough());
       return;
     }
@@ -100,6 +106,9 @@ class PlayerProvider with ChangeNotifier {
   /// 當敵人到達主堡時的事件
   void _onEnemyArriveGoal(Enemy enemy) {
     status = status.sub(heart: 1);
+    if(status.heart <= 0) {
+      gameManager.triggerGameOver();
+    }
     notifyListeners();
   }
 

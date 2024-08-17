@@ -35,6 +35,7 @@ class GameManager {
   BoardPoint? targetLocation;
 
   bool isGameStart = false;
+  bool isGameOver = false;
 
   /// 被動注入
   GameManager.from(BuildContext context) {
@@ -122,6 +123,7 @@ class GameManager {
     final board = this.board;
 
     if(board == null) return;
+    if(isGameOver) return;
     if(isGameStart) return;
 
     isGameStart = true;
@@ -162,6 +164,11 @@ class GameManager {
         isGameStart = false;
       }
 
+      if(isGameOver) {
+        break;
+      }
+
+
       await Future.delayed(perTick);
       currentClock += perTick;
       clock = currentClock.inMilliseconds;
@@ -174,6 +181,12 @@ class GameManager {
 
   void waveCheck() {
 
+  }
+
+  void triggerGameOver() {
+    print('triggerGameOver');
+    isGameOver = true;
+    eventManager.pushGameStateEvent(GameState.gameOver);
   }
 }
 

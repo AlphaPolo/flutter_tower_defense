@@ -28,8 +28,8 @@ class BuildingInfoPanel extends StatelessWidget {
   Widget content(BuildContext context, BuildingModel? model) {
     if(model == null) return Container(width: 0, height: 0);
     final template = context.read<BuildingsManager>().buildingTemplates[model]!;
-    final title = template[1];
-    final description = template[2];
+    final [_, title, description] = template;
+
     return Container(
       // duration: 300.ms,
       // curve: Curves.easeInOutCubicEmphasized,

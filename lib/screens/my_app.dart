@@ -13,12 +13,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Flutter Tower Defense',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: Colors.blue,
+
       ),
+      // themeMode: ThemeMode.dark,
       // home: const GameBoard(),
       home: const HomeScreen(),
       // home: const GameScreen(),

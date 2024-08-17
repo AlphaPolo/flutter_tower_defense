@@ -10,25 +10,32 @@ import '../model/enemy/enemy.dart';
 import '../model/message/game_message.dart';
 import '../widget/game/board/board_painter.dart';
 
+enum GameState {
+  normal,
+  gameOver,
+}
+
 
 class GameEventProvider {
   late final GameManager gameManager;
 
-  final StreamController<Enemy> _enemyDeadController = StreamController();
-  final StreamController<Enemy> _enemyGoalController = StreamController();
-  final StreamController<BoardPoint?> _hoverController = StreamController();
-  final StreamController<BoardPoint?> _selectedController = StreamController();
-  final StreamController<BoardPoint?> _rightClickController = StreamController();
-  final StreamController<BuildingModel?> _selectedBuildingController = StreamController();
+  final StreamController<Enemy> _enemyDeadController = StreamController.broadcast();
+  final StreamController<Enemy> _enemyGoalController = StreamController.broadcast();
+  final StreamController<BoardPoint?> _hoverController = StreamController.broadcast();
+  final StreamController<BoardPoint?> _selectedController = StreamController.broadcast();
+  final StreamController<BoardPoint?> _rightClickController = StreamController.broadcast();
+  final StreamController<BuildingModel?> _selectedBuildingController = StreamController.broadcast();
+  final StreamController<GameState> _gameStateController = StreamController.broadcast()..add(GameState.normal);
   // final StreamController<GameMessage?> _messageController = StreamController();
 
 
-  late final Stream<Enemy> _enemyDeadEvent = _enemyDeadController.stream.asBroadcastStream();
-  late final Stream<Enemy> _enemyGoalEvent = _enemyGoalController.stream.asBroadcastStream();
-  late final Stream<BoardPoint?> _hoverEvent = _hoverController.stream.asBroadcastStream();
-  late final Stream<BoardPoint?> _selectedEvent = _selectedController.stream.asBroadcastStream();
-  late final Stream<BoardPoint?> _rightClickEvent = _rightClickController.stream.asBroadcastStream();
-  late final Stream<BuildingModel?> _selectedBuildingEvent = _selectedBuildingController.stream.asBroadcastStream();
+  late final Stream<Enemy> _enemyDeadEvent = _enemyDeadController.stream;
+  late final Stream<Enemy> _enemyGoalEvent = _enemyGoalController.stream;
+  late final Stream<BoardPoint?> _hoverEvent = _hoverController.stream;
+  late final Stream<BoardPoint?> _selectedEvent = _selectedController.stream;
+  late final Stream<BoardPoint?> _rightClickEvent = _rightClickController.stream;
+  late final Stream<BuildingModel?> _selectedBuildingEvent = _selectedBuildingController.stream;
+  late final Stream<GameState> _gameStateEvent = _gameStateController.stream;
   // late final Stream<GameMessage?> _messageEvent = _messageController.stream.asBroadcastStream();
 
   void dispose() {
@@ -38,6 +45,7 @@ class GameEventProvider {
     _selectedController.close();
     _rightClickController.close();
     _selectedBuildingController.close();
+    _gameStateController.close();
     // _messageController.close();
   }
 
@@ -47,6 +55,7 @@ class GameEventProvider {
   Stream<BoardPoint?> onSelectedStream() => _selectedEvent;
   Stream<BoardPoint?> onRightClickStream() => _rightClickEvent;
   Stream<BuildingModel?> onSelectedBuildingStream() => _selectedBuildingEvent;
+  Stream<GameState> onGameStateStream() => _gameStateEvent;
   // Stream<GameMessage?> onMessageStream() => _messageEvent;
 
   void pushMessageEvent(GameMessage event) {
@@ -80,6 +89,11 @@ class GameEventProvider {
 
   bool pushEnemyArriveGoalEvent(Enemy event) {
     _enemyGoalController.add(event);
+    return true;
+  }
+
+  bool pushGameStateEvent(GameState event) {
+    _gameStateController.add(event);
     return true;
   }
 

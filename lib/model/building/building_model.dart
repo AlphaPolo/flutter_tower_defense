@@ -17,7 +17,7 @@ enum BuildingType {
   trap,
 }
 
-class BuildingModel with RenderTower {
+class BuildingModel extends RenderTower {
 
   BuildingType type;
   BoardPoint location;

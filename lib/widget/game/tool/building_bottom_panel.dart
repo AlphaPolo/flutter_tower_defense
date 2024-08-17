@@ -1,5 +1,5 @@
 import 'package:badges/badges.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Badge;
 import 'package:provider/provider.dart';
 import 'package:tower_defense/extension/iterable_extension.dart';
 import 'package:tower_defense/model/building/obstacle_tower.dart';
@@ -49,9 +49,7 @@ class BuildingBottomPanel extends StatelessWidget {
             ),
           ],
         ),
-        child: Image(
-          image: data.value.first,
-        ),
+        child: data.value.first,
       ),
     );
   }

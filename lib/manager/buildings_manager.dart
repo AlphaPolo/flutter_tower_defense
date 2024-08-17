@@ -1,6 +1,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:tower_defense/model/building/obstacle_tower.dart';
 import 'package:tower_defense/widget/game/board/board_painter.dart';
 
@@ -18,28 +19,28 @@ class BuildingsManager {
 
   final Map<BuildingModel, List> buildingTemplates = Map.unmodifiable({
     FreezingTower.template() : [
-      R.image.ice(),
+      Image(image: R.image.ice()),
       '冰凍塔',
       '傷害較低但能夠減緩周圍的敵人'
     ],
     FlameTower.template() : [
-      R.image.fire(),
+      Image(image: R.image.fire()),
       '火焰塔',
       '能夠噴射一直線的火焰，使其在直線範圍上的敵人受到持續地延燒傷害'
     ],
     AirBladeTower.template() : [
-      R.image.air(),
+      Image(image: R.image.air()),
       '風刃塔',
       '能夠製造旋轉的風刃對周圍的敵人造成不錯的劈砍傷害'
     ],
     ThunderTower.template() : [
-      R.image.electricity(),
+      Image(image: R.image.electricity()),
       '雷電塔',
       '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人'
     ],
 
     ObstacleTower.template() : [
-      R.image.electricity(),
+      const Icon(Icons.hexagon_outlined, color: Colors.brown, size: 64),
       '障礙物',
       '單純阻擋敵人前進的方向，沒有傷害敵人的行為'
     ],
