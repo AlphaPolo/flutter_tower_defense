@@ -21,6 +21,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  Key uniqueKey = UniqueKey();
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // The scene is drawn by a CustomPaint, but user interaction is handled by
     // the InteractiveViewer parent widget.
     return Scaffold(
+      key: uniqueKey,
       // backgroundColor: Theme.of(context).colorScheme.primary,
       backgroundColor: Colors.black87,
       body: MultiProvider(
@@ -142,21 +146,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     /// barrier
                     Container(color: Colors.black12).animate().fadeIn(),
 
-                    const Card(
+                    Card(
                       color: Colors.white,
                       child: Padding(
-                        padding: EdgeInsets.all(48),
+                        padding: const EdgeInsets.all(48),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Game Over', style: TextStyle(color: Colors.grey, fontSize: 24, fontWeight: FontWeight.w900)),
-                            // const SizedBox(height: 16.0),
-                            // ElevatedButton(
-                            //   onPressed: () {
-                            //     context.read<GameManager>().reset();
-                            //   },
-                            //   child: const Text('Restart'),
-                            // ),
+                            const Text('Game Over', style: TextStyle(color: Colors.grey, fontSize: 24, fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 16.0),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  uniqueKey = UniqueKey();
+                                });
+                                // context.read<GameManager>().reset();
+                              },
+                              child: const Text('Restart'),
+                            ),
                           ],
                         ),
                       ),
