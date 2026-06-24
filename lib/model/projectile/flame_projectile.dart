@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
 import 'package:tower_defense/extension/duration_extension.dart';
 import 'package:tower_defense/manager/game_manager.dart';

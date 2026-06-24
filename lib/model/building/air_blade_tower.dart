@@ -2,8 +2,8 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math_64.dart' show degrees2Radians;
 import 'package:tower_defense/extension/kotlin_like_extensions.dart';
 import 'package:tower_defense/manager/game_manager.dart';
 import 'package:tower_defense/widget/game/building/tower_widget.dart';
