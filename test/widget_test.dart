@@ -1,14 +1,12 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tower_defense/screens/my_app.dart';
+import 'package:tower_defense/game/tower_defense_game.dart';
 
 void main() {
-
+  test('遊戲建立時有正確的初始資源', () {
+    final game = TowerDefenseGame();
+    expect(game.coin.value, 150);
+    expect(game.heart.value, 20);
+    expect(game.freeObstacle.value, 3);
+    expect(game.gameOver.value, isFalse);
+  });
 }
