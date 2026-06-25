@@ -1,8 +1,11 @@
 import 'dart:math';
 
+import 'package:flame/cache.dart';
+import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../screens/my_app.dart' show scaffoldMessengerKey;
 import 'board/hex.dart';
@@ -12,14 +15,14 @@ import 'components/enemy_component.dart';
 import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
 import 'components/wave_spawner.dart';
+import 'iso/iso_projection.dart';
 import 'tower_type.dart';
 
-/// 整個塔防遊戲的 FlameGame。
+/// 整個塔防遊戲的 FlameGame（isometric 版）。
 ///
-/// 取代了舊的 GameManager + 各種 Manager + 自製 game loop：
-/// - 遊戲迴圈交給 Flame 的 update(dt)
-/// - 敵人 / 塔 / 子彈各自是會自己 update 的 Component
-/// - 只保留六角棋盤幾何與 flow-field 尋路
+/// 遊戲邏輯（移動、射程、瞄準、尋路）全部在「top-down 邏輯座標」進行；
+/// [iso] 只在繪製時把邏輯座標投影成 isometric 螢幕座標。棋盤是預先用
+/// Blender 渲染好的一張 isometric 圖。
 class TowerDefenseGame extends FlameGame with ScrollDetector {
   TowerDefenseGame();
 
@@ -28,6 +31,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   static const double hexMargin = 4;
 
   late final Board board;
+  late final IsoProjection iso;
   late final BoardPoint spawnLocation;
   late final BoardPoint targetLocation;
 
@@ -40,11 +44,16 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
 
   late final BoardComponent boardComponent;
 
+  // ── isometric 素材 ───────────────────────────────────────
+  final Images isoImages = Images(prefix: 'assets/iso/');
+  late final Sprite boardSprite;
+  late final Map<TowerType, Sprite> towerSprites;
+
   // ── 波次 ─────────────────────────────────────────────────
   static const int totalWaves = 12;
-  int waveNumber = 0; // 已開始到第幾波
-  int completedWaves = 0; // 已清完幾波
-  WaveSpawnerComponent? _spawner; // 目前進行中的那一波（null 表示沒有）
+  int waveNumber = 0;
+  int completedWaves = 0;
+  WaveSpawnerComponent? _spawner;
 
   // ── 給 UI overlay 監聽的狀態 ──────────────────────────────
   final ValueNotifier<int> coin = ValueNotifier(150);
@@ -64,13 +73,28 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
       hexagonRadius: hexRadius,
       hexagonMargin: hexMargin,
     );
-    // 左上為主堡（終點），右下為怪物出生點。
     targetLocation = const BoardPoint(0, -boardRadius);
     spawnLocation = const BoardPoint(0, boardRadius);
     recomputeGuide();
 
+    final jsonStr = await rootBundle.loadString('assets/iso/board.json');
+    iso = IsoProjection.fromJson(jsonStr, board);
+
+    boardSprite = await Sprite.load('board.png', images: isoImages);
+    towerSprites = {
+      TowerType.flame: await Sprite.load('tower_flame.png', images: isoImages),
+      TowerType.freezing:
+          await Sprite.load('tower_freezing.png', images: isoImages),
+      TowerType.airBlade:
+          await Sprite.load('tower_airblade.png', images: isoImages),
+      TowerType.thunder:
+          await Sprite.load('tower_thunder.png', images: isoImages),
+      TowerType.obstacle:
+          await Sprite.load('tower_obstacle.png', images: isoImages),
+    };
+
     boardComponent = BoardComponent();
-    world.add(boardComponent);
+    await world.add(boardComponent);
 
     _fitCamera();
   }
@@ -82,30 +106,35 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   }
 
   void _fitCamera() {
-    final s = board.size;
-    camera.viewfinder.position = Vector2(s.width / 2, s.height / 2);
-    final zoomX = size.x / s.width;
-    final zoomY = size.y / s.height;
-    camera.viewfinder.zoom = min(zoomX, zoomY) * 0.85;
+    final s = iso.imageSize;
+    camera.viewfinder.position = Vector2(s.x / 2, s.y / 2);
+    camera.viewfinder.zoom = min(size.x / s.x, size.y / s.y) * 0.95;
   }
 
   @override
   void onScroll(PointerScrollInfo info) {
     final delta = info.scrollDelta.global.y;
     final next = camera.viewfinder.zoom * (delta > 0 ? 0.9 : 1.1);
-    camera.viewfinder.zoom = next.clamp(0.2, 3.0);
+    camera.viewfinder.zoom = next.clamp(0.1, 3.0);
   }
 
   // ── 座標換算 ──────────────────────────────────────────────
-  Vector2 boardToWorld(BoardPoint bp) {
+  /// 邏輯（top-down）座標 — 給遊戲邏輯用。
+  Vector2 boardToLogical(BoardPoint bp) {
     final o = board.boardPointToOffset(bp);
-    // 棋盤六角格的視覺中心比 boardPointToPoint 高了 hexMargin（格子頂點從
-    // -hexagonRadius 起算），把實體往上補回來才會落在格子正中央。
-    return Vector2(o.dx, o.dy - hexMargin);
+    return Vector2(o.dx, o.dy);
   }
 
-  BoardPoint? worldToBoard(Vector2 v) =>
-      board.pointToBoardPoint(Offset(v.x, v.y));
+  /// isometric 螢幕座標 — 給繪製用。
+  Vector2 boardToScreen(BoardPoint bp) =>
+      (iso.cellScreen[bp] ?? logicalToScreen(boardToLogical(bp))).clone();
+
+  Vector2 logicalToScreen(Vector2 logical) => iso.logicalToScreen(logical);
+
+  BoardPoint? screenToBoard(Vector2 screen) =>
+      board.pointToBoardPoint(_toOffset(iso.screenToLogical(screen)));
+
+  Offset _toOffset(Vector2 v) => Offset(v.x, v.y);
 
   // ── 尋路 / 放置 ──────────────────────────────────────────
   bool isPointCanMove(BoardPoint point) =>
@@ -123,8 +152,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     if (towers.containsKey(point)) return false;
     if (hasEnemyOn(point)) return false;
     if (point == spawnLocation || point == targetLocation) return false;
-
-    // 蓋下去之後仍要能從出生點走到終點。
     final path =
         hasPathBetween(spawnLocation, targetLocation, isPointCanMove, {point});
     return path != null;
@@ -135,7 +162,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     return coin.value >= statsOf(type).cost;
   }
 
-  /// 嘗試在 [point] 蓋下目前選取的塔。回傳是否成功。
   bool tryPlaceAt(BoardPoint point) {
     final type = selecting.value;
     if (type == null) return false;
@@ -144,7 +170,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
       showMessage('We need more gold!');
       return false;
     }
-
     if (!isPlaceable(point)) return false;
 
     final tower = buildTower(type, point);
@@ -152,7 +177,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     world.add(tower);
     recomputeGuide();
 
-    // 扣款 / 扣障礙物數量（與舊版一致，作弊模式只略過可負擔檢查）。
     if (type == TowerType.obstacle) {
       freeObstacle.value -= 1;
     } else {
@@ -165,23 +189,24 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   void cancelSelection() => selecting.value = null;
   void toggleCheat() => cheat.value = !cheat.value;
 
-  // ── 敵人 / 塔 登記（由元件自行呼叫）──────────────────────
+  // ── 敵人登記 ─────────────────────────────────────────────
   void registerEnemy(EnemyComponent e) => enemies.add(e);
   void unregisterEnemy(EnemyComponent e) => enemies.remove(e);
 
-  // ── 範圍查詢（給塔 / 子彈瞄準用）─────────────────────────
-  Iterable<EnemyComponent> enemiesInRange(Vector2 center, double rangeInHex) {
+  // ── 範圍查詢（全部用邏輯座標）─────────────────────────────
+  Iterable<EnemyComponent> enemiesInRange(
+      Vector2 logicalCenter, double rangeInHex) {
     final r = board.hexagonRadius * rangeInHex;
     return enemies.where(
-      (e) => !e.isDead && center.distanceTo(e.position) <= r,
+      (e) => !e.isDead && logicalCenter.distanceTo(e.logicalPos) <= r,
     );
   }
 
-  EnemyComponent? nearestEnemy(Vector2 center, double rangeInHex) {
+  EnemyComponent? nearestEnemy(Vector2 logicalCenter, double rangeInHex) {
     EnemyComponent? best;
     var bestDistance = double.infinity;
-    for (final e in enemiesInRange(center, rangeInHex)) {
-      final d = center.distanceTo(e.position);
+    for (final e in enemiesInRange(logicalCenter, rangeInHex)) {
+      final d = logicalCenter.distanceTo(e.logicalPos);
       if (d < bestDistance) {
         bestDistance = d;
         best = e;
@@ -190,24 +215,21 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     return best;
   }
 
-  bool isInsideRange(Vector2 diff, double rangeInHex) =>
-      diff.length <= board.hexagonRadius * rangeInHex;
+  bool isInsideRange(Vector2 logicalDiff, double rangeInHex) =>
+      logicalDiff.length <= board.hexagonRadius * rangeInHex;
 
   // ── 經濟 / 勝負 ──────────────────────────────────────────
-  void onEnemyKilled(EnemyComponent e) {
-    coin.value += 5;
-  }
+  void onEnemyKilled(EnemyComponent e) => coin.value += 5;
 
   void onEnemyLeaked(EnemyComponent e) {
     heart.value -= 1;
     if (heart.value <= 0) triggerGameOver();
   }
 
-  /// 按下 ▶：開始下一波。要等前一波清空、且還沒到第 12 波。
   void startGame() {
     if (gameOver.value || gameWon.value) return;
-    if (_spawner != null || enemies.isNotEmpty) return; // 前一波還沒結束
-    if (waveNumber >= totalWaves) return; // 已是最後一波
+    if (_spawner != null || enemies.isNotEmpty) return;
+    if (waveNumber >= totalWaves) return;
 
     waveNumber++;
     wave.value = waveNumber;
@@ -216,7 +238,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     world.add(_spawner!);
   }
 
-  /// 每一波敵人會變強：血量與速度隨波數提升。
   EnemyStatus enemyStatusForWave(int wave) {
     final hp = 100.0 + (wave - 1) * 40;
     final speed = 1.5 + (wave - 1) * 0.05;
@@ -227,7 +248,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   void update(double dt) {
     super.update(dt);
     final spawner = _spawner;
-    // 該波生完且場上沒有敵人 → 過關。
     if (spawner != null && spawner.isDone && enemies.isEmpty) {
       spawner.removeFromParent();
       _spawner = null;
@@ -238,7 +258,6 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   void _onWaveCompleted() {
     completedWaves++;
     waveRunning.value = false;
-    // 每完成 2 波贈送 1 個障礙物。
     if (completedWaves % 2 == 0) {
       freeObstacle.value += 1;
     }

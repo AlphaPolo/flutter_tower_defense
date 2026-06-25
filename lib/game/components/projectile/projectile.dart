@@ -9,37 +9,61 @@ import '../../effects/effect.dart';
 import '../../tower_defense_game.dart';
 import '../enemy_component.dart';
 
-/// 子彈 / 投射物的共同基底。各子型別在 [onTick] 內自行決定移動與傷害。
+/// 子彈基底（isometric 版）。移動/傷害在 top-down 邏輯座標計算，每幀投影成
+/// 螢幕座標繪製。飛行子彈畫在最上層；地面 AoE 由子型別調低 priority。
 abstract class ProjectileComponent extends PositionComponent
     with HasGameReference<TowerDefenseGame> {
   ProjectileComponent({
     required this.damage,
     required Vector2 start,
     required this.speed,
-  }) : super(priority: 30) {
-    position = start;
+  }) {
+    logical.setFrom(start);
   }
 
   double damage;
   double speed;
-  Vector2? goal;
+
+  final Vector2 logical = Vector2.zero();
+  Vector2? goalLogical;
   double lifeTime = 0;
   double clock = 0;
   bool dead = false;
+
+  /// 螢幕像素 / 邏輯單位（拿來縮放繪製尺寸）。
+  double get s => game.iso.scaleX;
 
   int flyingTime(Vector2 from, Vector2 to, double speed) =>
       ((from - to).length / (speed / 3)).floor();
 
   @override
+  void onMount() {
+    super.onMount();
+    priority = 2000000; // 飛行子彈畫在最上層
+    _sync();
+  }
+
+  void _sync() => position.setFrom(game.logicalToScreen(logical));
+
+  @override
   void update(double dt) {
     onTick(dt * 1000);
+    _sync();
     if (dead) removeFromParent();
   }
 
   void onTick(double dtMs);
+
+  void lerpLogical(Vector2 from, Vector2 to, double t) {
+    logical
+      ..setFrom(to)
+      ..sub(from)
+      ..scale(t)
+      ..add(from);
+  }
 }
 
-/// 普通子彈：朝目標飛行的灰色小點（與舊版一致，本身不造成傷害）。
+/// 普通子彈：朝目標飛行的灰色小點（不造成傷害，與舊版一致）。
 class NormalProjectileComponent extends ProjectileComponent {
   NormalProjectileComponent({
     required super.damage,
@@ -49,7 +73,7 @@ class NormalProjectileComponent extends ProjectileComponent {
   });
 
   final EnemyComponent target;
-  late Vector2 _start;
+  final Vector2 _start = Vector2.zero();
 
   @override
   void onMount() {
@@ -58,9 +82,9 @@ class NormalProjectileComponent extends ProjectileComponent {
       dead = true;
       return;
     }
-    _start = position.clone();
-    goal = target.position.clone();
-    lifeTime = flyingTime(_start, goal!, speed).toDouble();
+    _start.setFrom(logical);
+    goalLogical = target.logicalPos.clone();
+    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
   }
 
   @override
@@ -70,17 +94,16 @@ class NormalProjectileComponent extends ProjectileComponent {
       dead = true;
       return;
     }
-    final t = (clock / lifeTime).clamp(0.0, 1.0);
-    position = _start + (goal! - _start) * t;
+    lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
   }
 
   @override
   void render(Canvas canvas) {
-    canvas.drawCircle(Offset.zero, 5, Paint()..color = Colors.grey);
+    canvas.drawCircle(Offset.zero, 5 * s, Paint()..color = Colors.grey);
   }
 }
 
-/// 火焰塔子彈：朝固定方向噴出一段距離，沿途持續對 40px 內的敵人造成傷害。
+/// 火焰塔子彈：朝固定方向噴出，沿途持續傷害 40(邏輯px) 內的敵人。
 class FlameProjectileComponent extends ProjectileComponent {
   FlameProjectileComponent({
     required super.damage,
@@ -92,15 +115,15 @@ class FlameProjectileComponent extends ProjectileComponent {
 
   final double travelAngle;
   final double lengthHex;
-  late Vector2 _start;
+  final Vector2 _start = Vector2.zero();
 
   @override
   void onMount() {
     super.onMount();
-    _start = position.clone();
+    _start.setFrom(logical);
     final dist = game.board.hexagonRadius * lengthHex;
-    goal = _start + Vector2(cos(travelAngle), sin(travelAngle)) * dist;
-    lifeTime = flyingTime(_start, goal!, speed).toDouble();
+    goalLogical = _start + Vector2(cos(travelAngle), sin(travelAngle)) * dist;
+    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
   }
 
   @override
@@ -110,26 +133,22 @@ class FlameProjectileComponent extends ProjectileComponent {
       dead = true;
       return;
     }
-    final t = (clock / lifeTime).clamp(0.0, 1.0);
-    position = _start + (goal! - _start) * t;
-
+    lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
     for (final e in game.enemies) {
       if (e.isDead) continue;
-      if (e.position.distanceTo(position) <= 40) {
-        e.dealDamage(damage);
-      }
+      if (e.logicalPos.distanceTo(logical) <= 40) e.dealDamage(damage);
     }
   }
 
   @override
   void render(Canvas canvas) {
     final t = lifeTime <= 0 ? 0.0 : (clock / lifeTime).clamp(0.0, 1.0);
-    final r = 5 + 5 * t; // 5 → 10
-    canvas.drawCircle(Offset.zero, r, Paint()..color = Colors.redAccent);
+    canvas.drawCircle(
+        Offset.zero, (5 + 5 * t) * s, Paint()..color = Colors.redAccent);
   }
 }
 
-/// 冰凍塔子彈：以塔為中心擴張的冰環，把進入範圍的敵人減速。
+/// 冰凍塔子彈：以塔為中心擴張的減速冰環（畫成貼地橢圓）。
 class FreezeProjectileComponent extends ProjectileComponent {
   FreezeProjectileComponent({
     required super.damage,
@@ -148,6 +167,7 @@ class FreezeProjectileComponent extends ProjectileComponent {
   @override
   void onMount() {
     super.onMount();
+    priority = -1; // 貼地，畫在棋盤之上、單位之下
     lifeTime = duration.toDouble();
     currentRadius = fromRadius;
   }
@@ -161,10 +181,9 @@ class FreezeProjectileComponent extends ProjectileComponent {
     }
     final t = (clock / lifeTime).clamp(0.0, 1.0);
     currentRadius = fromRadius + (toRadius - fromRadius) * t;
-
     for (final e in game.enemies) {
       if (e.isDead || effected.contains(e)) continue;
-      if (e.position.distanceTo(position) < currentRadius) {
+      if (e.logicalPos.distanceTo(logical) < currentRadius) {
         effected.add(e);
         e.addEffect(
           SlowMovementEffect(kFrozenEffectType, 800, StatCalcType.multi, 0.3),
@@ -175,14 +194,17 @@ class FreezeProjectileComponent extends ProjectileComponent {
 
   @override
   void render(Canvas canvas) {
-    const center = Offset(0, -4);
-    final rect = Rect.fromCircle(center: center, radius: currentRadius);
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [Colors.transparent, Colors.blue.withOpacity(0.5)],
-        stops: const [0.5, 1],
-      ).createShader(rect);
-    canvas.drawCircle(center, currentRadius, paint);
+    final rx = currentRadius * game.iso.scaleX;
+    final ry = currentRadius * game.iso.scaleY;
+    final rect = Rect.fromCenter(center: Offset.zero, width: rx * 2, height: ry * 2);
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [Colors.transparent, Colors.blue.withOpacity(0.5)],
+          stops: const [0.5, 1],
+        ).createShader(rect),
+    );
   }
 }
 
@@ -200,21 +222,21 @@ class ThunderProjectileComponent extends ProjectileComponent {
   EnemyComponent target;
   final int chainLimit;
   double chainDistance;
-  List<Vector2>? bindEnemies;
-  late Vector2 _start;
+  List<Vector2>? bindLogical;
+  final Vector2 _start = Vector2.zero();
 
-  bool get isChainState => bindEnemies != null && bindEnemies!.isNotEmpty;
+  bool get isChainState => bindLogical != null && bindLogical!.isNotEmpty;
 
   @override
   void onMount() {
     super.onMount();
-    _start = position.clone();
+    _start.setFrom(logical);
     if (!target.isMounted) {
       dead = true;
       return;
     }
-    goal = target.position.clone();
-    lifeTime = flyingTime(_start, goal!, speed).toDouble();
+    goalLogical = target.logicalPos.clone();
+    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
   }
 
   @override
@@ -227,30 +249,27 @@ class ThunderProjectileComponent extends ProjectileComponent {
     }
 
     if (clock < lifeTime) {
-      final t = lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0);
-      position = _start + (goal! - _start) * t;
+      lerpLogical(_start, goalLogical!,
+          lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0));
       return;
     }
 
-    // 抵達目標，開始連鎖。
-    position = (target.isMounted && !target.isDead)
-        ? target.position.clone()
-        : goal!;
+    logical.setFrom((target.isMounted && !target.isDead)
+        ? target.logicalPos
+        : goalLogical!);
 
     final chained = _chainEnemies(target);
     final list = <Vector2>[];
     for (final e in chained) {
       e.addEffect(SlowMovementEffect.flat(kThunderEffectType, 800, 0.0, 300));
       e.dealDamage(damage);
-      list.add(e.position - position);
+      list.add(e.logicalPos.clone());
     }
-
     if (list.isEmpty) {
       dead = true;
       return;
     }
-
-    bindEnemies = list;
+    bindLogical = list;
     lifeTime = 1000;
     clock = 0;
   }
@@ -260,14 +279,12 @@ class ThunderProjectileComponent extends ProjectileComponent {
     final visited = <EnemyComponent>{};
 
     final candidates = game.enemies.where((e) => !e.isDead).toList()
-      ..sort(
-        (a, b) => (a.position - position)
-            .length
-            .compareTo((b.position - position).length),
-      );
+      ..sort((a, b) => (a.logicalPos - logical)
+          .length
+          .compareTo((b.logicalPos - logical).length));
 
     bool inRange(EnemyComponent a, EnemyComponent b) =>
-        game.isInsideRange(a.position - b.position, chainDistance);
+        game.isInsideRange(a.logicalPos - b.logicalPos, chainDistance);
 
     while (frontier.isNotEmpty) {
       final next = <EnemyComponent>[];
@@ -283,7 +300,6 @@ class ThunderProjectileComponent extends ProjectileComponent {
         ..clear()
         ..addAll(next);
     }
-
     return visited;
   }
 
@@ -295,17 +311,19 @@ class ThunderProjectileComponent extends ProjectileComponent {
       ..strokeWidth = 2;
 
     if (!isChainState) {
-      canvas.drawCircle(Offset.zero, 5, Paint()..color = Colors.yellow);
+      canvas.drawCircle(Offset.zero, 5 * s, Paint()..color = Colors.yellow);
       return;
     }
 
-    canvas.drawCircle(Offset.zero, 8, paint);
-    final nodes = bindEnemies!;
+    canvas.drawCircle(Offset.zero, 8 * s, paint);
+    final center = game.logicalToScreen(logical);
+    final nodes = bindLogical!;
     for (var i = 0; i < nodes.length; i++) {
       if (clock < i * 20) continue;
-      final off = Offset(nodes[i].x, nodes[i].y);
+      final scr = game.logicalToScreen(nodes[i]) - center;
+      final off = Offset(scr.x, scr.y);
       final phase = ((clock / lifeTime) * 4) % 1.0;
-      final r = (8 + (2 - 8) * phase).clamp(2.0, 8.0);
+      final r = ((8 + (2 - 8) * phase) * s).clamp(2.0, 8.0 * s);
       canvas.drawLine(Offset.zero, off, paint);
       canvas.drawCircle(off, r, paint);
     }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart' hide PointerMoveEvent;
@@ -5,8 +7,7 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
 
-/// 畫出六角棋盤、出生點 / 終點 / 滑鼠停留的高亮，並處理所有輸入：
-/// 點擊放塔、右鍵取消、滑鼠移動 hover、拖曳平移相機。
+/// 畫出 isometric 棋盤背景圖 + 出生點 / 終點 / hover 高亮，並處理輸入。
 class BoardComponent extends PositionComponent
     with
         HasGameReference<TowerDefenseGame>,
@@ -14,66 +15,43 @@ class BoardComponent extends PositionComponent
         SecondaryTapCallbacks,
         PointerMoveCallbacks,
         DragCallbacks {
-  BoardComponent() : super(priority: 0);
+  BoardComponent() : super(priority: -2);
 
   BoardPoint? hovered;
 
   @override
   Future<void> onLoad() async {
-    final s = game.board.size;
-    size = Vector2(s.width, s.height);
+    size = game.iso.imageSize.clone();
   }
 
-  // ── 繪製 ─────────────────────────────────────────────────
   @override
   void render(Canvas canvas) {
-    final board = game.board;
+    game.boardSprite.render(canvas, size: size);
 
-    for (final bp in board) {
-      if (bp == null) continue;
-      canvas.drawPath(
-        _hexOutline(board.boardPointToOffset(bp)),
-        Paint()..color = bp.color,
-      );
-    }
-
-    _highlight(canvas, game.targetLocation, Colors.greenAccent.withOpacity(0.4));
-    _highlight(canvas, game.spawnLocation, Colors.redAccent.withOpacity(0.4));
+    _highlight(canvas, game.targetLocation, Colors.green.withOpacity(0.45));
+    _highlight(canvas, game.spawnLocation, Colors.red.withOpacity(0.45));
     final h = hovered;
-    if (h != null) {
-      _highlight(canvas, h, Colors.orange.withOpacity(0.5));
-    }
+    if (h != null) _highlight(canvas, h, Colors.orange.withOpacity(0.5));
   }
 
   void _highlight(Canvas canvas, BoardPoint bp, Color color) {
-    canvas.drawPath(
-      _hexOutline(game.board.boardPointToOffset(bp)),
-      Paint()..color = color,
-    );
-  }
-
-  Path _hexOutline(Offset center) {
-    final p = game.board.positionsForHexagonAtOrigin;
-    const idx = [0, 1, 2, 4, 6, 8];
-    final path = Path();
-    for (var i = 0; i < idx.length; i++) {
-      final o = p[idx[i]].translate(center.dx, center.dy);
-      if (i == 0) {
-        path.moveTo(o.dx, o.dy);
-      } else {
-        path.lineTo(o.dx, o.dy);
-      }
+    final center = game.boardToLogical(bp);
+    final r = game.board.hexagonRadius.toDouble();
+    final pts = <Offset>[];
+    for (final deg in const [-90, -30, 30, 90, 150, 210]) {
+      final a = deg * pi / 180;
+      final s = game.logicalToScreen(
+        Vector2(center.x + r * cos(a), center.y + r * sin(a)),
+      );
+      pts.add(Offset(s.x, s.y));
     }
-    return path..close();
+    canvas.drawPath(Path()..addPolygon(pts, true), Paint()..color = color);
   }
 
   // ── 輸入 ─────────────────────────────────────────────────
-  BoardPoint? _toBoardPoint(Vector2 localPosition) =>
-      game.board.pointToBoardPoint(Offset(localPosition.x, localPosition.y));
-
   @override
   void onTapUp(TapUpEvent event) {
-    final bp = _toBoardPoint(event.localPosition);
+    final bp = game.screenToBoard(event.localPosition);
     if (bp != null) game.tryPlaceAt(bp);
   }
 
@@ -84,7 +62,7 @@ class BoardComponent extends PositionComponent
 
   @override
   void onPointerMove(PointerMoveEvent event) {
-    hovered = _toBoardPoint(event.localPosition);
+    hovered = game.screenToBoard(event.localPosition);
   }
 
   @override

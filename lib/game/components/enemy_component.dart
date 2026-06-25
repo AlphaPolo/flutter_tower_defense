@@ -8,18 +8,18 @@ import 'enemy_status.dart';
 
 export 'enemy_status.dart';
 
-/// 一個會自己沿著 flow-field 前進的敵人。
+/// 沿 flow-field 前進的敵人。
 ///
-/// 取代舊的 Enemy model + EnemyManager：移動、受傷、死亡、到終點都在這裡用
-/// update(dt) 自行處理。
+/// 移動與受傷都在 top-down「邏輯座標」([logicalPos]) 計算；每幀再投影成
+/// isometric 螢幕座標設給 Flame 的 [position] 來繪製，並依螢幕 y 設定 priority
+/// 做深度排序。
 class EnemyComponent extends PositionComponent
     with HasGameReference<TowerDefenseGame> {
   EnemyComponent({
     required this.currentLocation,
     required this.status,
-  }) : super(priority: 20, anchor: Anchor.center);
+  }) : super(anchor: Anchor.center);
 
-  /// 假設怪物速度是 1，走完一格要 16ms * 60 = 60 幀。
   static const double speedComplete = 16 * 60;
 
   BoardPoint currentLocation;
@@ -29,12 +29,15 @@ class EnemyComponent extends PositionComponent
 
   final List<BaseEffect> effects = [];
 
+  /// top-down 邏輯位置（瞄準/射程都用這個）。
+  final Vector2 logicalPos = Vector2.zero();
+
   bool _dead = false;
   bool _settled = false;
 
   double _progress = 0;
-  Vector2 _segFrom = Vector2.zero();
-  Vector2 _segTo = Vector2.zero();
+  final Vector2 _segFrom = Vector2.zero();
+  final Vector2 _segTo = Vector2.zero();
 
   bool get isDead => _dead;
 
@@ -42,7 +45,8 @@ class EnemyComponent extends PositionComponent
   void onMount() {
     super.onMount();
     game.registerEnemy(this);
-    position = game.boardToWorld(currentLocation);
+    logicalPos.setFrom(game.boardToLogical(currentLocation));
+    _syncScreen();
   }
 
   @override
@@ -61,25 +65,36 @@ class EnemyComponent extends PositionComponent
 
     if (goalLocation == null) {
       final dir = game.guide[currentLocation];
-      if (dir == null) return; // 暫時沒有路可走
+      if (dir == null) return;
       goalLocation = currentLocation.getNeighbor(dir);
-      _segFrom = game.boardToWorld(currentLocation);
-      _segTo = game.boardToWorld(goalLocation!);
+      _segFrom.setFrom(game.boardToLogical(currentLocation));
+      _segTo.setFrom(game.boardToLogical(goalLocation!));
       _progress = 0;
     }
 
     _progress += dtMs * speed;
     if (_progress >= speedComplete) {
       currentLocation = goalLocation!;
-      position = game.boardToWorld(currentLocation);
+      logicalPos.setFrom(game.boardToLogical(currentLocation));
       goalLocation = null;
       if (currentLocation == game.targetLocation) {
         _reachGoal();
+        return;
       }
     } else {
       final t = _progress / speedComplete;
-      position = _segFrom + (_segTo - _segFrom) * t;
+      logicalPos
+        ..setFrom(_segTo)
+        ..sub(_segFrom)
+        ..scale(t)
+        ..add(_segFrom);
     }
+    _syncScreen();
+  }
+
+  void _syncScreen() {
+    position.setFrom(game.logicalToScreen(logicalPos));
+    priority = position.y.round();
   }
 
   void dealDamage(double damage) {
@@ -124,7 +139,6 @@ class EnemyComponent extends PositionComponent
 
   void addEffect(BaseEffect effect) {
     final index = effects.indexWhere((e) => e.isSameId(effect));
-
     void packOperation() {
       effect.onAttach();
       effects.add(effect);
@@ -135,7 +149,6 @@ class EnemyComponent extends PositionComponent
       packOperation();
       return;
     }
-
     switch (effect.idWithType.duplicateStrategy) {
       case EffectDuplicateStrategy.last:
         effects.removeAt(index);
@@ -149,15 +162,16 @@ class EnemyComponent extends PositionComponent
     }
   }
 
-  // ── 繪製：靛色圓 + 上方血條 ──────────────────────────────
+  // ── 繪製：圓形 + 上方血條（依 isometric 比例縮放）──────────
   @override
   void render(Canvas canvas) {
-    final r = game.board.hexagonRadius * 0.3;
+    final s = game.iso.scaleX;
+    final r = game.board.hexagonRadius * 0.3 * s;
     canvas.drawCircle(Offset.zero, r, Paint()..color = Colors.indigo);
 
-    const w = 20.0;
-    const h = 5.0;
-    final top = -r - h - 1;
+    final w = r * 2.2;
+    final h = r * 0.5;
+    final top = -r - h - 2;
     canvas.drawRect(
       Rect.fromLTWH(-w / 2, top, w, h),
       Paint()..color = Colors.grey,

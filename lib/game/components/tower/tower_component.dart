@@ -9,11 +9,11 @@ import '../../tower_type.dart';
 import '../enemy_component.dart';
 import '../projectile/projectile.dart';
 
-/// 防禦塔基底。預設行為等同舊版 BuildingModel：鎖定範圍內最近的敵人、
-/// 轉向、依冷卻時間開火。雷電塔直接沿用這套行為，其他塔覆寫 update。
+/// 防禦塔基底（isometric 版）。瞄準/射程在 top-down 邏輯座標計算；繪製用
+/// 預先渲染好的 isometric 塔素材，放在格子的螢幕座標上，依螢幕 y 排序深度。
 class TowerComponent extends PositionComponent
     with HasGameReference<TowerDefenseGame> {
-  TowerComponent(this.type, this.location) : super(priority: 10);
+  TowerComponent(this.type, this.location);
 
   final TowerType type;
   final BoardPoint location;
@@ -22,16 +22,28 @@ class TowerComponent extends PositionComponent
   EnemyComponent? target;
   double prepareShoot = 0;
 
+  /// top-down 邏輯位置。
+  final Vector2 logicalPos = Vector2.zero();
+
   TowerStats get stats => statsOf(type);
   int get cost => stats.cost;
   double get range => stats.range;
   double get damage => stats.damage;
   int get fireCD => stats.fireCD;
 
+  Sprite get sprite => game.towerSprites[type]!;
+
+  /// 障礙物用較大的縮放（石頭原始很小）。
+  double get spriteScale => 1.0;
+
   @override
   void onMount() {
     super.onMount();
-    position = game.boardToWorld(location);
+    logicalPos.setFrom(game.boardToLogical(location));
+    anchor = Anchor.center;
+    size = sprite.srcSize * spriteScale;
+    position.setFrom(game.boardToScreen(location));
+    priority = position.y.round();
   }
 
   @override
@@ -39,7 +51,7 @@ class TowerComponent extends PositionComponent
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
     if (prepareShoot > 0) return;
 
-    target ??= game.nearestEnemy(position, range);
+    target ??= game.nearestEnemy(logicalPos, range);
     final t = target;
     if (t == null) return;
 
@@ -47,7 +59,7 @@ class TowerComponent extends PositionComponent
       target = null;
       return;
     }
-    final diff = t.position - position;
+    final diff = t.logicalPos - logicalPos;
     if (!game.isInsideRange(diff, range)) {
       target = null;
       return;
@@ -72,68 +84,12 @@ class TowerComponent extends PositionComponent
     );
   }
 
-  /// 砲口位置（從塔中心沿 direction 方向偏移）。
+  /// 砲口（邏輯座標）。
   Vector2 muzzle([double dist = 32]) =>
-      position + Vector2(cos(direction), sin(direction)) * dist;
+      logicalPos + Vector2(cos(direction), sin(direction)) * dist;
 
   @override
   void render(Canvas canvas) {
-    drawHexBase(canvas, Colors.blueGrey);
-    renderTurret(canvas);
-  }
-
-  /// 子型別覆寫以畫出各自的砲管 / 圖示。
-  void renderTurret(Canvas canvas) {}
-
-  // ── 繪圖工具 ─────────────────────────────────────────────
-  Path hexPath(double r) {
-    final h = r * sqrt(3) / 2;
-    return Path()
-      ..moveTo(0, -r)
-      ..lineTo(h, -r / 2)
-      ..lineTo(h, r / 2)
-      ..lineTo(0, r)
-      ..lineTo(-h, r / 2)
-      ..lineTo(-h, -r / 2)
-      ..close();
-  }
-
-  void drawHexBase(Canvas canvas, Color color) {
-    final r = game.board.hexagonRadius * 0.7;
-    canvas.drawPath(hexPath(r), Paint()..color = color);
-  }
-
-  void drawTurret(
-    Canvas canvas, {
-    required double w,
-    required double h,
-    required Color color,
-  }) {
-    canvas
-      ..save()
-      ..rotate(direction)
-      ..drawRect(Rect.fromLTWH(0, -h / 2, w, h), Paint()..color = color)
-      ..restore();
-  }
-
-  void drawIcon(
-    Canvas canvas,
-    IconData icon, {
-    required double size,
-    required Color color,
-  }) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(icon.codePoint),
-        style: TextStyle(
-          fontFamily: icon.fontFamily,
-          package: icon.fontPackage,
-          fontSize: size,
-          color: color,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+    sprite.render(canvas, size: size);
   }
 }

@@ -1,0 +1,9 @@
+Third-party assets
+==================
+
+assets/iso/  (board.png, tower_*.png)
+  - Source: "KayKit : Medieval Hexagon Pack" by Kay Lousberg (www.kaylousberg.com)
+  - License: CC0 1.0 (public domain) — https://creativecommons.org/publicdomain/zero/1.0/
+  - Notes: 3D models pre-rendered to isometric 2D sprites with Blender
+    (see tool/render_board.py and tool/render_sprites.py).
+    Free for personal and commercial use; credit appreciated, not required.

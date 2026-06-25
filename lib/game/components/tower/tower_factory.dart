@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flame/components.dart';
 
 import '../../board/hex.dart';
 import '../../tower_type.dart';
@@ -9,7 +9,7 @@ import '../enemy_component.dart';
 import '../projectile/projectile.dart';
 import 'tower_component.dart';
 
-/// 依塔種建立對應的元件。取代舊版 PlayerProvider.placeBuilding 的 switch。
+/// 依塔種建立對應的元件。
 TowerComponent buildTower(TowerType type, BoardPoint location) {
   switch (type) {
     case TowerType.freezing:
@@ -42,15 +42,10 @@ class FreezingTowerComponent extends TowerComponent {
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return FreezeProjectileComponent(
       damage: damage,
-      start: position.clone(),
+      start: logicalPos.clone(),
       toRadius: game.board.hexagonRadius * range,
       duration: 2000,
     );
-  }
-
-  @override
-  void renderTurret(Canvas canvas) {
-    drawIcon(canvas, Icons.ac_unit, size: 24, color: Colors.white);
   }
 }
 
@@ -67,7 +62,7 @@ class FlameTowerComponent extends TowerComponent {
     final t = target;
     if (t != null) {
       if (!t.isDead && t.isMounted) {
-        final diff = t.position - position;
+        final diff = t.logicalPos - logicalPos;
         if (game.isInsideRange(diff, range)) {
           final targetAngle = atan2(diff.y, diff.x);
           final delta = targetAngle - direction;
@@ -80,11 +75,10 @@ class FlameTowerComponent extends TowerComponent {
       target = null;
     }
 
-    // 重新鎖定：選與目前砲口角度差最小的敵人。
     EnemyComponent? best;
     var bestDiff = double.infinity;
-    for (final e in game.enemiesInRange(position, range)) {
-      final a = atan2(e.position.y - position.y, e.position.x - position.x);
+    for (final e in game.enemiesInRange(logicalPos, range)) {
+      final a = atan2(e.logicalPos.y - logicalPos.y, e.logicalPos.x - logicalPos.x);
       final d = (a - direction).abs();
       if (d < bestDiff) {
         bestDiff = d;
@@ -105,11 +99,6 @@ class FlameTowerComponent extends TowerComponent {
       lengthHex: range / 2,
     );
   }
-
-  @override
-  void renderTurret(Canvas canvas) {
-    drawTurret(canvas, w: 25, h: 12, color: Colors.redAccent);
-  }
 }
 
 /// 風刃塔：持續旋轉，對前方扇形範圍內的敵人造成傷害（無子彈）。
@@ -124,8 +113,8 @@ class AirBladeTowerComponent extends TowerComponent {
   void update(double dt) {
     direction += spinSpeed;
 
-    final targets = game.enemiesInRange(position, range).where((e) {
-      final diff = e.position - position;
+    final targets = game.enemiesInRange(logicalPos, range).where((e) {
+      final diff = e.logicalPos - logicalPos;
       final a = atan2(diff.y, diff.x);
       return _between(direction, direction + arc, a);
     }).toList();
@@ -142,11 +131,6 @@ class AirBladeTowerComponent extends TowerComponent {
     target = n(target);
     if (start > end) return target >= start || target <= end;
     return target >= start && target <= end;
-  }
-
-  @override
-  void renderTurret(Canvas canvas) {
-    drawTurret(canvas, w: 90, h: 5, color: Colors.blueGrey);
   }
 }
 
@@ -166,25 +150,16 @@ class ThunderTowerComponent extends TowerComponent {
       chainDistance: 5,
     );
   }
-
-  @override
-  void renderTurret(Canvas canvas) {
-    drawTurret(canvas, w: 25, h: 10, color: Colors.amberAccent);
-  }
 }
 
-/// 障礙物：純粹擋路，不攻擊。
+/// 障礙物：純粹擋路，不攻擊。用較大的石頭素材。
 class ObstacleTowerComponent extends TowerComponent {
   ObstacleTowerComponent(BoardPoint location)
       : super(TowerType.obstacle, location);
 
   @override
-  void update(double dt) {}
+  double get spriteScale => 2.0;
 
   @override
-  void render(Canvas canvas) {
-    drawHexBase(canvas, Colors.black87);
-    final r = game.board.hexagonRadius * 0.7 * 0.9;
-    canvas.drawPath(hexPath(r), Paint()..color = Colors.brown);
-  }
+  void update(double dt) {}
 }

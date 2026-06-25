@@ -32,6 +32,7 @@ flutter:
   - assets/images/electricity.png
   - assets/images/fire.png
   - assets/images/ice.png
+  - assets/iso/
 flutter_gen:
   output: lib/gen/
   line_length: 80
