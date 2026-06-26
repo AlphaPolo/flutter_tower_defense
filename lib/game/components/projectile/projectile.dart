@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 
 import '../../../constant/game_constant.dart';
 import '../../effects/effect.dart';
+import '../../effects/particles.dart';
 import '../../tower_defense_game.dart';
 import '../enemy_component.dart';
+
+final _rnd = Random();
 
 /// 子彈基底（isometric 版）。移動/傷害在 top-down 邏輯座標計算，每幀投影成
 /// 螢幕座標繪製。飛行子彈畫在最上層；地面 AoE 由子型別調低 priority。
@@ -39,7 +42,7 @@ abstract class ProjectileComponent extends PositionComponent
   @override
   void onMount() {
     super.onMount();
-    priority = 2000000; // 飛行子彈畫在最上層
+    priority = 2000000;
     _sync();
   }
 
@@ -63,7 +66,7 @@ abstract class ProjectileComponent extends PositionComponent
   }
 }
 
-/// 普通子彈：朝目標飛行的灰色小點（不造成傷害，與舊版一致）。
+/// 普通子彈：發光的小灰點（不造成傷害，與舊版一致）。
 class NormalProjectileComponent extends ProjectileComponent {
   NormalProjectileComponent({
     required super.damage,
@@ -99,11 +102,13 @@ class NormalProjectileComponent extends ProjectileComponent {
 
   @override
   void render(Canvas canvas) {
-    canvas.drawCircle(Offset.zero, 5 * s, Paint()..color = Colors.grey);
+    canvas.drawCircle(Offset.zero, 6 * s,
+        Paint()..color = Colors.white24..blendMode = BlendMode.plus);
+    canvas.drawCircle(Offset.zero, 4 * s, Paint()..color = Colors.grey);
   }
 }
 
-/// 火焰塔子彈：朝固定方向噴出，沿途持續傷害 40(邏輯px) 內的敵人。
+/// 火焰塔子彈：邊飛邊噴火花，發光火球，沿途持續傷害 40(邏輯px) 內的敵人。
 class FlameProjectileComponent extends ProjectileComponent {
   FlameProjectileComponent({
     required super.damage,
@@ -116,6 +121,7 @@ class FlameProjectileComponent extends ProjectileComponent {
   final double travelAngle;
   final double lengthHex;
   final Vector2 _start = Vector2.zero();
+  double _emit = 0;
 
   @override
   void onMount() {
@@ -138,17 +144,28 @@ class FlameProjectileComponent extends ProjectileComponent {
       if (e.isDead) continue;
       if (e.logicalPos.distanceTo(logical) <= 40) e.dealDamage(damage);
     }
+    _emit += dtMs;
+    if (_emit >= 50) {
+      _emit = 0;
+      game.world.add(fireBurst(game.logicalToScreen(logical), s, count: 2));
+    }
   }
 
   @override
   void render(Canvas canvas) {
     final t = lifeTime <= 0 ? 0.0 : (clock / lifeTime).clamp(0.0, 1.0);
-    canvas.drawCircle(
-        Offset.zero, (5 + 5 * t) * s, Paint()..color = Colors.redAccent);
+    final base = (6 + 6 * t) * s;
+    final flick = 0.85 + _rnd.nextDouble() * 0.3;
+    void blob(double r, Color c) => canvas.drawCircle(
+        Offset.zero, r, Paint()..color = c..blendMode = BlendMode.plus);
+    blob(base * 1.4 * flick, Colors.red.withOpacity(0.22));
+    blob(base * flick, Colors.deepOrange.withOpacity(0.5));
+    blob(base * 0.6 * flick, Colors.orange.withOpacity(0.85));
+    blob(base * 0.3 * flick, Colors.yellow);
   }
 }
 
-/// 冰凍塔子彈：以塔為中心擴張的減速冰環（畫成貼地橢圓）。
+/// 冰凍塔子彈：以塔為中心擴張的減速冰環（貼地橢圓 + 霜環 + 雪花），施放時噴霜。
 class FreezeProjectileComponent extends ProjectileComponent {
   FreezeProjectileComponent({
     required super.damage,
@@ -170,6 +187,7 @@ class FreezeProjectileComponent extends ProjectileComponent {
     priority = -1; // 貼地，畫在棋盤之上、單位之下
     lifeTime = duration.toDouble();
     currentRadius = fromRadius;
+    game.world.add(frostBurst(game.logicalToScreen(logical), game.iso.scaleX));
   }
 
   @override
@@ -196,19 +214,37 @@ class FreezeProjectileComponent extends ProjectileComponent {
   void render(Canvas canvas) {
     final rx = currentRadius * game.iso.scaleX;
     final ry = currentRadius * game.iso.scaleY;
+    final fade = (1 - clock / lifeTime).clamp(0.0, 1.0);
     final rect = Rect.fromCenter(center: Offset.zero, width: rx * 2, height: ry * 2);
     canvas.drawOval(
       rect,
       Paint()
         ..shader = RadialGradient(
-          colors: [Colors.transparent, Colors.blue.withOpacity(0.5)],
-          stops: const [0.5, 1],
+          colors: [Colors.transparent, Colors.lightBlueAccent.withOpacity(0.35)],
+          stops: const [0.6, 1],
         ).createShader(rect),
     );
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.lightBlueAccent.withOpacity(0.9 * fade),
+    );
+    const n = 10;
+    final ph = clock / lifeTime;
+    for (var i = 0; i < n; i++) {
+      final a = 2 * pi * i / n + ph * 2;
+      canvas.drawCircle(
+        Offset(cos(a) * rx, sin(a) * ry),
+        1.6 * game.iso.scaleX,
+        Paint()..color = Colors.white.withOpacity(fade),
+      );
+    }
   }
 }
 
-/// 雷電塔子彈：先飛向目標，抵達後沿敵群連鎖造成傷害並麻痺。
+/// 雷電塔子彈：飛向目標，抵達後沿敵群連鎖（鋸齒閃電 + 火花）造成傷害並麻痺。
 class ThunderProjectileComponent extends ProjectileComponent {
   ThunderProjectileComponent({
     required super.damage,
@@ -264,6 +300,7 @@ class ThunderProjectileComponent extends ProjectileComponent {
       e.addEffect(SlowMovementEffect.flat(kThunderEffectType, 800, 0.0, 300));
       e.dealDamage(damage);
       list.add(e.logicalPos.clone());
+      game.world.add(sparkBurst(game.logicalToScreen(e.logicalPos), s));
     }
     if (list.isEmpty) {
       dead = true;
@@ -303,29 +340,49 @@ class ThunderProjectileComponent extends ProjectileComponent {
     return visited;
   }
 
+  void _bolt(Canvas canvas, Offset a, Offset b, Paint paint) {
+    const segs = 6;
+    final dir = b - a;
+    final len = dir.distance == 0 ? 1.0 : dir.distance;
+    final nx = -dir.dy / len, ny = dir.dx / len;
+    final path = Path()..moveTo(a.dx, a.dy);
+    for (var i = 1; i < segs; i++) {
+      final t = i / segs;
+      final mid = Offset.lerp(a, b, t)!;
+      final j = (_rnd.nextDouble() * 2 - 1) * 8 * s;
+      path.lineTo(mid.dx + nx * j, mid.dy + ny * j);
+    }
+    path.lineTo(b.dx, b.dy);
+    canvas.drawPath(path, paint);
+  }
+
   @override
   void render(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.yellow
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
     if (!isChainState) {
-      canvas.drawCircle(Offset.zero, 5 * s, Paint()..color = Colors.yellow);
+      canvas.drawCircle(Offset.zero, 8 * s,
+          Paint()..color = Colors.yellow..blendMode = BlendMode.plus);
+      canvas.drawCircle(Offset.zero, 4 * s, Paint()..color = Colors.white);
       return;
     }
 
-    canvas.drawCircle(Offset.zero, 8 * s, paint);
+    final glow = Paint()
+      ..color = Colors.yellow.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3 * s
+      ..blendMode = BlendMode.plus;
+    final core = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4 * s;
+
     final center = game.logicalToScreen(logical);
     final nodes = bindLogical!;
     for (var i = 0; i < nodes.length; i++) {
       if (clock < i * 20) continue;
       final scr = game.logicalToScreen(nodes[i]) - center;
       final off = Offset(scr.x, scr.y);
-      final phase = ((clock / lifeTime) * 4) % 1.0;
-      final r = ((8 + (2 - 8) * phase) * s).clamp(2.0, 8.0 * s);
-      canvas.drawLine(Offset.zero, off, paint);
-      canvas.drawCircle(off, r, paint);
+      _bolt(canvas, Offset.zero, off, glow);
+      _bolt(canvas, Offset.zero, off, core);
     }
   }
 }

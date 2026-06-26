@@ -2,12 +2,15 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 
 import '../../board/hex.dart';
 import '../../tower_type.dart';
 import '../enemy_component.dart';
 import '../projectile/projectile.dart';
 import 'tower_component.dart';
+
+final _rnd = Random();
 
 /// 依塔種建立對應的元件。
 TowerComponent buildTower(TowerType type, BoardPoint location) {
@@ -132,6 +135,35 @@ class AirBladeTowerComponent extends TowerComponent {
     if (start > end) return target >= start || target <= end;
     return target >= start && target <= end;
   }
+
+  @override
+  void render(Canvas canvas) {
+    // 貼地的旋轉風刃（綠色弧形 + 拖尾），畫在塔底之後再畫塔身。
+    final sx = game.iso.scaleX;
+    final sy = game.iso.scaleY;
+    final foot = Offset(size.x / 2, size.y / 2);
+    final rOut = game.board.hexagonRadius * 1.3 * sx;
+    final rect = Rect.fromCenter(
+      center: foot,
+      width: rOut * 2,
+      height: rOut * 2 * (sy / sx),
+    );
+    for (var k = 0; k < 3; k++) {
+      canvas.drawArc(
+        rect,
+        direction - k * 0.4,
+        0.7,
+        false,
+        Paint()
+          ..color = Colors.greenAccent.withOpacity(0.4 - k * 0.12)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rOut * 0.5
+          ..strokeCap = StrokeCap.round
+          ..blendMode = BlendMode.plus,
+      );
+    }
+    super.render(canvas);
+  }
 }
 
 /// 雷電塔：沿用基底鎖定 / 開火，發射會在敵群之間連鎖的雷電子彈。
@@ -152,13 +184,16 @@ class ThunderTowerComponent extends TowerComponent {
   }
 }
 
-/// 障礙物：純粹擋路，不攻擊。用較大的石頭素材。
+/// 障礙物：純粹擋路，不攻擊。每次隨機挑一種石堆樣式，讓每顆都有點不同。
 class ObstacleTowerComponent extends TowerComponent {
   ObstacleTowerComponent(BoardPoint location)
       : super(TowerType.obstacle, location);
 
+  late final Sprite _variant =
+      game.obstacleSprites[_rnd.nextInt(game.obstacleSprites.length)];
+
   @override
-  double get spriteScale => 2.0;
+  Sprite get sprite => _variant;
 
   @override
   void update(double dt) {}

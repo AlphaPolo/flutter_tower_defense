@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../board/hex.dart';
 import '../effects/effect.dart';
+import '../effects/particles.dart';
 import '../tower_defense_game.dart';
 import 'enemy_status.dart';
 
@@ -107,6 +108,7 @@ class EnemyComponent extends PositionComponent
     if (_settled) return;
     _settled = true;
     _dead = true;
+    game.world.add(deathBurst(position.clone(), game.iso.scaleX));
     game.onEnemyKilled(this);
     removeFromParent();
   }

@@ -38,6 +38,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   /// 每個格子要往哪個方向走（從終點往回算的 flow field）。
   Map<BoardPoint, HexagonDirection> guide = {};
 
+  /// 出生點沿 flow field 走到終點的實際路線（給地面路徑顯示用）。
+  List<BoardPoint> route = [];
+
   /// 場上的敵人與塔（元件自行在 onMount / onRemove 時登記）。
   final List<EnemyComponent> enemies = [];
   final Map<BoardPoint, TowerComponent> towers = {};
@@ -48,6 +51,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   final Images isoImages = Images(prefix: 'assets/iso/');
   late final Sprite boardSprite;
   late final Map<TowerType, Sprite> towerSprites;
+  late final List<Sprite> obstacleSprites;
 
   // ── 波次 ─────────────────────────────────────────────────
   static const int totalWaves = 12;
@@ -81,6 +85,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     iso = IsoProjection.fromJson(jsonStr, board);
 
     boardSprite = await Sprite.load('board.png', images: isoImages);
+    obstacleSprites = [
+      for (var i = 0; i < 4; i++)
+        await Sprite.load('obstacle_$i.png', images: isoImages),
+    ];
     towerSprites = {
       TowerType.flame: await Sprite.load('tower_flame.png', images: isoImages),
       TowerType.freezing:
@@ -89,8 +97,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
           await Sprite.load('tower_airblade.png', images: isoImages),
       TowerType.thunder:
           await Sprite.load('tower_thunder.png', images: isoImages),
-      TowerType.obstacle:
-          await Sprite.load('tower_obstacle.png', images: isoImages),
+      TowerType.obstacle: obstacleSprites.first,
     };
 
     boardComponent = BoardComponent();
@@ -142,6 +149,20 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
 
   void recomputeGuide() {
     guide = recalculate(targetLocation, isPointCanMove);
+    route = _computeRoute();
+  }
+
+  List<BoardPoint> _computeRoute() {
+    final path = <BoardPoint>[spawnLocation];
+    var cur = spawnLocation;
+    var guard = 0;
+    while (cur != targetLocation && guard++ < 1000) {
+      final dir = guide[cur];
+      if (dir == null) break;
+      cur = cur.getNeighbor(dir);
+      path.add(cur);
+    }
+    return path;
   }
 
   bool hasEnemyOn(BoardPoint point) => enemies.any(

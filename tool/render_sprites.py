@@ -115,14 +115,21 @@ def main():
         stack_top = 0.0
         for m in job["models"]:
             objs = import_gltf(m["path"])
+            sc = m.get("scale", 1.0)
+            if sc != 1.0:
+                for o in objs:
+                    if o.parent is None:
+                        o.scale *= sc
+                bpy.context.view_layer.update()
             mn, mx = bbox_world(objs)
             cx = (mn.x + mx.x) / 2
             cy = (mn.y + mx.y) / 2
             dz = (stack_top - mn.z) if m.get("stack") else (-mn.z)
+            ox, oy = (m.get("offset") or [0, 0])
             for o in objs:
                 if o.parent is None:
-                    o.location.x -= cx
-                    o.location.y -= cy
+                    o.location.x -= cx - ox
+                    o.location.y -= cy - oy
                     o.location.z += dz
             bpy.context.view_layer.update()
             mn2, mx2 = bbox_world(objs)
