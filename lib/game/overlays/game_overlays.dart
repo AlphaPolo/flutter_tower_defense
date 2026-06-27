@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../gen/assets.gen.dart';
+import '../board/hex.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
 
@@ -38,6 +39,7 @@ class LeftColOverlay extends StatelessWidget {
           _cheatSwitch(),
           _statusPanel(),
           _infoPanel(),
+          _inspectPanel(),
           _startButton(),
         ],
       ),
@@ -162,6 +164,62 @@ class LeftColOverlay extends StatelessWidget {
               Text('花費: ${stats.cost}'),
               Text('範圍: ${stats.range}'),
               Text('傷害: ${stats.damage}'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 點到已蓋建築時，顯示該建築資訊 + 拆除按鈕。
+  Widget _inspectPanel() {
+    return ValueListenableBuilder<BoardPoint?>(
+      valueListenable: game.inspecting,
+      builder: (context, bp, _) {
+        if (bp == null) return const SizedBox.shrink();
+        final type = game.typeAt(bp);
+        if (type == null) return const SizedBox.shrink();
+        final stats = statsOf(type);
+        return Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(12),
+          constraints: const BoxConstraints(maxWidth: 160),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.all(Radius.circular(8.0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.5),
+                spreadRadius: 2,
+                blurRadius: 3,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: SizedBox.square(dimension: 48, child: towerIcon(type)),
+              ),
+              const SizedBox(height: 12),
+              Text(stats.title, textAlign: TextAlign.center),
+              if (type != TowerType.obstacle) ...[
+                const SizedBox(height: 8),
+                Text('範圍: ${stats.range}'),
+                Text('傷害: ${stats.damage}'),
+              ],
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => game.demolishAt(bp),
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('拆除'),
+              ),
             ],
           ),
         );

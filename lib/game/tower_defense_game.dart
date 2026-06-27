@@ -65,6 +65,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
   final ValueNotifier<int> freeObstacle = ValueNotifier(3);
   final ValueNotifier<bool> cheat = ValueNotifier(false);
   final ValueNotifier<TowerType?> selecting = ValueNotifier(null);
+  // 目前被點選查看的「已蓋建築」格子（顯示資訊面板 + 拆除按鈕）。
+  final ValueNotifier<BoardPoint?> inspecting = ValueNotifier(null);
   final ValueNotifier<int> wave = ValueNotifier(0);
   final ValueNotifier<bool> waveRunning = ValueNotifier(false);
   final ValueNotifier<bool> gameOver = ValueNotifier(false);
@@ -206,8 +208,46 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     return true;
   }
 
-  void selectTower(TowerType? type) => selecting.value = type;
-  void cancelSelection() => selecting.value = null;
+  /// 拆除某格的建築：移除元件、退回部分資源、重算路線。
+  bool demolishAt(BoardPoint point) {
+    final tower = towers.remove(point);
+    if (tower == null) return false;
+    tower.removeFromParent();
+    recomputeGuide();
+    if (inspecting.value == point) inspecting.value = null;
+
+    if (tower.type == TowerType.obstacle) {
+      // 障礙物拆除不退回額度。
+      showMessage('已拆除障礙物');
+    } else {
+      final refund = (statsOf(tower.type).cost * 0.5).floor();
+      coin.value += refund;
+      showMessage('已拆除，退回 $refund 金幣');
+    }
+    return true;
+  }
+
+  /// 點選某格：有建築→顯示其資訊（並取消正在選的塔）；空地→關閉資訊面板。
+  void inspectAt(BoardPoint point) {
+    if (!towers.containsKey(point)) {
+      inspecting.value = null;
+      return;
+    }
+    selecting.value = null;
+    inspecting.value = point;
+  }
+
+  TowerType? typeAt(BoardPoint point) => towers[point]?.type;
+
+  void selectTower(TowerType? type) {
+    selecting.value = type;
+    inspecting.value = null;
+  }
+
+  void cancelSelection() {
+    selecting.value = null;
+    inspecting.value = null;
+  }
   void toggleCheat() => cheat.value = !cheat.value;
 
   // ── 敵人登記 ─────────────────────────────────────────────
@@ -307,6 +347,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     freeObstacle.dispose();
     cheat.dispose();
     selecting.dispose();
+    inspecting.dispose();
     wave.dispose();
     waveRunning.dispose();
     gameOver.dispose();

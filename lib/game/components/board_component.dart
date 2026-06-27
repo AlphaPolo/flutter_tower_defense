@@ -32,7 +32,15 @@ class BoardComponent extends PositionComponent
     _highlight(canvas, game.targetLocation, Colors.green.withOpacity(0.45));
     _highlight(canvas, game.spawnLocation, Colors.red.withOpacity(0.45));
     final h = hovered;
-    if (h != null) _highlight(canvas, h, Colors.orange.withOpacity(0.5));
+    if (h != null) {
+      // 滑到建築上→紅色(可右鍵拆除)；空地→橘色。
+      final removable = game.towers.containsKey(h);
+      _highlight(
+        canvas,
+        h,
+        (removable ? Colors.redAccent : Colors.orange).withOpacity(0.5),
+      );
+    }
   }
 
   /// 在地面畫出怪物行走路線（緞帶 + 方向箭頭）。
@@ -101,11 +109,20 @@ class BoardComponent extends PositionComponent
   @override
   void onTapUp(TapUpEvent event) {
     final bp = game.screenToBoard(event.localPosition);
-    if (bp != null) game.tryPlaceAt(bp);
+    if (bp == null) return;
+    if (game.towers.containsKey(bp)) {
+      // 點到已蓋建築 → 顯示其資訊（並取消正在選的塔）。
+      game.inspectAt(bp);
+    } else {
+      // 空地 → 關閉資訊面板，嘗試蓋目前選取的塔。
+      game.inspecting.value = null;
+      game.tryPlaceAt(bp);
+    }
   }
 
   @override
   void onSecondaryTapUp(SecondaryTapUpEvent event) {
+    // 右鍵：取消目前選取要蓋的建築 / 關閉資訊面板。
     game.cancelSelection();
   }
 
