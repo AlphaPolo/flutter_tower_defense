@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
@@ -212,35 +213,52 @@ class FreezeProjectileComponent extends ProjectileComponent {
 
   @override
   void render(Canvas canvas) {
-    final rx = currentRadius * game.iso.scaleX;
-    final ry = currentRadius * game.iso.scaleY;
+    // 用 isometric 地面基底做仿射，在邏輯地面畫圓 → 投影後貼合地磚角度。
+    final ax = game.iso.axisX;
+    final ay = game.iso.axisY;
+    final r = currentRadius; // 邏輯半徑
     final fade = (1 - clock / lifeTime).clamp(0.0, 1.0);
-    final rect = Rect.fromCenter(center: Offset.zero, width: rx * 2, height: ry * 2);
-    canvas.drawOval(
-      rect,
+    final rect = Rect.fromCircle(center: Offset.zero, radius: r);
+
+    canvas
+      ..save()
+      ..transform(Float64List.fromList([
+        ax.x, ax.y, 0, 0, //
+        ay.x, ay.y, 0, 0, //
+        0, 0, 1, 0, //
+        0, 0, 0, 1, //
+      ]));
+    // 柔邊填色
+    canvas.drawCircle(
+      Offset.zero,
+      r,
       Paint()
         ..shader = RadialGradient(
           colors: [Colors.transparent, Colors.lightBlueAccent.withOpacity(0.35)],
           stops: const [0.6, 1],
         ).createShader(rect),
     );
-    canvas.drawOval(
-      rect,
+    // 外環
+    canvas.drawCircle(
+      Offset.zero,
+      r,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = 1.6
         ..color = Colors.lightBlueAccent.withOpacity(0.9 * fade),
     );
+    // 環上雪花
     const n = 10;
     final ph = clock / lifeTime;
     for (var i = 0; i < n; i++) {
       final a = 2 * pi * i / n + ph * 2;
       canvas.drawCircle(
-        Offset(cos(a) * rx, sin(a) * ry),
-        1.6 * game.iso.scaleX,
+        Offset(cos(a) * r, sin(a) * r),
+        1.0,
         Paint()..color = Colors.white.withOpacity(fade),
       );
     }
+    canvas.restore();
   }
 }
 
