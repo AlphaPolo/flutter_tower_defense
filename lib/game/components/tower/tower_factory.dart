@@ -151,16 +151,50 @@ class AirBladeTowerComponent extends TowerComponent {
     return target >= start && target <= end;
   }
 
+  static const double slashSpan = 0.95; // 斬擊新月的角度跨度(rad)
+
   @override
   void render(Canvas canvas) {
-    // 半透明貼地旋轉風刃。用 isometric 地面基底向量做仿射變換，直接在「邏輯
-    // 地面」上畫圓弧，投影後角度就會跟地磚一致；用正常混色(非 additive)、
-    // 前緣淡綠(非純白)以保留透明感。
+    // 斬擊刀光：尖端收尖、中間飽滿的新月刀光(貼地)，外緣有一道亮刀刃，
+    // 後方兩道較淡殘影做出揮砍的動態模糊。
+    final foot = Offset(size.x / 2, size.y / 2);
+    final rOut = game.board.hexagonRadius * 1.4; // 邏輯半徑
+    _slash(canvas, foot, rOut, direction - 0.34, fill: 0.06, edge: 0.0);
+    _slash(canvas, foot, rOut, direction - 0.17, fill: 0.13, edge: 0.25);
+    _slash(canvas, foot, rOut, direction, fill: 0.26, edge: 0.8);
+    super.render(canvas);
+  }
+
+  /// 在地面平面畫一道新月刀光（外弧為亮刀刃，向兩端收尖）。
+  void _slash(
+    Canvas canvas,
+    Offset foot,
+    double rOut,
+    double a0, {
+    required double fill,
+    required double edge,
+  }) {
     final ax = game.iso.axisX;
     final ay = game.iso.axisY;
-    final foot = Offset(size.x / 2, size.y / 2);
-    final rL = game.board.hexagonRadius * 1.35; // 邏輯半徑
-    final rect = Rect.fromCircle(center: Offset.zero, radius: rL);
+    final thickness = rOut * 0.5;
+    const seg = 18;
+    final outer = <Offset>[];
+    final inner = <Offset>[];
+    for (var i = 0; i <= seg; i++) {
+      final t = a0 + slashSpan * i / seg;
+      final taper = sin(pi * i / seg); // 兩端 0、中間 1 → 收尖
+      final rin = rOut - thickness * taper;
+      outer.add(Offset(cos(t) * rOut, sin(t) * rOut));
+      inner.add(Offset(cos(t) * rin, sin(t) * rin));
+    }
+    final crescent = Path()..moveTo(outer.first.dx, outer.first.dy);
+    for (var i = 1; i < outer.length; i++) {
+      crescent.lineTo(outer[i].dx, outer[i].dy);
+    }
+    for (var i = inner.length - 1; i >= 0; i--) {
+      crescent.lineTo(inner[i].dx, inner[i].dy);
+    }
+    crescent.close();
 
     canvas
       ..save()
@@ -170,39 +204,23 @@ class AirBladeTowerComponent extends TowerComponent {
         ay.x, ay.y, 0, 0, //
         0, 0, 1, 0, //
         0, 0, 0, 1, //
-      ]));
-
-    // 地面風環
-    canvas.drawArc(
-      rect,
-      0,
-      2 * pi,
-      false,
-      Paint()
-        ..color = Colors.greenAccent.withOpacity(0.05)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = rL * 0.45,
-    );
-
-    // 主刃 + 拖尾（往後逐漸變淡、變窄）
-    const trail = 8;
-    for (var k = 0; k < trail; k++) {
-      final f = 1 - k / trail;
-      canvas.drawArc(
-        rect,
-        direction - k * 0.12,
-        0.34,
-        false,
+      ]))
+      ..drawPath(crescent, Paint()..color = Colors.greenAccent.withOpacity(fill));
+    if (edge > 0) {
+      final blade = Path()..moveTo(outer.first.dx, outer.first.dy);
+      for (var i = 1; i < outer.length; i++) {
+        blade.lineTo(outer[i].dx, outer[i].dy);
+      }
+      canvas.drawPath(
+        blade,
         Paint()
-          ..color = (k == 0 ? Colors.lightGreenAccent : Colors.greenAccent)
-              .withOpacity(0.30 * f)
+          ..color = Colors.lightGreenAccent.withOpacity(edge)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = rL * (0.12 + 0.4 * f)
+          ..strokeWidth = 3
           ..strokeCap = StrokeCap.round,
       );
     }
     canvas.restore();
-    super.render(canvas);
   }
 }
 
