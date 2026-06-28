@@ -82,7 +82,8 @@ def main():
     cam = bpy.data.objects.new("Cam", cam_data)
     scene.collection.objects.link(cam)
     scene.camera = cam
-    cam.location = mathutils.Vector((10, -10, 10))
+    cl = manifest.get("cam", [10, -10, 10])
+    cam.location = mathutils.Vector((cl[0], cl[1], cl[2]))
     look = mathutils.Vector((0, 0, 0)) - cam.location
     cam.rotation_euler = look.to_track_quat("-Z", "Y").to_euler()
 
