@@ -13,8 +13,7 @@ class BoardComponent extends PositionComponent
         HasGameReference<TowerDefenseGame>,
         TapCallbacks,
         SecondaryTapCallbacks,
-        PointerMoveCallbacks,
-        DragCallbacks {
+        PointerMoveCallbacks {
   BoardComponent() : super(priority: -2);
 
   BoardPoint? hovered;
@@ -129,10 +128,5 @@ class BoardComponent extends PositionComponent
   @override
   void onPointerMove(PointerMoveEvent event) {
     hovered = game.screenToBoard(event.localPosition);
-  }
-
-  @override
-  void onDragUpdate(DragUpdateEvent event) {
-    game.camera.viewfinder.position -= event.localDelta;
   }
 }

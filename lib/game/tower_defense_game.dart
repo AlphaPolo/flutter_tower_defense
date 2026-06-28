@@ -23,7 +23,7 @@ import 'tower_type.dart';
 /// 遊戲邏輯（移動、射程、瞄準、尋路）全部在「top-down 邏輯座標」進行；
 /// [iso] 只在繪製時把邏輯座標投影成 isometric 螢幕座標。棋盤是預先用
 /// Blender 渲染好的一張 isometric 圖。
-class TowerDefenseGame extends FlameGame with ScrollDetector {
+class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   TowerDefenseGame();
 
   static const int boardRadius = 5;
@@ -125,6 +125,27 @@ class TowerDefenseGame extends FlameGame with ScrollDetector {
     final delta = info.scrollDelta.global.y;
     final next = camera.viewfinder.zoom * (delta > 0 ? 0.9 : 1.1);
     camera.viewfinder.zoom = next.clamp(0.1, 3.0);
+  }
+
+  // ── 觸控：雙指縮放、單指平移 ──────────────────────────────
+  double _startZoom = 1;
+
+  @override
+  void onScaleStart(ScaleStartInfo info) {
+    _startZoom = camera.viewfinder.zoom;
+  }
+
+  @override
+  void onScaleUpdate(ScaleUpdateInfo info) {
+    if (info.pointerCount > 1) {
+      // 雙指 → 縮放
+      camera.viewfinder.zoom =
+          (_startZoom * info.scale.global.y).clamp(0.1, 3.0);
+    } else {
+      // 單指 → 平移（螢幕位移換算成世界位移）
+      camera.viewfinder.position +=
+          -info.delta.global / camera.viewfinder.zoom;
+    }
   }
 
   // ── 座標換算 ──────────────────────────────────────────────
