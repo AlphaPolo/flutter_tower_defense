@@ -138,9 +138,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
     if (info.pointerCount > 1) {
-      // 雙指 → 縮放
-      camera.viewfinder.zoom =
-          (_startZoom * info.scale.global.y).clamp(0.1, 3.0);
+      // 雙指 → 縮放（用整體 pinch 距離，往外張放大、捏合縮小，與方向無關）
+      camera.viewfinder.zoom = (_startZoom * info.raw.scale).clamp(0.1, 3.0);
     } else {
       // 單指 → 平移（螢幕位移換算成世界位移）
       camera.viewfinder.position +=
