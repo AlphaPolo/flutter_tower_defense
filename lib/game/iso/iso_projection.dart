@@ -93,6 +93,11 @@ class IsoProjection {
     );
   }
 
+  /// 地面平面的螢幕基底向量（邏輯 x / y 軸投影後的方向+長度）。
+  /// 用它做 canvas 仿射變換，就能把「貼地」的圖形畫在正確的 isometric 角度。
+  Vector2 get axisX => Vector2(_a, _d);
+  Vector2 get axisY => Vector2(_b, _e);
+
   Vector2 logicalToScreen(Vector2 p) =>
       Vector2(_a * p.x + _b * p.y + _c, _d * p.x + _e * p.y + _f);
 

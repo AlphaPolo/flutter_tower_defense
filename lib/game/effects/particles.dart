@@ -81,6 +81,19 @@ ParticleSystemComponent sparkBurst(Vector2 pos, double s, {int count = 8}) =>
         colors: const [Colors.yellow, Colors.white, Colors.amberAccent],
         additive: true);
 
+ParticleSystemComponent windBurst(Vector2 pos, double s, {int count = 4}) =>
+    _burst(pos,
+        count: count,
+        life: 0.35,
+        speed: 70 * s,
+        radius: 2.0 * s,
+        colors: const [
+          Colors.greenAccent,
+          Colors.white,
+          Colors.lightGreenAccent
+        ],
+        additive: true);
+
 ParticleSystemComponent deathBurst(Vector2 pos, double s, {int count = 8}) =>
     _burst(pos,
         count: count,

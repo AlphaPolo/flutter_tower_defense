@@ -1,10 +1,12 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../board/hex.dart';
+import '../../effects/particles.dart';
 import '../../tower_type.dart';
 import '../enemy_component.dart';
 import '../projectile/projectile.dart';
@@ -112,6 +114,8 @@ class AirBladeTowerComponent extends TowerComponent {
   static const double spinSpeed = 0.2;
   static const double arc = 25 * pi / 180;
 
+  double _windEmit = 0;
+
   @override
   void update(double dt) {
     direction += spinSpeed;
@@ -124,6 +128,17 @@ class AirBladeTowerComponent extends TowerComponent {
 
     for (final e in targets) {
       e.dealDamage(damage);
+    }
+
+    // 刃尖噴出風的粒子。
+    _windEmit += dt * 1000;
+    if (_windEmit >= 140) {
+      _windEmit = 0;
+      final tip = logicalPos +
+          Vector2(cos(direction), sin(direction)) *
+              (game.board.hexagonRadius * range * 0.55);
+      game.world.add(windBurst(game.logicalToScreen(tip), game.iso.scaleX,
+          count: 3));
     }
   }
 
@@ -138,30 +153,55 @@ class AirBladeTowerComponent extends TowerComponent {
 
   @override
   void render(Canvas canvas) {
-    // 貼地的旋轉風刃（綠色弧形 + 拖尾），畫在塔底之後再畫塔身。
-    final sx = game.iso.scaleX;
-    final sy = game.iso.scaleY;
+    // 半透明貼地旋轉風刃。用 isometric 地面基底向量做仿射變換，直接在「邏輯
+    // 地面」上畫圓弧，投影後角度就會跟地磚一致；用正常混色(非 additive)、
+    // 前緣淡綠(非純白)以保留透明感。
+    final ax = game.iso.axisX;
+    final ay = game.iso.axisY;
     final foot = Offset(size.x / 2, size.y / 2);
-    final rOut = game.board.hexagonRadius * 1.3 * sx;
-    final rect = Rect.fromCenter(
-      center: foot,
-      width: rOut * 2,
-      height: rOut * 2 * (sy / sx),
+    final rL = game.board.hexagonRadius * 1.35; // 邏輯半徑
+    final rect = Rect.fromCircle(center: Offset.zero, radius: rL);
+
+    canvas
+      ..save()
+      ..translate(foot.dx, foot.dy)
+      ..transform(Float64List.fromList([
+        ax.x, ax.y, 0, 0, //
+        ay.x, ay.y, 0, 0, //
+        0, 0, 1, 0, //
+        0, 0, 0, 1, //
+      ]));
+
+    // 地面風環
+    canvas.drawArc(
+      rect,
+      0,
+      2 * pi,
+      false,
+      Paint()
+        ..color = Colors.greenAccent.withOpacity(0.05)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = rL * 0.45,
     );
-    for (var k = 0; k < 3; k++) {
+
+    // 主刃 + 拖尾（往後逐漸變淡、變窄）
+    const trail = 8;
+    for (var k = 0; k < trail; k++) {
+      final f = 1 - k / trail;
       canvas.drawArc(
         rect,
-        direction - k * 0.4,
-        0.7,
+        direction - k * 0.12,
+        0.34,
         false,
         Paint()
-          ..color = Colors.greenAccent.withOpacity(0.4 - k * 0.12)
+          ..color = (k == 0 ? Colors.lightGreenAccent : Colors.greenAccent)
+              .withOpacity(0.30 * f)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = rOut * 0.5
-          ..strokeCap = StrokeCap.round
-          ..blendMode = BlendMode.plus,
+          ..strokeWidth = rL * (0.12 + 0.4 * f)
+          ..strokeCap = StrokeCap.round,
       );
     }
+    canvas.restore();
     super.render(canvas);
   }
 }
