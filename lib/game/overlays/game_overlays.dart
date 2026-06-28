@@ -44,13 +44,7 @@ class LeftColOverlay extends StatelessWidget {
             children: [
               _cheatSwitch(),
               _statusPanel(),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _startButton(),
-                  if (kIsWeb) _fullscreenButton(),
-                ],
-              ),
+              _startButton(),
             ],
           ),
           const Spacer(),
@@ -249,16 +243,6 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  Widget _fullscreenButton() {
-    return IconButton(
-      color: Colors.white,
-      iconSize: 32,
-      tooltip: '全螢幕',
-      onPressed: toggleFullscreen,
-      icon: const Icon(Icons.fullscreen),
-    );
-  }
-
   Widget _startButton() {
     return AnimatedBuilder(
       animation: Listenable.merge(
@@ -334,19 +318,40 @@ class BuildBar extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(12),
-      alignment: Alignment.center,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 16,
+      child: SizedBox(
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            for (final type in TowerType.values) ...[
-              _icon(type),
-            ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 16,
+                children: [
+                  for (final type in TowerType.values) _icon(type),
+                ],
+              ),
+            ),
+            // 右上角全螢幕鈕（僅 web）。
+            if (kIsWeb)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: _fullscreenButton(),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _fullscreenButton() {
+    return IconButton(
+      iconSize: 28,
+      tooltip: '全螢幕',
+      onPressed: toggleFullscreen,
+      icon: const Icon(Icons.fullscreen, color: Colors.white),
     );
   }
 
