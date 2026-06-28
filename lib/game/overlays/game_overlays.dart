@@ -23,7 +23,7 @@ Widget towerIcon(TowerType type) {
   }
 }
 
-/// 左下角：作弊開關、狀態表、選取的塔資訊、開始按鈕。
+/// HUD overlay：左下放作弊開關/狀態表/開始鈕，右下放塔資訊/建築資訊面板。
 class LeftColOverlay extends StatelessWidget {
   const LeftColOverlay({super.key, required this.game});
   final TowerDefenseGame game;
@@ -32,15 +32,29 @@ class LeftColOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // 左下角
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cheatSwitch(),
+              _statusPanel(),
+              _startButton(),
+            ],
+          ),
           const Spacer(),
-          _cheatSwitch(),
-          _statusPanel(),
-          _infoPanel(),
-          _inspectPanel(),
-          _startButton(),
+          // 右下角：選取的塔資訊 / 已蓋建築資訊
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _infoPanel(),
+              _inspectPanel(),
+            ],
+          ),
         ],
       ),
     );
@@ -302,14 +316,18 @@ class BuildBar extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final type in TowerType.values) ...[
-            _icon(type),
-            const SizedBox(width: 16.0),
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 16,
+          children: [
+            for (final type in TowerType.values) ...[
+              _icon(type),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
