@@ -118,7 +118,7 @@ class AirBladeTowerComponent extends TowerComponent {
 
   @override
   void update(double dt) {
-    direction += spinSpeed;
+    direction = (direction + spinSpeed) % (2 * pi);
 
     final targets = game.enemiesInRange(logicalPos, range).where((e) {
       final diff = e.logicalPos - logicalPos;
@@ -165,7 +165,7 @@ class AirBladeTowerComponent extends TowerComponent {
     super.render(canvas);
   }
 
-  /// 在地面平面畫一道新月刀光（外弧為亮刀刃，向兩端收尖）。
+  /// 在地面平面畫一道新月刀光：前緣(旋轉前端)最亮，沿弧線往後越來越淡。
   void _slash(
     Canvas canvas,
     Offset foot,
@@ -181,7 +181,7 @@ class AirBladeTowerComponent extends TowerComponent {
     final outer = <Offset>[];
     final inner = <Offset>[];
     for (var i = 0; i <= seg; i++) {
-      final t = a0 + slashSpan * i / seg;
+      final t = slashSpan * i / seg; // 固定 0~slashSpan，旋轉交給 canvas.rotate
       final taper = sin(pi * i / seg); // 兩端 0、中間 1 → 收尖
       final rin = rOut - thickness * taper;
       outer.add(Offset(cos(t) * rOut, sin(t) * rOut));
@@ -196,6 +196,17 @@ class AirBladeTowerComponent extends TowerComponent {
     }
     crescent.close();
 
+    final rect = Rect.fromCircle(center: Offset.zero, radius: rOut);
+    // 沿弧線的漸層：a0(後端)透明 → a0+slashSpan(前端)亮。
+    Shader sweep(Color c, double a, List<double> stops, List<double> ops) {
+      return SweepGradient(
+        startAngle: 0,
+        endAngle: slashSpan,
+        colors: [for (final o in ops) c.withOpacity(o * a)],
+        stops: stops,
+      ).createShader(rect);
+    }
+
     canvas
       ..save()
       ..translate(foot.dx, foot.dy)
@@ -205,7 +216,13 @@ class AirBladeTowerComponent extends TowerComponent {
         0, 0, 1, 0, //
         0, 0, 0, 1, //
       ]))
-      ..drawPath(crescent, Paint()..color = Colors.greenAccent.withOpacity(fill));
+      ..rotate(a0); // 旋轉由此處理，刀光幾何/漸層永遠用固定角度
+    if (fill > 0) {
+      canvas.drawPath(
+        crescent,
+        Paint()..shader = sweep(Colors.green.shade700, fill, [0, 1], [0, 1]),
+      );
+    }
     if (edge > 0) {
       final blade = Path()..moveTo(outer.first.dx, outer.first.dy);
       for (var i = 1; i < outer.length; i++) {
@@ -214,7 +231,8 @@ class AirBladeTowerComponent extends TowerComponent {
       canvas.drawPath(
         blade,
         Paint()
-          ..color = Colors.lightGreenAccent.withOpacity(edge)
+          // 亮光集中在前端 ~40%，往後快速淡掉。
+          ..shader = sweep(Colors.green, edge, [0, 0.6, 1], [0, 0, 1])
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3
           ..strokeCap = StrokeCap.round,
