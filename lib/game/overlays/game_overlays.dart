@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../gen/assets.gen.dart';
+import '../../utils/fullscreen.dart';
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
@@ -42,7 +44,13 @@ class LeftColOverlay extends StatelessWidget {
             children: [
               _cheatSwitch(),
               _statusPanel(),
-              _startButton(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _startButton(),
+                  if (kIsWeb) _fullscreenButton(),
+                ],
+              ),
             ],
           ),
           const Spacer(),
@@ -238,6 +246,16 @@ class LeftColOverlay extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _fullscreenButton() {
+    return IconButton(
+      color: Colors.white,
+      iconSize: 32,
+      tooltip: '全螢幕',
+      onPressed: toggleFullscreen,
+      icon: const Icon(Icons.fullscreen),
     );
   }
 

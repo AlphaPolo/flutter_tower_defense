@@ -15,5 +15,7 @@ void main() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
+  // 原生手機全螢幕（隱藏狀態列/導覽列）。Web 為 no-op，由 index.html 處理。
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const MyApp());
 }
