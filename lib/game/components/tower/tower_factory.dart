@@ -25,6 +25,10 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return AirBladeTowerComponent(location);
     case TowerType.thunder:
       return ThunderTowerComponent(location);
+    case TowerType.cannon:
+      return CannonTowerComponent(location);
+    case TowerType.poison:
+      return PoisonTowerComponent(location);
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
   }
@@ -256,6 +260,42 @@ class ThunderTowerComponent extends TowerComponent {
       target: enemy,
       chainLimit: 4,
       chainDistance: 5,
+    );
+  }
+}
+
+/// 火炮塔：鎖定最近敵人，發射砲彈在落點爆炸造成範圍傷害。
+class CannonTowerComponent extends TowerComponent {
+  CannonTowerComponent(BoardPoint location) : super(TowerType.cannon, location);
+
+  static const double blastHex = 1.4; // 爆炸半徑（格）
+
+  @override
+  ProjectileComponent createProjectile(EnemyComponent enemy) {
+    return CannonProjectileComponent(
+      damage: damage,
+      start: muzzle(),
+      speed: 1.2,
+      targetPos: enemy.logicalPos.clone(),
+      blastHex: blastHex,
+    );
+  }
+}
+
+/// 毒塔：鎖定最近敵人，射出毒液使其中毒持續扣血。
+class PoisonTowerComponent extends TowerComponent {
+  PoisonTowerComponent(BoardPoint location) : super(TowerType.poison, location);
+
+  static const int poisonDuration = 3000; // 中毒持續時間(ms)
+
+  @override
+  ProjectileComponent createProjectile(EnemyComponent enemy) {
+    return PoisonProjectileComponent(
+      damage: damage,
+      start: muzzle(),
+      speed: 1.4,
+      target: enemy,
+      duration: poisonDuration,
     );
   }
 }

@@ -4,3 +4,4 @@ const gameDebug = false;
 
 const kThunderEffectType = IdWithEffectType(100, EffectDuplicateStrategy.last);
 const kFrozenEffectType = IdWithEffectType(101, EffectDuplicateStrategy.last);
+const kPoisonEffectType = IdWithEffectType(102, EffectDuplicateStrategy.last);

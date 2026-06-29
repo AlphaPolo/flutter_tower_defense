@@ -125,11 +125,14 @@ class EnemyComponent extends PositionComponent
   EnemyStatus _tickEffects(int dtMs) {
     var dirty = false;
     var result = status;
+    var dot = 0.0;
     for (final effect in effects) {
       effect.tick(dtMs);
       result = effect.calc(result);
+      dot += effect.takeDamage();
       if (effect.dead) dirty = true;
     }
+    if (dot > 0) dealDamage(dot); // 持續傷害（毒等）
     if (dirty) {
       effects.removeWhere((e) {
         if (e.dead) e.onEnd();

@@ -18,6 +18,9 @@ abstract class BaseEffect implements Comparable<BaseEffect> {
   /// 把效果套用到當前狀態上，回傳修改後的狀態。
   EnemyStatus calc(EnemyStatus status);
 
+  /// 這一幀要對敵人造成的持續傷害（毒等），取出後歸零。預設 0。
+  double takeDamage() => 0;
+
   bool get dead;
 
   /// 套用順序（數字小的先算）。
@@ -94,4 +97,34 @@ class SlowMovementEffect extends DefaultTimerEffect {
 
   @override
   int get order => _order;
+}
+
+/// 中毒：持續一段時間，每秒造成 [dps] 點傷害（依幀累積後交給敵人扣血）。
+class PoisonEffect extends DefaultTimerEffect {
+  PoisonEffect(this.idWithType, super.lifetime, this.dps);
+
+  final double dps;
+  double _pending = 0;
+
+  @override
+  final IdWithEffectType idWithType;
+
+  @override
+  void tick(int dtMillis) {
+    super.tick(dtMillis);
+    _pending += dps * dtMillis / 1000.0;
+  }
+
+  @override
+  double takeDamage() {
+    final d = _pending;
+    _pending = 0;
+    return d;
+  }
+
+  @override
+  EnemyStatus calc(EnemyStatus status) => status; // 不改數值，只造成傷害
+
+  @override
+  int get order => 400;
 }

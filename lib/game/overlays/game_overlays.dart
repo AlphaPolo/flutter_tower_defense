@@ -20,6 +20,10 @@ Widget towerIcon(TowerType type) {
       return Assets.images.air.image();
     case TowerType.thunder:
       return Assets.images.electricity.image();
+    case TowerType.cannon:
+      return Image.asset('assets/iso/tower_cannon.png');
+    case TowerType.poison:
+      return Image.asset('assets/iso/tower_poison.png');
     case TowerType.obstacle:
       return const Icon(Icons.hexagon_outlined, color: Colors.brown, size: 64);
   }

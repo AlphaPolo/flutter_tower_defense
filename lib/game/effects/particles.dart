@@ -94,6 +94,35 @@ ParticleSystemComponent windBurst(Vector2 pos, double s, {int count = 4}) =>
         ],
         additive: true);
 
+ParticleSystemComponent explosionBurst(Vector2 pos, double s,
+        {int count = 18}) =>
+    _burst(pos,
+        count: count,
+        life: 0.5,
+        speed: 130 * s,
+        radius: 4.0 * s,
+        colors: const [
+          Colors.white,
+          Colors.yellow,
+          Colors.orange,
+          Colors.deepOrange,
+          Colors.brown,
+        ],
+        additive: true);
+
+ParticleSystemComponent poisonBurst(Vector2 pos, double s, {int count = 6}) =>
+    _burst(pos,
+        count: count,
+        life: 0.6,
+        speed: 40 * s,
+        radius: 2.6 * s,
+        colors: const [
+          Colors.lightGreen,
+          Colors.green,
+          Color(0xFF9CCC65),
+        ],
+        accel: Vector2(0, -30 * s));
+
 ParticleSystemComponent deathBurst(Vector2 pos, double s, {int count = 8}) =>
     _burst(pos,
         count: count,

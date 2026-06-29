@@ -4,6 +4,8 @@ enum TowerType {
   flame,
   airBlade,
   thunder,
+  cannon,
+  poison,
   obstacle,
 }
 
@@ -58,6 +60,22 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 2000,
     title: '雷電塔',
     description: '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人',
+  ),
+  TowerType.cannon: TowerStats(
+    cost: 90,
+    range: 4,
+    damage: 25,
+    fireCD: 1400,
+    title: '火炮塔',
+    description: '發射砲彈命中後爆炸，對落點周圍範圍內的所有敵人造成傷害',
+  ),
+  TowerType.poison: TowerStats(
+    cost: 80,
+    range: 3.5,
+    damage: 18,
+    fireCD: 1200,
+    title: '毒塔',
+    description: '射出毒液使敵人中毒，在數秒內持續受到毒素傷害',
   ),
   TowerType.obstacle: TowerStats(
     cost: 20,

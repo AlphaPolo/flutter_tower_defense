@@ -109,6 +109,128 @@ class NormalProjectileComponent extends ProjectileComponent {
   }
 }
 
+/// 火炮塔砲彈：拋向目標落點，命中後爆炸，對落點 [blastHex] 半徑內所有敵人造成傷害。
+class CannonProjectileComponent extends ProjectileComponent {
+  CannonProjectileComponent({
+    required super.damage,
+    required super.start,
+    required super.speed,
+    required this.targetPos,
+    required this.blastHex,
+  });
+
+  final Vector2 targetPos;
+  final double blastHex;
+  final Vector2 _start = Vector2.zero();
+
+  @override
+  void onMount() {
+    super.onMount();
+    _start.setFrom(logical);
+    goalLogical = targetPos.clone();
+    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
+  }
+
+  @override
+  void onTick(double dtMs) {
+    clock += dtMs;
+    if (lifeTime <= 0 || clock >= lifeTime) {
+      _explode();
+      dead = true;
+      return;
+    }
+    lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
+  }
+
+  void _explode() {
+    final blast = game.board.hexagonRadius * blastHex;
+    for (final e in game.enemies) {
+      if (e.isDead) continue;
+      if (e.logicalPos.distanceTo(goalLogical!) <= blast) e.dealDamage(damage);
+    }
+    game.world.add(
+      explosionBurst(game.logicalToScreen(goalLogical!), game.iso.scaleX),
+    );
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // 拋物線：飛行中段往上抬，像砲彈飛行弧線。
+    final t = lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0);
+    final lift = sin(t * pi) * 26 * s;
+    canvas.drawCircle(
+      Offset(0, -lift),
+      5 * s,
+      Paint()..color = const Color(0xFF333333),
+    );
+    canvas.drawCircle(
+      Offset(0, -lift),
+      5 * s,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Colors.orange.withOpacity(0.8),
+    );
+  }
+}
+
+/// 毒塔子彈：飛向目標，命中後讓敵人中毒（持續傷害）。
+class PoisonProjectileComponent extends ProjectileComponent {
+  PoisonProjectileComponent({
+    required super.damage,
+    required super.start,
+    required super.speed,
+    required this.target,
+    required this.duration,
+  });
+
+  final EnemyComponent target;
+  final int duration;
+  final Vector2 _start = Vector2.zero();
+
+  @override
+  void onMount() {
+    super.onMount();
+    if (!target.isMounted) {
+      dead = true;
+      return;
+    }
+    _start.setFrom(logical);
+    goalLogical = target.logicalPos.clone();
+    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
+  }
+
+  @override
+  void onTick(double dtMs) {
+    clock += dtMs;
+    if (lifeTime <= 0 || clock >= lifeTime) {
+      if (target.isMounted && !target.isDead) {
+        // damage 視為「整段持續時間造成的總傷害」→ 換算每秒。
+        final dps = damage / (duration / 1000.0);
+        target.addEffect(PoisonEffect(kPoisonEffectType, duration, dps));
+        game.world.add(poisonBurst(target.position.clone(), game.iso.scaleX));
+      }
+      dead = true;
+      return;
+    }
+    if (target.isMounted) goalLogical = target.logicalPos.clone();
+    lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
+  }
+
+  @override
+  void render(Canvas canvas) {
+    canvas.drawCircle(Offset.zero, 5 * s, Paint()..color = Colors.green);
+    canvas.drawCircle(
+      Offset.zero,
+      5 * s,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Colors.lightGreenAccent,
+    );
+  }
+}
+
 /// 火焰塔子彈：邊飛邊噴火花，發光火球，沿途持續傷害 40(邏輯px) 內的敵人。
 class FlameProjectileComponent extends ProjectileComponent {
   FlameProjectileComponent({

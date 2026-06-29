@@ -99,6 +99,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
           await Sprite.load('tower_airblade.png', images: isoImages),
       TowerType.thunder:
           await Sprite.load('tower_thunder.png', images: isoImages),
+      TowerType.cannon:
+          await Sprite.load('tower_cannon.png', images: isoImages),
+      TowerType.poison:
+          await Sprite.load('tower_poison.png', images: isoImages),
       TowerType.obstacle: obstacleSprites.first,
     };
 
