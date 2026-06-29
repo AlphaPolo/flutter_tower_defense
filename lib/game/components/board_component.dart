@@ -28,18 +28,72 @@ class BoardComponent extends PositionComponent
     game.boardSprite.render(canvas, size: size);
 
     _drawRoute(canvas);
-    _highlight(canvas, game.targetLocation, Colors.green.withOpacity(0.45));
-    _highlight(canvas, game.spawnLocation, Colors.red.withOpacity(0.45));
+    _highlight(canvas, game.targetLocation, Colors.greenAccent);
+    _highlight(canvas, game.spawnLocation, Colors.redAccent);
+
+    // 目前點選查看中的建築：青色框選，與 hover 區分。
+    final inspecting = game.inspecting.value;
+    if (inspecting != null) {
+      _cornerFrame(canvas, inspecting, Colors.cyanAccent);
+    }
+
     final h = hovered;
     if (h != null) {
-      // 滑到建築上→紅色(可右鍵拆除)；空地→橘色。
+      // 滑到建築上→紅色(可拆除)；空地→橘色。用四角括號選取框。
       final removable = game.towers.containsKey(h);
-      _highlight(
+      _cornerFrame(
         canvas,
         h,
-        (removable ? Colors.redAccent : Colors.orange).withOpacity(0.5),
+        removable ? Colors.redAccent : Colors.orangeAccent,
       );
     }
+  }
+
+  /// 四角括號選取框：在六個頂點各畫一個 L 形角，邊中間留空（像對焦框）。
+  void _cornerFrame(Canvas canvas, BoardPoint bp, Color color) {
+    final pts = _hexPolygon(bp);
+    final s = game.iso.scaleX;
+    final path = Path()..addPolygon(pts, true);
+    // 很淡的填色強調選取格
+    canvas.drawPath(path, Paint()..color = color.withOpacity(0.12));
+
+    final bracket = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2 * s
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = color;
+    const f = 0.34; // 每個角往相鄰邊延伸的比例
+    Offset lerp(Offset a, Offset b) =>
+        Offset(a.dx + (b.dx - a.dx) * f, a.dy + (b.dy - a.dy) * f);
+    for (var i = 0; i < pts.length; i++) {
+      final v = pts[i];
+      final prev = pts[(i - 1 + pts.length) % pts.length];
+      final next = pts[(i + 1) % pts.length];
+      canvas.drawPath(
+        Path()
+          ..moveTo(lerp(v, prev).dx, lerp(v, prev).dy)
+          ..lineTo(v.dx, v.dy)
+          ..lineTo(lerp(v, next).dx, lerp(v, next).dy),
+        bracket,
+      );
+    }
+  }
+
+  /// 一格六角的螢幕座標頂點。[scale] 縮小可讓框線退到格子內側（不卡邊）。
+  List<Offset> _hexPolygon(BoardPoint bp, {double scale = 0.9}) {
+    final center = game.boardToLogical(bp);
+    final r = game.board.hexagonRadius * scale;
+    return [
+      for (final deg in const [-90, -30, 30, 90, 150, 210])
+        () {
+          final a = deg * pi / 180;
+          final s = game.logicalToScreen(
+            Vector2(center.x + r * cos(a), center.y + r * sin(a)),
+          );
+          return Offset(s.x, s.y);
+        }()
+    ];
   }
 
   /// 在地面畫出怪物行走路線（緞帶 + 方向箭頭）。
@@ -90,27 +144,37 @@ class BoardComponent extends PositionComponent
     }
   }
 
-  void _highlight(Canvas canvas, BoardPoint bp, Color color) {
-    final center = game.boardToLogical(bp);
-    final r = game.board.hexagonRadius.toDouble();
-    final pts = <Offset>[];
-    for (final deg in const [-90, -30, 30, 90, 150, 210]) {
-      final a = deg * pi / 180;
-      final s = game.logicalToScreen(
-        Vector2(center.x + r * cos(a), center.y + r * sin(a)),
-      );
-      pts.add(Offset(s.x, s.y));
-    }
-    canvas.drawPath(Path()..addPolygon(pts, true), Paint()..color = color);
+  /// 框選樣式：淡填色 + 外框線。[frame] 為 true 時框更亮更粗（hover 用）。
+  void _highlight(Canvas canvas, BoardPoint bp, Color color,
+      {bool frame = false}) {
+    final s = game.iso.scaleX;
+    final path = Path()..addPolygon(_hexPolygon(bp), true);
+    canvas.drawPath(
+      path,
+      Paint()..color = color.withOpacity(frame ? 0.12 : 0.22),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (frame ? 3.5 : 2.2) * s
+        ..strokeJoin = StrokeJoin.round
+        ..color = color.withOpacity(frame ? 1.0 : 0.85),
+    );
   }
 
   // ── 輸入 ─────────────────────────────────────────────────
   @override
   void onTapUp(TapUpEvent event) {
     final bp = game.screenToBoard(event.localPosition);
-    if (bp == null) return;
-    if (game.towers.containsKey(bp)) {
-      // 點到已蓋建築 → 顯示其資訊（並取消正在選的塔）。
+    if (bp == null) {
+      game.cancelSelection(); // 點到棋盤透明角落 → 取消（同右鍵）
+      return;
+    }
+    if (game.towers.containsKey(bp) ||
+        bp == game.targetLocation ||
+        bp == game.spawnLocation) {
+      // 點到建築 / 主堡 / 出生點 → 顯示該格資訊（並取消正在選的塔）。
       game.inspectAt(bp);
     } else {
       // 空地 → 關閉資訊面板，嘗試蓋目前選取的塔。
@@ -128,5 +192,24 @@ class BoardComponent extends PositionComponent
   @override
   void onPointerMove(PointerMoveEvent event) {
     hovered = game.screenToBoard(event.localPosition);
+  }
+}
+
+/// 覆蓋整個視野、畫在最底層的點擊接收器：點到棋盤外（黑色空白）→ 取消（同右鍵）。
+class BackgroundTapCatcher extends PositionComponent
+    with HasGameReference<TowerDefenseGame>, TapCallbacks {
+  BackgroundTapCatcher() : super(priority: -100);
+
+  @override
+  Future<void> onLoad() async {
+    size = Vector2.all(200000);
+    position = game.iso.imageSize / 2 - size / 2; // 以棋盤為中心覆蓋整個視野
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    // localPosition 轉回世界座標再判斷；非格子 → 取消。
+    final world = position + event.localPosition;
+    if (game.screenToBoard(world) == null) game.cancelSelection();
   }
 }

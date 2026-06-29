@@ -25,7 +25,7 @@ Widget towerIcon(TowerType type) {
     case TowerType.poison:
       return Image.asset('assets/iso/tower_poison.png');
     case TowerType.obstacle:
-      return const Icon(Icons.hexagon_outlined, color: Colors.brown, size: 64);
+      return Image.asset('assets/iso/obstacle_icon.png');
   }
 }
 
@@ -216,15 +216,38 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 點到已蓋建築時，顯示該建築資訊 + 拆除按鈕。
+  /// 點到格子時顯示資訊：塔(可拆除) / 主堡 / 敵人出生點。
   Widget _inspectPanel() {
     return ValueListenableBuilder<BoardPoint?>(
       valueListenable: game.inspecting,
       builder: (context, bp, _) {
         if (bp == null) return const SizedBox.shrink();
-        final type = game.typeAt(bp);
-        if (type == null) return const SizedBox.shrink();
-        final stats = statsOf(type);
+
+        late final Widget icon;
+        late final String title;
+        late final List<String> lines;
+        var tower = false;
+
+        if (bp == game.targetLocation) {
+          icon = const Icon(Icons.castle, color: Colors.green, size: 44);
+          title = '主堡（終點）';
+          lines = ['守住這裡！', '敵人抵達會扣 1 生命', '生命歸零即遊戲結束'];
+        } else if (bp == game.spawnLocation) {
+          icon = const Icon(Icons.flag, color: Colors.redAccent, size: 44);
+          title = '敵人出生點';
+          lines = ['敵人從這裡出現', '沿著路線前往主堡'];
+        } else {
+          final type = game.typeAt(bp);
+          if (type == null) return const SizedBox.shrink();
+          tower = true;
+          final stats = statsOf(type);
+          icon = SizedBox.square(dimension: 48, child: towerIcon(type));
+          title = stats.title;
+          lines = type == TowerType.obstacle
+              ? const ['阻擋敵人前進']
+              : ['範圍: ${stats.range}', '傷害: ${stats.damage}'];
+        }
+
         return Container(
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(12),
@@ -245,26 +268,24 @@ class LeftColOverlay extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: SizedBox.square(dimension: 48, child: towerIcon(type)),
-              ),
-              const SizedBox(height: 12),
-              Text(stats.title, textAlign: TextAlign.center),
-              if (type != TowerType.obstacle) ...[
-                const SizedBox(height: 8),
-                Text('範圍: ${stats.range}'),
-                Text('傷害: ${stats.damage}'),
-              ],
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+              Center(child: icon),
+              const SizedBox(height: 8),
+              Text(title, textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              for (final l in lines)
+                Text(l, style: const TextStyle(fontSize: 13)),
+              if (tower) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => game.demolishAt(bp),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('拆除'),
                 ),
-                onPressed: () => game.demolishAt(bp),
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('拆除'),
-              ),
+              ],
             ],
           ),
         );
@@ -391,24 +412,29 @@ class BuildBar extends StatelessWidget {
   }
 
   Widget _icon(TowerType type) {
-    final button = InkWell(
-      onTap: () => game.selectTower(type),
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 2,
-              blurRadius: 3,
-            ),
-          ],
-        ),
+    final button = Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.5),
+            spreadRadius: 2,
+            blurRadius: 3,
+          ),
+        ],
+      ),
+      // Material(圓形 + 裁切) + InkWell(圓形邊界) → 圓形水波，不再是方形。
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
-        child: towerIcon(type),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => game.selectTower(type),
+          child: towerIcon(type),
+        ),
       ),
     );
 

@@ -106,6 +106,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       TowerType.obstacle: obstacleSprites.first,
     };
 
+    world.add(BackgroundTapCatcher());
     boardComponent = BoardComponent();
     await world.add(boardComponent);
 
@@ -251,9 +252,15 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return true;
   }
 
-  /// 點選某格：有建築→顯示其資訊（並取消正在選的塔）；空地→關閉資訊面板。
+  /// 該格可否查看資訊：已蓋建築、主堡(終點)、敵人出生點。
+  bool isInspectable(BoardPoint point) =>
+      towers.containsKey(point) ||
+      point == targetLocation ||
+      point == spawnLocation;
+
+  /// 點選某格：可查看→顯示資訊（並取消正在選的塔）；否則→關閉資訊面板。
   void inspectAt(BoardPoint point) {
-    if (!towers.containsKey(point)) {
+    if (!isInspectable(point)) {
       inspecting.value = null;
       return;
     }
