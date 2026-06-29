@@ -2,31 +2,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 
-import '../../gen/assets.gen.dart';
 import '../../utils/fullscreen.dart';
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
 
 /// 每種塔在選單 / 資訊面板上顯示的圖示。
+/// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
+/// BoxFit.contain 讓裁切後的塔身維持比例並置中。
 Widget towerIcon(TowerType type) {
-  switch (type) {
-    case TowerType.freezing:
-      return Assets.images.ice.image();
-    case TowerType.flame:
-      return Assets.images.fire.image();
-    case TowerType.airBlade:
-      return Assets.images.air.image();
-    case TowerType.thunder:
-      return Assets.images.electricity.image();
-    case TowerType.cannon:
-      return Image.asset('assets/iso/tower_cannon.png');
-    case TowerType.poison:
-      return Image.asset('assets/iso/tower_poison.png');
-    case TowerType.obstacle:
-      return Image.asset('assets/iso/obstacle_icon.png');
-  }
+  // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
+  return Image.asset(
+    'assets/iso/icon_${type.name.toLowerCase()}.png',
+    fit: BoxFit.contain,
+  );
 }
 
 /// HUD overlay：左下放作弊開關/狀態表/開始鈕，右下放塔資訊/建築資訊面板。
@@ -198,7 +189,10 @@ class LeftColOverlay extends StatelessWidget {
               Center(
                 child: SizedBox.square(
                   dimension: 48,
-                  child: towerIcon(type),
+                  child: ClipPath(
+                    clipper: const BottomSemicircleClipper(),
+                    child: towerIcon(type),
+                  ),
                 ),
               ),
               const SizedBox(height: 16.0),
@@ -241,7 +235,7 @@ class LeftColOverlay extends StatelessWidget {
           if (type == null) return const SizedBox.shrink();
           tower = true;
           final stats = statsOf(type);
-          icon = SizedBox.square(dimension: 48, child: towerIcon(type));
+          icon = SizedBox.square(dimension: 48, child: ClipOval(child: towerIcon(type)));
           title = stats.title;
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
@@ -433,7 +427,14 @@ class BuildBar extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: () => game.selectTower(type),
-          child: towerIcon(type),
+          child: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              border: Border.fromBorderSide(BorderSide(color: Colors.brown, width: 5, strokeAlign: BorderSide.strokeAlignCenter)),
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(child: towerIcon(type)),
+          ),
         ),
       ),
     );
