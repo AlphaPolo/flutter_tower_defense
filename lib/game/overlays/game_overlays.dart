@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -36,30 +36,97 @@ class LeftColOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
+    // SafeArea：避開瀏海/瀏覽器列；LayoutBuilder：把面板高度限制在可視範圍內，
+    // 配合 SingleChildScrollView 確保橫向矮螢幕不會爆版。面板都靠角落擺放，
+    // 中央棋盤維持可點擊。
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, c) {
+          return Padding(
+            padding: const EdgeInsets.all(8),
+            child: Stack(
+              children: [
+                // 左上：狀態列 + 作弊開關
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _statusPill(),
+                      const SizedBox(height: 8),
+                      _cheatSwitch(),
+                    ],
+                  ),
+                ),
+                // 左下：開始 / 下一波
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: _startButton(),
+                ),
+                // 右側：選取塔資訊 / 已蓋建築資訊（限高、可捲動）
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: c.maxHeight),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _infoPanel(),
+                          _inspectPanel(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// 半透明深色膠囊：波數 / 生命 / 金幣，橫向排列省空間且在棋盤上清楚可讀。
+  Widget _statusPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 左下角
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _cheatSwitch(),
-              _statusPanel(),
-              _startButton(),
-            ],
-          ),
-          const Spacer(),
-          // 右下角：選取的塔資訊 / 已蓋建築資訊
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _infoPanel(),
-              _inspectPanel(),
-            ],
+          _stat(Icons.waves, Colors.lightBlueAccent, game.wave,
+              (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
+          const SizedBox(width: 14),
+          _stat(Icons.favorite, Colors.redAccent, game.heart, (v) => '$v'),
+          const SizedBox(width: 14),
+          _stat(Icons.monetization_on, Colors.amber, game.coin, (v) => '$v'),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(IconData icon, Color color, ValueListenable<int> listenable,
+      String Function(int) fmt) {
+    return ValueListenableBuilder<int>(
+      valueListenable: listenable,
+      builder: (context, v, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            fmt(v),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -70,77 +137,35 @@ class LeftColOverlay extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: game.cheat,
       builder: (context, cheat, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CupertinoSwitch(
-              value: cheat,
-              onChanged: (_) => game.toggleCheat(),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '作弊模式',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: cheat ? Colors.greenAccent : Colors.grey[400],
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: 0.7,
+                child: CupertinoSwitch(
+                  value: cheat,
+                  onChanged: (_) => game.toggleCheat(),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                '作弊',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: cheat ? Colors.greenAccent : Colors.grey[300],
+                ),
+              ),
+            ],
+          ),
         );
       },
-    );
-  }
-
-  Widget _statusPanel() {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      width: 110,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
-            spreadRadius: 2,
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('狀態表'),
-          const SizedBox(height: 8),
-          ValueListenableBuilder<int>(
-            valueListenable: game.wave,
-            builder: (context, w, _) => Row(children: [
-              const Icon(Icons.waves),
-              const SizedBox(width: 16.0),
-              Text(w == 0 ? '準備中' : '$w/${TowerDefenseGame.totalWaves}'),
-            ]),
-          ),
-          ValueListenableBuilder<int>(
-            valueListenable: game.heart,
-            builder: (context, heart, _) => Row(children: [
-              const Icon(Icons.favorite),
-              const SizedBox(width: 16.0),
-              Text('$heart'),
-            ]),
-          ),
-          ValueListenableBuilder<int>(
-            valueListenable: game.coin,
-            builder: (context, coin, _) => Row(children: [
-              const Icon(Icons.attach_money),
-              const SizedBox(width: 16.0),
-              Text('$coin'),
-            ]),
-          ),
-        ],
-      ),
     );
   }
 
@@ -151,9 +176,9 @@ class LeftColOverlay extends StatelessWidget {
         if (type == null) return const SizedBox.shrink();
         final stats = statsOf(type);
         return Container(
-          margin: const EdgeInsets.all(24),
+          margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(maxWidth: 160),
+          constraints: const BoxConstraints(maxWidth: 150),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: const BorderRadius.all(Radius.circular(8.0)),
@@ -201,9 +226,9 @@ class LeftColOverlay extends StatelessWidget {
         if (type == null) return const SizedBox.shrink();
         final stats = statsOf(type);
         return Container(
-          margin: const EdgeInsets.all(24),
+          margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(maxWidth: 160),
+          constraints: const BoxConstraints(maxWidth: 150),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: const BorderRadius.all(Radius.circular(8.0)),
@@ -321,30 +346,36 @@ class BuildBar extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(12),
-      child: SizedBox(
-        width: double.infinity,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 16,
-                children: [
-                  for (final type in TowerType.values) _icon(type),
-                ],
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                // 預留右側空間給全螢幕鈕，避免最右邊的塔被蓋住點不到。
+                padding: EdgeInsets.only(right: kIsWeb ? 48 : 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 12,
+                  children: [
+                    for (final type in TowerType.values) _icon(type),
+                  ],
+                ),
               ),
-            ),
-            // 右上角全螢幕鈕（僅 web）。
-            if (kIsWeb)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: _fullscreenButton(),
-              ),
-          ],
+              // 右側全螢幕鈕（僅 web），垂直置中、不與塔重疊。
+              if (kIsWeb)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: _fullscreenButton(),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -352,7 +383,7 @@ class BuildBar extends StatelessWidget {
 
   Widget _fullscreenButton() {
     return IconButton(
-      iconSize: 28,
+      iconSize: 26,
       tooltip: '全螢幕',
       onPressed: toggleFullscreen,
       icon: const Icon(Icons.fullscreen, color: Colors.white),
@@ -363,8 +394,8 @@ class BuildBar extends StatelessWidget {
     final button = InkWell(
       onTap: () => game.selectTower(type),
       child: Container(
-        width: 70,
-        height: 70,
+        width: 60,
+        height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
