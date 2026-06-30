@@ -311,6 +311,24 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   TowerType? typeAt(BoardPoint point) =>
       towers[point]?.type ?? traps[point]?.type;
 
+  /// 讓場上的陷阱對「敵人的路線位置 [pos]」施加位置力場（如渦流吸引），就地修改
+  /// [pos]。純顯示用、不影響尋路進度。[seed]（敵人身分）讓散布角度穩定。
+  void applyTrapPull(Vector2 pos, int seed) {
+    for (final t in traps.values) {
+      t.pullPosition(pos, seed);
+    }
+  }
+
+  /// 在路線位置 [pos] 處，場上陷阱對敵人路線進度的減速係數（多個取乘積）。
+  /// 1＝不減速；渦流會讓被吸引的敵人真的放慢進度，避免脫離時暴衝。
+  double trapSlowFactor(Vector2 pos) {
+    var f = 1.0;
+    for (final t in traps.values) {
+      f *= t.slowFactor(pos);
+    }
+    return f;
+  }
+
   void selectTower(TowerType? type) {
     selecting.value = type;
     inspecting.value = null;

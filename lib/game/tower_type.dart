@@ -7,12 +7,13 @@ enum TowerType {
   cannon,
   poison,
   spike,
+  vortex,
   obstacle,
 }
 
 /// 陷阱類：蓋在地面、不阻擋敵人（不進 towers Map，尋路看不到），
-/// 可蓋在敵人路徑上，靠敵人經過時觸發。
-const Set<TowerType> kTrapTypes = {TowerType.spike};
+/// 可蓋在敵人路徑上，靠敵人經過 / 週期觸發。
+const Set<TowerType> kTrapTypes = {TowerType.spike, TowerType.vortex};
 
 bool isTrapType(TowerType type) => kTrapTypes.contains(type);
 
@@ -91,6 +92,14 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 450,
     title: '地刺',
     description: '埋設在地面的尖刺。不會阻擋敵人前進，敵人經過時持續受到傷害。',
+  ),
+  TowerType.vortex: TowerStats(
+    cost: 40,
+    range: 1.5,
+    damage: 0,
+    fireCD: 0, // 渦流的吸引週期在 VortexTrapComponent 內以常數控制
+    title: '渦流陷阱',
+    description: '持續把周圍的敵人緩慢吸聚成一團（不造成傷害、不阻擋前進），方便範圍攻擊一網打盡。',
   ),
   TowerType.obstacle: TowerStats(
     cost: 20,

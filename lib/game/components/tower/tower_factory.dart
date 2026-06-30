@@ -32,8 +32,9 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
     case TowerType.spike:
+    case TowerType.vortex:
       // 陷阱類不走塔工廠（由 buildTrap 建立）。
-      throw ArgumentError('spike 為陷阱，請改用 buildTrap');
+      throw ArgumentError('$type 為陷阱，請改用 buildTrap');
   }
 }
 

@@ -30,7 +30,7 @@ class EnemyComponent extends PositionComponent
 
   final List<BaseEffect> effects = [];
 
-  /// top-down 邏輯位置（瞄準/射程都用這個）。
+  /// top-down 邏輯位置（瞄準/射程/繪製都用這個）。
   final Vector2 logicalPos = Vector2.zero();
 
   bool _dead = false;
@@ -62,7 +62,7 @@ class EnemyComponent extends PositionComponent
 
     final dtMs = dt * 1000;
     afterEffects = _tickEffects(dtMs.round());
-    final speed = (afterEffects ?? status).speed;
+    var speed = (afterEffects ?? status).speed;
 
     if (goalLocation == null) {
       final dir = game.guide[currentLocation];
@@ -72,6 +72,12 @@ class EnemyComponent extends PositionComponent
       _segTo.setFrom(game.boardToLogical(goalLocation!));
       _progress = 0;
     }
+
+    // 目前在路線上的位置（由現有狀態算出，不存欄位）。被渦流吸引時，依此位置
+    // 真的放慢路線進度 → 進度不會偷跑、出渦流不暴衝（最低不為 0，故不會被鎖死）。
+    final t0 = (_progress / speedComplete).clamp(0.0, 1.0);
+    final here = _segFrom + (_segTo - _segFrom) * t0;
+    speed *= game.trapSlowFactor(here);
 
     _progress += dtMs * speed;
     if (_progress >= speedComplete) {
@@ -90,6 +96,11 @@ class EnemyComponent extends PositionComponent
         ..scale(t)
         ..add(_segFrom);
     }
+
+    // 陷阱位置力場（如渦流）：依與陷阱的距離，就地把顯示位置往中心拉。純空間
+    // 計算、不存任何狀態；邊緣為 0 → 不會鎖死、離開即平滑復原，也不影響尋路進度。
+    game.applyTrapPull(logicalPos, hashCode);
+
     _syncScreen();
   }
 

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
@@ -15,6 +17,7 @@ import '../tower_type.dart';
 Widget towerIcon(TowerType type) {
   // 陷阱類沒有 3D 模型素材，用程式繪製。
   if (type == TowerType.spike) return const SpikeIcon();
+  if (type == TowerType.vortex) return const VortexIcon();
   // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
   return Image.asset(
     'assets/iso/icon_${type.name.toLowerCase()}.png',
@@ -84,6 +87,49 @@ class _SpikeIconPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SpikeIconPainter oldDelegate) => false;
+}
+
+/// 渦流陷阱圖示（程式繪製：紫色螺旋）。
+class VortexIcon extends StatelessWidget {
+  const VortexIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(size: Size.infinite, painter: _VortexIconPainter());
+  }
+}
+
+class _VortexIconPainter extends CustomPainter {
+  const _VortexIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final maxR = min(size.width, size.height) * 0.42;
+    const color = Color(0xFF7C4DFF);
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.055
+      ..strokeCap = StrokeCap.round
+      ..color = color;
+
+    for (var k = 0; k < 3; k++) {
+      final base = k * 2 * pi / 3;
+      final path = Path();
+      for (var i = 0; i <= 28; i++) {
+        final t = i / 28;
+        final rad = maxR * t;
+        final ang = base + t * 2.6;
+        final p = c + Offset(cos(ang) * rad, sin(ang) * rad);
+        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+      }
+      canvas.drawPath(path, stroke);
+    }
+    canvas.drawCircle(c, size.width * 0.07, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _VortexIconPainter oldDelegate) => false;
 }
 
 /// HUD overlay：左下放作弊開關/狀態表/開始鈕，右下放塔資訊/建築資訊面板。
@@ -268,7 +314,7 @@ class LeftColOverlay extends StatelessWidget {
               const SizedBox(height: 16.0),
               Text('花費: ${stats.cost}'),
               Text('範圍: ${stats.range}'),
-              Text('傷害: ${stats.damage}'),
+              if (stats.damage > 0) Text('傷害: ${stats.damage}'),
             ],
           ),
         );
@@ -305,7 +351,10 @@ class LeftColOverlay extends StatelessWidget {
           title = stats.title;
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
-              : ['範圍: ${stats.range}', '傷害: ${stats.damage}'];
+              : [
+                  '範圍: ${stats.range}',
+                  if (stats.damage > 0) '傷害: ${stats.damage}',
+                ];
         }
 
         return Container(
