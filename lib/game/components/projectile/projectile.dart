@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -10,6 +9,7 @@ import '../../effects/effect.dart';
 import '../../effects/particles.dart';
 import '../../tower_defense_game.dart';
 import '../enemy_component.dart';
+import 'chain_targets.dart';
 
 final _rnd = Random();
 
@@ -434,7 +434,7 @@ class ThunderProjectileComponent extends ProjectileComponent {
         ? target.logicalPos
         : goalLogical!);
 
-    final chained = _chainEnemies(target);
+    final chained = _chainEnemies();
     final list = <Vector2>[];
     for (final e in chained) {
       e.addEffect(SlowMovementEffect.flat(kThunderEffectType, 800, 0.0, 300));
@@ -451,33 +451,17 @@ class ThunderProjectileComponent extends ProjectileComponent {
     clock = 0;
   }
 
-  Set<EnemyComponent> _chainEnemies(EnemyComponent from) {
-    final frontier = Queue<EnemyComponent>()..add(from);
-    final visited = <EnemyComponent>{};
-
-    final candidates = game.enemies.where((e) => !e.isDead).toList()
-      ..sort((a, b) => (a.logicalPos - logical)
-          .length
-          .compareTo((b.logicalPos - logical).length));
-
-    bool inRange(EnemyComponent a, EnemyComponent b) =>
-        game.isInsideRange(a.logicalPos - b.logicalPos, chainDistance);
-
-    while (frontier.isNotEmpty) {
-      final next = <EnemyComponent>[];
-      for (final e in frontier) {
-        for (final cand in candidates.where((c) => inRange(c, e))) {
-          if (visited.length >= chainLimit) break;
-          visited.add(cand);
-          next.add(cand);
-        }
-        candidates.removeWhere(visited.contains);
-      }
-      frontier
-        ..clear()
-        ..addAll(next);
-    }
-    return visited;
+  /// 從落點 [logical] 起，沿存活敵群連鎖（最近優先、上限 [chainLimit]、
+  /// 每跳間距上限 [chainDistance] 格）。實際演算法見 [chainTargets]（純函式、有測試）。
+  List<EnemyComponent> _chainEnemies() {
+    final live = game.enemies.where((e) => !e.isDead).toList();
+    final picked = chainTargets(
+      origin: logical,
+      positions: [for (final e in live) e.logicalPos],
+      maxDistance: game.board.hexagonRadius * chainDistance,
+      limit: chainLimit,
+    );
+    return [for (final i in picked) live[i]];
   }
 
   void _bolt(Canvas canvas, Offset a, Offset b, Paint paint) {
