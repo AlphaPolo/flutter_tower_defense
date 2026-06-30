@@ -119,23 +119,25 @@ class AirBladeTowerComponent extends TowerComponent {
   AirBladeTowerComponent(BoardPoint location)
       : super(TowerType.airBlade, location);
 
-  static const double spinSpeed = 0.2;
-  static const double arc = 25 * pi / 180;
+  /// 刀刃旋轉角速度（rad/秒，dt-based → 不受幀率影響）。4π = 每秒 2 圈。
+  static const double spinSpeed = 4 * pi;
 
   double _windEmit = 0;
 
   @override
   void update(double dt) {
-    direction = (direction + spinSpeed) % (2 * pi);
+    // dt-based 旋轉：每秒固定轉 2 圈，與幀率無關。
+    final prev = direction;
+    direction = (direction + spinSpeed * dt) % (2 * pi);
+    final swept = spinSpeed * dt; // 這一幀前緣掃過的角度
 
-    final targets = game.enemiesInRange(logicalPos, range).where((e) {
+    // 刀刃「前緣」這一幀掃過哪些敵人就砍一刀：一圈只會掃過每隻一次 → 一刀一次，
+    // 與幀率無關。每隻 DPS = 每秒圈數(2) × damage(12.5) = 25。
+    for (final e in game.enemiesInRange(logicalPos, range)) {
       final diff = e.logicalPos - logicalPos;
-      final a = atan2(diff.y, diff.x);
-      return _between(direction, direction + arc, a);
-    }).toList();
-
-    for (final e in targets) {
-      e.dealDamage(damage);
+      var rel = (atan2(diff.y, diff.x) - prev) % (2 * pi); // 敵人角度相對前緣的正向位移
+      if (rel < 0) rel += 2 * pi;
+      if (rel > 0 && rel <= swept) e.dealDamage(damage);
     }
 
     // 刃尖噴出風的粒子。
@@ -148,15 +150,6 @@ class AirBladeTowerComponent extends TowerComponent {
       game.world.add(windBurst(game.logicalToScreen(tip), game.iso.scaleX,
           count: 3));
     }
-  }
-
-  bool _between(double start, double end, double target) {
-    double n(double r) => r % (2 * pi);
-    start = n(start);
-    end = n(end);
-    target = n(target);
-    if (start > end) return target >= start || target <= end;
-    return target >= start && target <= end;
   }
 
   static const double slashSpan = 0.95; // 斬擊新月的角度跨度(rad)

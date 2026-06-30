@@ -56,10 +56,10 @@ const Map<TowerType, TowerStats> kTowerStats = {
   TowerType.airBlade: TowerStats(
     cost: 60,
     range: 3,
-    damage: 7,
-    fireCD: 300,
+    damage: 12.5, // 每刀傷害；旋轉每秒 2 圈 → DPS = 2 × 12.5 = 25（見 AirBladeTowerComponent）
+    fireCD: 0, // 風刃為旋轉掃擊，不使用冷卻
     title: '風刃塔',
-    description: '能夠製造旋轉的風刃對周圍的敵人造成不錯的劈砍傷害',
+    description: '製造旋轉風刃，刀刃掃過範圍內的敵人即造成劈砍傷害',
   ),
   TowerType.thunder: TowerStats(
     cost: 70,
