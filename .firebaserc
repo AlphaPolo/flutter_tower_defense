@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "fluttertowerdefense"
-  }
+  },
+  "targets": {
+    "fluttertowerdefense": {
+      "hosting": {
+        "production": [
+          "fluttertowerdefense"
+        ],
+        "staging": [
+          "fluttertowerdefense-staging"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
