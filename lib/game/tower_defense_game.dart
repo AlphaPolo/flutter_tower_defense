@@ -14,6 +14,7 @@ import 'components/board_component.dart';
 import 'components/enemy_component.dart';
 import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
+import 'components/trap/trap_component.dart';
 import 'components/wave_spawner.dart';
 import 'iso/iso_projection.dart';
 import 'tower_type.dart';
@@ -44,6 +45,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 場上的敵人與塔（元件自行在 onMount / onRemove 時登記）。
   final List<EnemyComponent> enemies = [];
   final Map<BoardPoint, TowerComponent> towers = {};
+
+  /// 陷阱（地刺等）。獨立於 [towers]，因此尋路 [isPointCanMove] 看不到它，
+  /// 不會阻擋敵人、可蓋在路徑上。
+  final Map<BoardPoint, TrapComponent> traps = {};
 
   late final BoardComponent boardComponent;
 
@@ -196,13 +201,25 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
         (e) => e.currentLocation == point || e.goalLocation == point,
       );
 
+  /// 該格是否已有任何建築（塔 / 障礙 / 陷阱），一格只能蓋一個。
+  bool hasBuildingAt(BoardPoint point) =>
+      towers.containsKey(point) || traps.containsKey(point);
+
   bool isPlaceable(BoardPoint point) {
-    if (towers.containsKey(point)) return false;
+    if (hasBuildingAt(point)) return false;
     if (hasEnemyOn(point)) return false;
     if (point == spawnLocation || point == targetLocation) return false;
     final path =
         hasPathBetween(spawnLocation, targetLocation, isPointCanMove, {point});
     return path != null;
+  }
+
+  /// 陷阱放置：可蓋在路徑上 → 不做擋路檢查、之後也不重算 flow field。
+  bool isTrapPlaceable(BoardPoint point) {
+    if (!board.validateBoardPoint(point)) return false;
+    if (hasBuildingAt(point)) return false;
+    if (point == spawnLocation || point == targetLocation) return false;
+    return true;
   }
 
   bool isAffordable(TowerType type) {
@@ -218,6 +235,17 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       showMessage('We need more gold!');
       return false;
     }
+
+    // 陷阱：蓋在地面、不影響尋路（不進 towers、不重算 flow field）。
+    if (isTrapType(type)) {
+      if (!isTrapPlaceable(point)) return false;
+      final trap = buildTrap(type, point);
+      traps[point] = trap;
+      world.add(trap);
+      coin.value -= statsOf(type).cost;
+      return true;
+    }
+
     if (!isPlaceable(point)) return false;
 
     final tower = buildTower(type, point);
@@ -235,6 +263,17 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 拆除某格的建築：移除元件、退回部分資源、重算路線。
   bool demolishAt(BoardPoint point) {
+    // 陷阱：不影響尋路，退回半額後直接移除（不需重算）。
+    final trap = traps.remove(point);
+    if (trap != null) {
+      trap.removeFromParent();
+      if (inspecting.value == point) inspecting.value = null;
+      final refund = (statsOf(trap.type).cost * 0.5).floor();
+      coin.value += refund;
+      showMessage('已拆除陷阱，退回 $refund 金幣');
+      return true;
+    }
+
     final tower = towers.remove(point);
     if (tower == null) return false;
     tower.removeFromParent();
@@ -252,9 +291,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return true;
   }
 
-  /// 該格可否查看資訊：已蓋建築、主堡(終點)、敵人出生點。
+  /// 該格可否查看資訊：已蓋建築 / 陷阱、主堡(終點)、敵人出生點。
   bool isInspectable(BoardPoint point) =>
       towers.containsKey(point) ||
+      traps.containsKey(point) ||
       point == targetLocation ||
       point == spawnLocation;
 
@@ -268,7 +308,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     inspecting.value = point;
   }
 
-  TowerType? typeAt(BoardPoint point) => towers[point]?.type;
+  TowerType? typeAt(BoardPoint point) =>
+      towers[point]?.type ?? traps[point]?.type;
 
   void selectTower(TowerType? type) {
     selecting.value = type;

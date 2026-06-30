@@ -1,4 +1,4 @@
-/// 防禦塔種類。取代舊的 BuildingModel 子型別判斷。
+/// 防禦塔 / 陷阱 / 障礙物種類。取代舊的 BuildingModel 子型別判斷。
 enum TowerType {
   freezing,
   flame,
@@ -6,8 +6,15 @@ enum TowerType {
   thunder,
   cannon,
   poison,
+  spike,
   obstacle,
 }
+
+/// 陷阱類：蓋在地面、不阻擋敵人（不進 towers Map，尋路看不到），
+/// 可蓋在敵人路徑上，靠敵人經過時觸發。
+const Set<TowerType> kTrapTypes = {TowerType.spike};
+
+bool isTrapType(TowerType type) => kTrapTypes.contains(type);
 
 /// 每種塔的數值與說明（給 UI 與元件共用，數值集中一處）。
 class TowerStats {
@@ -76,6 +83,14 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 1200,
     title: '毒塔',
     description: '射出毒液使敵人中毒，在數秒內持續受到毒素傷害',
+  ),
+  TowerType.spike: TowerStats(
+    cost: 30,
+    range: 1.0,
+    damage: 12,
+    fireCD: 450,
+    title: '地刺',
+    description: '埋設在地面的尖刺。不會阻擋敵人前進，敵人經過時持續受到傷害。',
   ),
   TowerType.obstacle: TowerStats(
     cost: 20,

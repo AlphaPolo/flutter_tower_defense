@@ -31,6 +31,9 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return PoisonTowerComponent(location);
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
+    case TowerType.spike:
+      // 陷阱類不走塔工廠（由 buildTrap 建立）。
+      throw ArgumentError('spike 為陷阱，請改用 buildTrap');
   }
 }
 

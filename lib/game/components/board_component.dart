@@ -39,8 +39,8 @@ class BoardComponent extends PositionComponent
 
     final h = hovered;
     if (h != null) {
-      // 滑到建築上→紅色(可拆除)；空地→橘色。用四角括號選取框。
-      final removable = game.towers.containsKey(h);
+      // 滑到建築/陷阱上→紅色(可拆除)；空地→橘色。用四角括號選取框。
+      final removable = game.towers.containsKey(h) || game.traps.containsKey(h);
       _cornerFrame(
         canvas,
         h,
@@ -171,10 +171,8 @@ class BoardComponent extends PositionComponent
       game.cancelSelection(); // 點到棋盤透明角落 → 取消（同右鍵）
       return;
     }
-    if (game.towers.containsKey(bp) ||
-        bp == game.targetLocation ||
-        bp == game.spawnLocation) {
-      // 點到建築 / 主堡 / 出生點 → 顯示該格資訊（並取消正在選的塔）。
+    if (game.isInspectable(bp)) {
+      // 點到建築 / 陷阱 / 主堡 / 出生點 → 顯示該格資訊（並取消正在選的塔）。
       game.inspectAt(bp);
     } else {
       // 空地 → 關閉資訊面板，嘗試蓋目前選取的塔。

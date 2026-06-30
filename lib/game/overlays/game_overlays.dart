@@ -13,11 +13,77 @@ import '../tower_type.dart';
 /// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
 /// BoxFit.contain 讓裁切後的塔身維持比例並置中。
 Widget towerIcon(TowerType type) {
+  // 陷阱類沒有 3D 模型素材，用程式繪製。
+  if (type == TowerType.spike) return const SpikeIcon();
   // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
   return Image.asset(
     'assets/iso/icon_${type.name.toLowerCase()}.png',
     fit: BoxFit.contain,
   );
+}
+
+/// 地刺圖示（程式繪製，與場上地刺風格一致）。
+class SpikeIcon extends StatelessWidget {
+  const SpikeIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(size: Size.infinite, painter: _SpikeIconPainter());
+  }
+}
+
+class _SpikeIconPainter extends CustomPainter {
+  const _SpikeIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    const body = Color(0xFF7E8B97);
+    const highlight = Color(0xFFE9EEF3);
+
+    // 地面基座
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w / 2, h * 0.74),
+        width: w * 0.82,
+        height: h * 0.22,
+      ),
+      Paint()..color = const Color(0xFF5E6B76),
+    );
+
+    // (中心x比例, 底y比例, 高度比例, 半寬比例)；中間最高者最後畫（在前）。
+    const spikes = [
+      [0.27, 0.74, 0.40, 0.10],
+      [0.73, 0.74, 0.40, 0.10],
+      [0.50, 0.80, 0.56, 0.12],
+    ];
+    for (final sp in spikes) {
+      final cx = sp[0] * w;
+      final by = sp[1] * h;
+      final sh = sp[2] * h;
+      final sw = sp[3] * w;
+      canvas.drawPath(
+        Path()
+          ..moveTo(cx - sw, by)
+          ..lineTo(cx, by - sh)
+          ..lineTo(cx + sw, by)
+          ..close(),
+        Paint()..color = body,
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(cx - sw, by)
+          ..lineTo(cx, by - sh)
+          ..lineTo(cx, by)
+          ..close(),
+        Paint()..color = highlight.withOpacity(0.9),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpikeIconPainter oldDelegate) => false;
 }
 
 /// HUD overlay：左下放作弊開關/狀態表/開始鈕，右下放塔資訊/建築資訊面板。
