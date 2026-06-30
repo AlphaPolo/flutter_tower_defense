@@ -90,6 +90,31 @@ class TowerComponent extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    if (type != TowerType.obstacle) _renderShadow(canvas); // 障礙物(石頭)不畫陰影
     sprite.render(canvas, size: size);
+  }
+
+  /// 在塔腳底畫一個貼地的橢圓陰影（用 iso 地面基向量，讓它躺在地面角度上）。
+  void _renderShadow(Canvas canvas) {
+    final ax = game.iso.axisX; // 地面 x 基向量（螢幕位移／邏輯單位）
+    final ay = game.iso.axisY; // 地面 y 基向量
+    final foot = Offset(size.x / 2, size.y / 2); // 塔腳＝sprite 中心
+    final r = game.board.hexagonRadius * 0.52; // 陰影地面半徑（邏輯）
+
+    final path = Path();
+    for (var i = 0; i <= 24; i++) {
+      final a = i / 24 * 2 * pi;
+      final d = ax * (r * cos(a)) + ay * (r * sin(a));
+      final p = Offset(foot.dx + d.x, foot.dy + d.y);
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    path.close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.black.withOpacity(0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
   }
 }
