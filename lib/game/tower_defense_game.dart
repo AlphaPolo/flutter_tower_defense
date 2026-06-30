@@ -59,7 +59,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final List<Sprite> obstacleSprites;
 
   // ── 波次 ─────────────────────────────────────────────────
-  static const int totalWaves = 12;
+  static const int totalWaves = 25;
   int waveNumber = 0;
   int completedWaves = 0;
   WaveSpawnerComponent? _spawner;
