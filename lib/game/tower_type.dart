@@ -48,7 +48,7 @@ const Map<TowerType, TowerStats> kTowerStats = {
   TowerType.flame: TowerStats(
     cost: 60,
     range: 6,
-    damage: 0.2,
+    damage: 12, // 灼燒 DPS：火球範圍內每秒造成的傷害（依 dt 結算，不受 fps 影響）
     fireCD: 100,
     title: '火焰塔',
     description: '能夠噴射一直線的火焰，使其在直線範圍上的敵人受到持續地延燒傷害',

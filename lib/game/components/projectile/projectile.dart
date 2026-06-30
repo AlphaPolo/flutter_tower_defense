@@ -263,9 +263,11 @@ class FlameProjectileComponent extends ProjectileComponent {
       return;
     }
     lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
+    // 灼燒按 dt 結算（damage 為每秒 DPS）→ 與 fps 無關。
+    final burn = damage * dtMs / 1000;
     for (final e in game.enemies) {
       if (e.isDead) continue;
-      if (e.logicalPos.distanceTo(logical) <= 40) e.dealDamage(damage);
+      if (e.logicalPos.distanceTo(logical) <= 40) e.dealDamage(burn);
     }
     _emit += dtMs;
     if (_emit >= 50) {
