@@ -106,7 +106,7 @@ class PoisonEffect extends DefaultTimerEffect {
   final double dps;
 
   /// 每隔多久結算一次毒傷（ms）。
-  static const int _tickMs = 500;
+  static const int _tickMs = 200;
   int _acc = 0; // 距離上次結算累積的時間
   double _pending = 0;
 
@@ -116,7 +116,7 @@ class PoisonEffect extends DefaultTimerEffect {
   @override
   void tick(int dtMillis) {
     super.tick(dtMillis);
-    // 每 0.5 秒才扣一次血（每次 dps × 0.5），而非逐幀平滑扣。
+    // 每 0.2 秒才扣一次血（每次 dps × 0.2），而非逐幀平滑扣。
     _acc += dtMillis;
     while (_acc >= _tickMs) {
       _acc -= _tickMs;

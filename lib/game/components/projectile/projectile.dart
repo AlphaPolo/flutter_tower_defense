@@ -548,6 +548,10 @@ class RollingLogProjectileComponent extends ProjectileComponent {
     logical.y += _dir.y * step;
     _rolled += step;
 
+    // 與敵人/塔同層、依螢幕 y 深度排序（+1 讓滾木蓋在同層敵人之上）；
+    // 這樣前方(較大 y)的塔會擋住滾木，不再蓋到塔頂。
+    priority = game.logicalToScreen(logical).y.round() + 1;
+
     // 壓過範圍內、還沒壓到的敵人 → 各造成一次傷害。
     final r = game.board.hexagonRadius * _crushHex;
     for (final e in game.enemies) {
@@ -574,11 +578,30 @@ class RollingLogProjectileComponent extends ProjectileComponent {
 
   @override
   void render(Canvas canvas) {
+    final size = game.board.hexagonRadius * game.iso.scaleX * 1.8;
+
+    // 貼地陰影：沿滾木長度方向（垂直於行進方向）的扁橢圓，貼合木頭形狀、淺色微模糊。
+    final perp = Vector2(-_dir.y, _dir.x); // 長度軸（垂直行進）
+    final lenScr =
+        game.logicalToScreen(logical + perp) - game.logicalToScreen(logical);
+    canvas.save();
+    canvas.rotate(atan2(lenScr.y, lenScr.x));
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset.zero,
+        width: size * 0.6,
+        height: size * 0.13,
+      ),
+      Paint()
+        ..color = Colors.black.withOpacity(0.14)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+    canvas.restore();
+
     final cell = TowerDefenseGame.logCell;
     final frame =
         (_rolled / _framePx).floor() % TowerDefenseGame.logFrameCount;
     final src = Rect.fromLTWH(frame * cell, dirIndex * cell, cell, cell);
-    final size = game.board.hexagonRadius * game.iso.scaleX * 1.8;
     final dst = Rect.fromCenter(center: Offset.zero, width: size, height: size);
     canvas.drawImageRect(
       game.logSheet,
