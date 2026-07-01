@@ -36,9 +36,9 @@ class EnemyKind {
   final Color color;
   final double sizeMul;         // 圓半徑倍率（或之後換 sprite）
 
-  // 抗性 / 免疫
-  final Set<EffectId> immuneEffects;     // 免疫哪些效果（減速/毒/麻痺…）
-  final double Function(DamageType)? resist; // 各傷害類型的倍率（1=正常, 0.5=抗, 2=弱）
+  // 抗性（只減傷、不免疫）
+  final double Function(DamageType)? resist; // 各傷害類型倍率（1=正常, ~0.65=抗；不設 0）
+  final double effectMul;                    // 狀態效果強度/時間倍率（1=正常, <1=較不受影響；不為 0）
 
   // 特殊行為旗標（見第 4 節）
   final bool flying;            // 無視地面陷阱
@@ -69,19 +69,18 @@ class WaveRecipe {
 
 ---
 
-## 3. 傷害類型（抗性的前置）
+## 3. 傷害類型與抗性（定案：只減傷、不完全免疫）
 
-要做「火抗/毒抗/物理抗」，`dealDamage` 需要知道**傷害類型**。建議加：
+抗性怪對某類傷害**只是「減傷」而非完全免疫**（例：對火傷 ×0.65）。要做到這點，
+`dealDamage` 需要知道**傷害類型**：
 
 ```dart
 enum DamageType { physical, fire, poison, lightning, wind }
 void dealDamage(double amount, {DamageType type = DamageType.physical});
 ```
 - 各傷害來源標註類型：地刺/滾木/火炮=physical、火焰=fire、毒=poison、雷=lightning、風刃=wind。
-- `dealDamage` 內用 `kind.resist(type)` 乘算。
-- **免疫效果**在 `addEffect` 攔截：`if (kind.immuneEffects.contains(effect.id)) return;`
-
-> 若想省事，第一版可先只做「效果免疫 + 單一總傷倍率」，之後再引入完整 `DamageType`。
+- `dealDamage` 內乘上 `kind.resist(type)`（預設 1.0；抗性怪對某類設約 0.65）。**不設 0，不免疫。**
+- 狀態效果（減速/毒 DoT）同理採「**減弱**」而非免疫（需要時縮短時間或降低強度）。
 
 ---
 
@@ -89,8 +88,8 @@ void dealDamage(double amount, {DamageType type = DamageType.physical});
 
 | 特性 | 掛在哪 | 做法 |
 |---|---|---|
-| 效果免疫（免疫減速/毒/麻痺） | `EnemyComponent.addEffect` | 命中免疫清單就忽略 |
-| 傷害抗性/弱點 | `EnemyComponent.dealDamage` | 乘 `kind.resist(type)` |
+| 效果減弱（減速/毒/麻痺較無效） | `EnemyComponent.addEffect` | 依 `effectMul` 縮短時間/降強度（**不完全免疫**） |
+| 傷害減抗（只減傷） | `EnemyComponent.dealDamage` | 乘 `kind.resist(type)`（約 0.65，不為 0） |
 | **擋停滾木**（巨獸） | `RollingLogProjectileComponent.onTick` | 壓到 `blocksLog` 的敵人時：對它造成傷害後 `dead=true`（滾木停） |
 | **不被渦流吸**（重怪） | `VortexTrap.pullPosition/slowFactor` 或 `game.applyTrapPull` | 對 `vortexImmune` 敵人跳過（需讓力場拿得到 kind 旗標，非只有 hashCode） |
 | 分裂 | `EnemyComponent._die` | 死亡時在原地生成 N 隻「小號」kind（血/體型更小） |
@@ -99,8 +98,9 @@ void dealDamage(double amount, {DamageType type = DamageType.physical});
 | 護盾 | `dealDamage` | 先扣護盾值、破盾後才扣血 |
 
 > 注意：目前渦流力場是「敵人自己在 `applyTrapPull` 取樣」，只傳了 `hashCode`。
-> 要做 `vortexImmune`/`flying`，需讓取樣時能判斷該敵人的 kind（把旗標一起傳入，
+> 要做 `vortexImmune`（巨獸），需讓取樣時能判斷該敵人的 kind（把旗標一起傳入，
 > 或改成傳敵人參考）。這是唯一需要小改介面的地方。
+> （`vortexImmune`/`blocksLog` 是**機制免疫**，與第 3 節的「傷害減抗」是兩回事。）
 
 ---
 
@@ -118,7 +118,7 @@ void dealDamage(double amount, {DamageType type = DamageType.physical});
 | 敵人 | 特性 | 剋制關係 |
 |---|---|---|
 | 巨獸 juggernaut | 極高血、慢、**擋停滾木**、**不被渦流吸**、漏過扣 2~3 | 只能靠塔硬打；毒/火持續 |
-| 抗性怪 warded | 對某類傷害 ×0.4（火抗/毒抗/物抗三選一） | 逼玩家換塔種搭配 |
+| 抗性怪 warded | 對某類傷害 ×0.65（火抗/毒抗/物抗三選一，只減傷不免疫） | 逼玩家換塔種搭配 |
 
 > **飛行怪暫緩**：概念（無視地面陷阱）保留備用，本輪先不做。
 
@@ -196,32 +196,46 @@ SpawnEntry  = 單種(kind, count, interval)  |  小隊 Squad[(kind,count)...]（
 
 ---
 
-## 7. 建議的分階段實作
+## 7. 敵人資訊 UI（定案）
+
+- 位置：**波次按鈕（開始/下一波）的右邊**放一排**敵人 icon**（顏色圓，與場上一致）。
+- 互動：**點擊某個 icon → 浮出該敵人的資訊卡**（名稱 + 特性：血/速傾向、抗性、特殊行為、剋制提示）。
+  沿用現有「格子資訊面板」的浮出面板概念即可。
+- 顯示哪些：預設**已解鎖（出現過）的敵人**當作圖鑑，隨進度增加。
+  > 待確認的小點：是否改成只顯示「下一波會出現的種類」當預覽。先做「已解鎖圖鑑」。
+- 實作掛點：`game_overlays.dart` 的 `LeftColOverlay`（bottomLeft 已有開始鈕），
+  在其右側加 icon 列；資訊卡用一個 overlay 面板（點 icon 設定 `ValueNotifier<EnemyKind?>`）。
+
+---
+
+## 8. 建議的分階段實作
 
 1. **地基 + A 批（純屬性）**：`EnemyKind` + 波次配方（權重填充）+ 依顏色/大小繪製 + spawn 混生。
-   實作 雜兵/斥候/坦克/蟲群。→ 驗證系統跑順、視覺分得清、經濟(賞金)平衡。
+   實作 雜兵/斥候/坦克/蟲群。→ 驗證系統跑順、視覺分得清。（平衡先不抓）
 2. **招牌小隊 + Boss 波**：`Squad` 生成 + 逐波進程表（§6.3）+ 巨獸 Boss。
-3. **抗性/免疫層**：加 `DamageType` + `dealDamage` 抗性 + `addEffect` 免疫 → 做「抗性怪」。
+3. **抗性減傷層**：加 `DamageType` + `dealDamage` 減抗 + `addEffect` 減弱 → 做「抗性怪」。
 4. **互動型**：巨獸(擋滾木+渦流免疫)。→ 需要第 4 節的渦流力場小介面調整。
 5. **特殊行為型**：分裂 → 護盾 → 補師 → 再生。
+6. **敵人資訊 UI**（§7）：波次按鈕旁的 icon 列 + 點擊資訊卡。可與第 1 階段一起或緊接其後。
 
 每階段照慣例：`flutter analyze` → build → 部署 staging 驗證 → commit。
 
 ---
 
-## 8. 決策紀錄與待決問題
+## 9. 決策紀錄與待決問題
 
 **已定案**
 - ✅ 外觀：先用**顏色/大小的圓**（暫不做 sprite）。
 - ✅ 分配：**混合制**（權重填充 + 手動解鎖/Boss/小隊）。
 - ✅ 節奏：多樣性 W3 起、Boss 10/15/20/25、combo 從 W7（坦克+斥候）起，補師類 combo 待 W18 解鎖後。
 - ✅ 一波可同時多種、且用「小隊」做互補 combo。
+- ✅ 抗性：**只減傷、不完全免疫**（約 ×0.65）；狀態效果採減弱而非免疫。
+- ✅ 平衡：**先不抓**（同關卡策略）。
+- ✅ 敵人資訊 UI：波次按鈕右側 icon 列，點擊浮出資訊卡（見 §7）。
 - ⏸ 飛行怪暫緩。
 
-**待決定**
-1. **抗性細緻度**：完整 `DamageType`（火/毒/物/雷/風）還是先「效果免疫 + 單一總傷倍率」？
-2. **數值平衡**：先不管（像關卡那樣）還是邊做邊抓手感？
-3. **圖鑑/提示 UI**：要不要讓玩家點敵人看特性（沿用格子資訊面板概念）？
+**待確認的小點**
+1. 資訊 icon 列顯示「已解鎖圖鑑」還是「下一波預覽」？（暫定：已解鎖圖鑑）
 
 ---
 
