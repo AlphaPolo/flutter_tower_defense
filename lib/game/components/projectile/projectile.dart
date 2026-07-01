@@ -532,8 +532,10 @@ class RollingLogProjectileComponent extends ProjectileComponent {
   final Vector2 _dir = Vector2.zero();
   final Set<EnemyComponent> _crushed = {};
   double _rolled = 0; // 已滾距離（給滾動條紋用）
+  double _age = 0; // 存活時間(ms)，給拋出彈跳用
 
   static const double _crushHex = 0.55; // 壓過半徑（格）
+  static const double _bounceMs = 520; // 拋出彈跳持續時間
 
   @override
   void onMount() {
@@ -543,6 +545,7 @@ class RollingLogProjectileComponent extends ProjectileComponent {
 
   @override
   void onTick(double dtMs) {
+    _age += dtMs;
     final step = (speed / 3) * dtMs; // 沿用其他 projectile 的 speed 語意（px/ms）
     logical.x += _dir.x * step;
     logical.y += _dir.y * step;
@@ -576,33 +579,50 @@ class RollingLogProjectileComponent extends ProjectileComponent {
 
   static const double _framePx = 14; // 每滾動幾 px 換一幀
 
+  /// 拋出彈跳：出場一小段時間，滾木在陰影上方彈跳（兩下、幅度遞減）。
+  /// 回傳往上偏移的像素高度（0 = 已落地）。
+  double _bounceHeight(double amp) {
+    if (_age >= _bounceMs) return 0;
+    final t = _age / _bounceMs; // 0..1
+    return amp * (1 - t) * (sin(t * pi * 2)).abs(); // 兩個彈跳、幅度隨時間衰減
+  }
+
   @override
   void render(Canvas canvas) {
     final size = game.board.hexagonRadius * game.iso.scaleX * 1.8;
+    final amp = game.board.hexagonRadius * game.iso.scaleX * 0.5; // 彈跳最大高度
+    final bounce = _bounceHeight(amp);
+    final norm = amp <= 0 ? 0.0 : (bounce / amp).clamp(0.0, 1.0); // 0(貼地)~1(最高)
 
-    // 貼地陰影：沿滾木長度方向（垂直於行進方向）的扁橢圓，貼合木頭形狀、淺色微模糊。
-    final perp = Vector2(-_dir.y, _dir.x); // 長度軸（垂直行進）
+    // 貼地陰影：沿滾木長度方向的扁橢圓；騰空時縮小變淡（強化拋出感）。
+    final perp = Vector2(-_dir.y, _dir.x);
     final lenScr =
         game.logicalToScreen(logical + perp) - game.logicalToScreen(logical);
     canvas.save();
     canvas.rotate(atan2(lenScr.y, lenScr.x));
+    final shScale = 1 - norm * 0.4;
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset.zero,
-        width: size * 0.6,
-        height: size * 0.13,
+        width: size * 0.6 * shScale,
+        height: size * 0.13 * shScale,
       ),
       Paint()
-        ..color = Colors.black.withOpacity(0.14)
+        ..color = Colors.black.withOpacity(0.14 * (1 - norm * 0.5))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
     canvas.restore();
 
+    // 滾木本體：往上偏移 = 彈跳高度。
     final cell = TowerDefenseGame.logCell;
     final frame =
         (_rolled / _framePx).floor() % TowerDefenseGame.logFrameCount;
     final src = Rect.fromLTWH(frame * cell, dirIndex * cell, cell, cell);
-    final dst = Rect.fromCenter(center: Offset.zero, width: size, height: size);
+    final dst = Rect.fromCenter(
+      center: Offset(0, -bounce),
+      width: size,
+      height: size,
+    );
     canvas.drawImageRect(
       game.logSheet,
       src,
