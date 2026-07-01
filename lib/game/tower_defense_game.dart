@@ -13,6 +13,7 @@ import 'board/hex.dart';
 import 'board/pathfinding.dart';
 import 'components/board_component.dart';
 import 'components/enemy_component.dart';
+import 'components/enemy_kind.dart';
 import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
 import 'components/trap/trap_component.dart';
@@ -388,10 +389,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       logicalDiff.length <= board.hexagonRadius * rangeInHex;
 
   // ── 經濟 / 勝負 ──────────────────────────────────────────
-  void onEnemyKilled(EnemyComponent e) => coin.value += 5;
+  void onEnemyKilled(EnemyComponent e) => coin.value += e.kind.reward;
 
   void onEnemyLeaked(EnemyComponent e) {
-    heart.value -= 1;
+    heart.value -= e.kind.leakDamage;
     if (heart.value <= 0) triggerGameOver();
   }
 
@@ -403,8 +404,47 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     waveNumber++;
     wave.value = waveNumber;
     waveRunning.value = true;
-    _spawner = WaveSpawnerComponent(status: enemyStatusForWave(waveNumber));
+    _spawner = WaveSpawnerComponent(
+      kinds: buildWaveComposition(waveNumber),
+      base: enemyStatusForWave(waveNumber),
+    );
     world.add(_spawner!);
+  }
+
+  final Random _spawnRng = Random();
+
+  /// 該波的敵人組成（權重填充版）：
+  /// - 只納入「已解鎖（unlockWave ≤ wave）」的種類。
+  /// - 該波「剛解鎖」的種類各固定給幾隻當介紹。
+  /// - 其餘名額依權重隨機填充，最後打散避免同種擠在一起。
+  List<EnemyKind> buildWaveComposition(int wave) {
+    final unlocked =
+        EnemyKind.all.where((k) => k.unlockWave <= wave).toList();
+    final total = 12 + (wave * 0.6).round();
+    final result = <EnemyKind>[];
+
+    // 剛解鎖的種類：這波至少各給 3 隻試水溫。
+    for (final k in unlocked.where((k) => k.unlockWave == wave)) {
+      result.addAll(List.filled(3, k));
+    }
+
+    // 其餘依權重填充。
+    final weightSum = unlocked.fold<double>(0, (s, k) => s + k.weight);
+    while (result.length < total) {
+      var r = _spawnRng.nextDouble() * weightSum;
+      var pick = unlocked.first;
+      for (final k in unlocked) {
+        r -= k.weight;
+        if (r <= 0) {
+          pick = k;
+          break;
+        }
+      }
+      result.add(pick);
+    }
+
+    result.shuffle(_spawnRng);
+    return result;
   }
 
   EnemyStatus enemyStatusForWave(int wave) {

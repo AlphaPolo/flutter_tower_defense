@@ -5,6 +5,7 @@ import '../board/hex.dart';
 import '../effects/effect.dart';
 import '../effects/particles.dart';
 import '../tower_defense_game.dart';
+import 'enemy_kind.dart';
 import 'enemy_status.dart';
 
 export 'enemy_status.dart';
@@ -17,12 +18,14 @@ export 'enemy_status.dart';
 class EnemyComponent extends PositionComponent
     with HasGameReference<TowerDefenseGame> {
   EnemyComponent({
+    required this.kind,
     required this.currentLocation,
     required this.status,
   }) : super(anchor: Anchor.center);
 
   static const double speedComplete = 16 * 60;
 
+  final EnemyKind kind;
   BoardPoint currentLocation;
   BoardPoint? goalLocation;
   EnemyStatus status;
@@ -182,8 +185,16 @@ class EnemyComponent extends PositionComponent
   @override
   void render(Canvas canvas) {
     final s = game.iso.scaleX;
-    final r = game.board.hexagonRadius * 0.3 * s;
-    canvas.drawCircle(Offset.zero, r, Paint()..color = Colors.indigo);
+    final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
+    canvas.drawCircle(Offset.zero, r, Paint()..color = kind.color);
+    canvas.drawCircle(
+      Offset.zero,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2 * s
+        ..color = Colors.black.withOpacity(0.35),
+    );
 
     final w = r * 2.2;
     final h = r * 0.5;
