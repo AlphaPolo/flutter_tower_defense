@@ -6,6 +6,7 @@ enum TowerType {
   thunder,
   cannon,
   poison,
+  log,
   spike,
   vortex,
   obstacle,
@@ -84,6 +85,14 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 1200,
     title: '毒塔',
     description: '射出毒液使敵人中毒，在數秒內持續受到毒素傷害',
+  ),
+  TowerType.log: TowerStats(
+    cost: 100,
+    range: 5,
+    damage: 60,
+    fireCD: 2500,
+    title: '滾木塔',
+    description: '每隔一段時間朝直線滾出巨木，壓過沿途的敵人造成傷害，直到撞上建築或滾出場外。',
   ),
   TowerType.spike: TowerStats(
     cost: 30,

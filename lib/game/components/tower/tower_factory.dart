@@ -29,12 +29,104 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return CannonTowerComponent(location);
     case TowerType.poison:
       return PoisonTowerComponent(location);
+    case TowerType.log:
+      return LogTowerComponent(location);
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
     case TowerType.spike:
     case TowerType.vortex:
       // 陷阱類不走塔工廠（由 buildTrap 建立）。
       throw ArgumentError('$type 為陷阱，請改用 buildTrap');
+  }
+}
+
+/// 滾木塔：**方向由玩家控制**（點選塔時可左右旋轉），每隔一段時間朝該方向滾出巨木。
+/// 木頭壓過沿途的敵人（各一次傷害、不被敵人擋下），直到撞上建築或滾出場外。
+class LogTowerComponent extends TowerComponent {
+  LogTowerComponent(BoardPoint location) : super(TowerType.log, location);
+
+  /// 玩家可調整的發射方向（6 個六角方向之一）。
+  late HexagonDirection launchDir;
+
+  @override
+  void onMount() {
+    super.onMount();
+    launchDir = _defaultDir(); // 預設朝主堡方向，玩家可再調整
+  }
+
+  HexagonDirection _defaultDir() {
+    final aim = game.boardToLogical(game.targetLocation) - logicalPos;
+    var best = HexagonDirection.values.first;
+    var bestDot = -double.infinity;
+    for (final d in HexagonDirection.values) {
+      final n = game.boardToLogical(location.getNeighbor(d)) - logicalPos;
+      final dot = n.x * aim.x + n.y * aim.y;
+      if (dot > bestDot) {
+        bestDot = dot;
+        best = d;
+      }
+    }
+    return best;
+  }
+
+  /// 發射方向的角度（邏輯座標）。
+  double get _launchAngle {
+    final n = game.boardToLogical(location.getNeighbor(launchDir)) - logicalPos;
+    return atan2(n.y, n.x);
+  }
+
+  /// 玩家旋轉發射方向（delta = ±1，循環 6 個方向）。
+  void rotate(int delta) {
+    final vals = HexagonDirection.values;
+    launchDir = vals[(launchDir.index + delta) % vals.length];
+  }
+
+  @override
+  void update(double dt) {
+    prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
+    if (prepareShoot > 0) return;
+    if (game.enemies.isEmpty) return; // 沒有敵人時不發射
+    direction = _launchAngle;
+    game.world.add(RollingLogProjectileComponent(
+      damage: damage,
+      start: logicalPos.clone(),
+      speed: 0.9,
+      travelAngle: direction,
+      originCell: location,
+      dirIndex: launchDir.index, // 對應 spritesheet 的方向列
+    ));
+    prepareShoot = fireCD.toDouble();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas); // 陰影 + 塔身 sprite
+    _renderAimArrow(canvas);
+  }
+
+  /// 在塔上畫出目前發射方向的箭頭（點選時橘色高亮，平時淡白提示）。
+  void _renderAimArrow(Canvas canvas) {
+    final s = game.iso.scaleX;
+    final inspected = game.inspecting.value == location;
+    final d = game.logicalToScreen(
+            game.boardToLogical(location.getNeighbor(launchDir))) -
+        game.logicalToScreen(logicalPos);
+    final ang = atan2(d.y, d.x);
+
+    final origin = Offset(size.x / 2, size.y / 2); // sprite 中心＝塔腳
+    final len = game.board.hexagonRadius * s * (inspected ? 1.5 : 1.0);
+    final tip = origin + Offset(cos(ang), sin(ang)) * len;
+    final paint = Paint()
+      ..color = (inspected ? Colors.orangeAccent : Colors.white)
+          .withOpacity(inspected ? 0.95 : 0.45)
+      ..strokeWidth = 3 * s
+      ..strokeCap = StrokeCap.round;
+    canvas
+      ..drawLine(origin, tip, paint)
+      ..drawLine(
+          tip, tip + Offset(cos(ang + 2.6), sin(ang + 2.6)) * (9 * s), paint)
+      ..drawLine(
+          tip, tip + Offset(cos(ang - 2.6), sin(ang - 2.6)) * (9 * s), paint);
   }
 }
 

@@ -383,6 +383,33 @@ class LeftColOverlay extends StatelessWidget {
               const SizedBox(height: 6),
               for (final l in lines)
                 Text(l, style: const TextStyle(fontSize: 13)),
+              if (game.isLogTower(bp)) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  '滾木方向',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () => game.rotateLog(bp, -1),
+                      icon: const Icon(Icons.rotate_left),
+                      iconSize: 26,
+                      color: Colors.brown,
+                      tooltip: '逆時針',
+                    ),
+                    IconButton(
+                      onPressed: () => game.rotateLog(bp, 1),
+                      icon: const Icon(Icons.rotate_right),
+                      iconSize: 26,
+                      color: Colors.brown,
+                      tooltip: '順時針',
+                    ),
+                  ],
+                ),
+              ],
               if (tower) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(

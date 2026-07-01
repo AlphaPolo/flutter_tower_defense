@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
@@ -58,6 +59,12 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Map<TowerType, Sprite> towerSprites;
   late final List<Sprite> obstacleSprites;
 
+  /// 滾木滾動 spritesheet（6 列方向 × 8 欄幀，每格 96px）。
+  late final ui.Image logSheet;
+  static const int logDirCount = 6;
+  static const int logFrameCount = 8;
+  static const double logCell = 96;
+
   // ── 波次 ─────────────────────────────────────────────────
   static const int totalWaves = 25;
   int waveNumber = 0;
@@ -108,8 +115,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
           await Sprite.load('tower_cannon.png', images: isoImages),
       TowerType.poison:
           await Sprite.load('tower_poison.png', images: isoImages),
+      TowerType.log: await Sprite.load('tower_log.png', images: isoImages),
       TowerType.obstacle: obstacleSprites.first,
     };
+    logSheet = await isoImages.load('log_roll.png');
 
     world.add(BackgroundTapCatcher());
     boardComponent = BoardComponent();
@@ -310,6 +319,15 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   TowerType? typeAt(BoardPoint point) =>
       towers[point]?.type ?? traps[point]?.type;
+
+  /// 該格是否為滾木塔（供瀏覽面板顯示方向控制）。
+  bool isLogTower(BoardPoint point) => towers[point] is LogTowerComponent;
+
+  /// 旋轉滾木塔的發射方向（delta = ±1）。
+  void rotateLog(BoardPoint point, int delta) {
+    final t = towers[point];
+    if (t is LogTowerComponent) t.rotate(delta);
+  }
 
   /// 讓場上的陷阱對「敵人的路線位置 [pos]」施加位置力場（如渦流吸引），就地修改
   /// [pos]。純顯示用、不影響尋路進度。[seed]（敵人身分）讓散布角度穩定。

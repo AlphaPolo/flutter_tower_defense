@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../../constant/game_constant.dart';
+import '../../board/hex.dart';
 import '../../effects/effect.dart';
 import '../../effects/particles.dart';
 import '../../tower_defense_game.dart';
@@ -510,5 +511,80 @@ class ThunderProjectileComponent extends ProjectileComponent {
       _bolt(canvas, Offset.zero, off, glow);
       _bolt(canvas, Offset.zero, off, core);
     }
+  }
+}
+
+/// 滾木：沿固定方向等速滾動，壓過範圍內的每隻敵人各造成一次傷害（敵人不會擋下它）。
+/// 撞到建築（towers；陷阱不在其中 → 不擋）或滾出棋盤即停止。
+class RollingLogProjectileComponent extends ProjectileComponent {
+  RollingLogProjectileComponent({
+    required super.damage,
+    required super.start,
+    required super.speed,
+    required this.travelAngle,
+    required this.originCell,
+    required this.dirIndex,
+  });
+
+  final double travelAngle;
+  final BoardPoint originCell; // 塔自身格：起始不因它而停
+  final int dirIndex; // spritesheet 的方向列（= HexagonDirection.index）
+  final Vector2 _dir = Vector2.zero();
+  final Set<EnemyComponent> _crushed = {};
+  double _rolled = 0; // 已滾距離（給滾動條紋用）
+
+  static const double _crushHex = 0.55; // 壓過半徑（格）
+
+  @override
+  void onMount() {
+    super.onMount();
+    _dir.setFrom(Vector2(cos(travelAngle), sin(travelAngle)));
+  }
+
+  @override
+  void onTick(double dtMs) {
+    final step = (speed / 3) * dtMs; // 沿用其他 projectile 的 speed 語意（px/ms）
+    logical.x += _dir.x * step;
+    logical.y += _dir.y * step;
+    _rolled += step;
+
+    // 壓過範圍內、還沒壓到的敵人 → 各造成一次傷害。
+    final r = game.board.hexagonRadius * _crushHex;
+    for (final e in game.enemies) {
+      if (e.isDead || _crushed.contains(e)) continue;
+      if (e.logicalPos.distanceTo(logical) <= r) {
+        e.dealDamage(damage);
+        _crushed.add(e);
+      }
+    }
+
+    // 停止：滾出棋盤，或撞到建築（塔/障礙；陷阱不在 towers → 不擋）。起始格(塔自身)不算。
+    final bp = game.board.pointToBoardPoint(Offset(logical.x, logical.y));
+    if (bp == null) {
+      dead = true; // 滾出場外
+      return;
+    }
+    if (bp != originCell && game.towers.containsKey(bp)) {
+      dead = true; // 撞上建築停下
+      return;
+    }
+  }
+
+  static const double _framePx = 14; // 每滾動幾 px 換一幀
+
+  @override
+  void render(Canvas canvas) {
+    final cell = TowerDefenseGame.logCell;
+    final frame =
+        (_rolled / _framePx).floor() % TowerDefenseGame.logFrameCount;
+    final src = Rect.fromLTWH(frame * cell, dirIndex * cell, cell, cell);
+    final size = game.board.hexagonRadius * game.iso.scaleX * 1.8;
+    final dst = Rect.fromCenter(center: Offset.zero, width: size, height: size);
+    canvas.drawImageRect(
+      game.logSheet,
+      src,
+      dst,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
   }
 }
