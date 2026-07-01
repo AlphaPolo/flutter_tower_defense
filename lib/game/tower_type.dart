@@ -79,12 +79,12 @@ const Map<TowerType, TowerStats> kTowerStats = {
     description: '發射砲彈命中後爆炸，對落點周圍範圍內的所有敵人造成傷害',
   ),
   TowerType.poison: TowerStats(
-    cost: 80,
+    cost: 60,
     range: 3.5,
-    damage: 18,
+    damage: 75, // 中毒總傷害（5 秒內共 75，見 PoisonTowerComponent.poisonDuration）
     fireCD: 1200,
     title: '毒塔',
-    description: '射出毒液使敵人中毒，在數秒內持續受到毒素傷害',
+    description: '射出毒液使敵人中毒，5 秒內持續受到共 75 點毒素傷害',
   ),
   TowerType.log: TowerStats(
     cost: 100,

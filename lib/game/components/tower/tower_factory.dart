@@ -375,7 +375,7 @@ class CannonTowerComponent extends TowerComponent {
 class PoisonTowerComponent extends TowerComponent {
   PoisonTowerComponent(BoardPoint location) : super(TowerType.poison, location);
 
-  static const int poisonDuration = 3000; // 中毒持續時間(ms)
+  static const int poisonDuration = 5000; // 中毒持續時間(ms)
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
