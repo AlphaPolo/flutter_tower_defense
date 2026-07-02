@@ -364,7 +364,7 @@ class CannonTowerComponent extends TowerComponent {
     return CannonProjectileComponent(
       damage: damage,
       start: muzzle(),
-      speed: 0.8,
+      speed: 0.6,
       targetPos: enemy.logicalPos.clone(),
       blastHex: blastHex,
     );

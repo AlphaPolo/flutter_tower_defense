@@ -148,11 +148,17 @@ class CannonProjectileComponent extends ProjectileComponent {
     final blast = game.board.hexagonRadius * blastHex;
     for (final e in game.enemies) {
       if (e.isDead) continue;
-      if (e.logicalPos.distanceTo(goalLogical!) <= blast) e.dealDamage(damage);
+      final d = e.logicalPos.distanceTo(goalLogical!);
+      if (d <= blast) {
+        // 基礎傷害不變(邊緣 1×)，越靠中心加成越高，最高中心 2×（線性）。
+        final mult = 1.0 + (1 - d / blast);
+        e.dealDamage(damage * mult);
+      }
     }
     game.world.add(ExplosionComponent(
       screenPos: game.logicalToScreen(goalLogical!),
       diameter: blast * 2.6 * game.iso.scaleX,
+      blastLogical: blast,
     ));
   }
 

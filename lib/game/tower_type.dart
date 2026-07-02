@@ -73,7 +73,7 @@ const Map<TowerType, TowerStats> kTowerStats = {
   TowerType.cannon: TowerStats(
     cost: 90,
     range: 4,
-    damage: 25,
+    damage: 40,
     fireCD: 1400,
     title: '火炮塔',
     description: '發射砲彈命中後爆炸，對落點周圍範圍內的所有敵人造成傷害',
