@@ -119,10 +119,12 @@ class CannonProjectileComponent extends ProjectileComponent {
     required super.speed,
     required this.targetPos,
     required this.blastHex,
+    this.centerBonus = false,
   });
 
   final Vector2 targetPos;
   final double blastHex;
+  final bool centerBonus; // Lv3「高爆」：越靠中心傷害加成，最高 2×
   final Vector2 _start = Vector2.zero();
 
   @override
@@ -150,8 +152,8 @@ class CannonProjectileComponent extends ProjectileComponent {
       if (e.isDead) continue;
       final d = e.logicalPos.distanceTo(goalLogical!);
       if (d <= blast) {
-        // 基礎傷害不變(邊緣 1×)，越靠中心加成越高，最高中心 2×（線性）。
-        final mult = 1.0 + (1 - d / blast);
+        // 基礎傷害不變(邊緣 1×)；升級「高爆」後越靠中心加成越高，最高中心 2×（線性）。
+        final mult = centerBonus ? 1.0 + (1 - d / blast) : 1.0;
         e.dealDamage(damage * mult);
       }
     }
@@ -191,10 +193,12 @@ class PoisonProjectileComponent extends ProjectileComponent {
     required super.speed,
     required this.target,
     required this.duration,
+    this.pctPerSec = 0,
   });
 
   final EnemyComponent target;
   final int duration;
+  final double pctPerSec; // 每秒額外扣「命中時最大血量」的百分比
   final Vector2 _start = Vector2.zero();
 
   @override
@@ -214,8 +218,10 @@ class PoisonProjectileComponent extends ProjectileComponent {
     clock += dtMs;
     if (lifeTime <= 0 || clock >= lifeTime) {
       if (target.isMounted && !target.isDead) {
-        // damage 視為「整段持續時間造成的總傷害」→ 換算每秒。
-        final dps = damage / (duration / 1000.0);
+        // damage 視為「整段持續時間造成的總傷害」→ 換算每秒；
+        // 另加「每秒依命中時最大血量的百分比」扣血（升級提高 pctPerSec）。
+        final dps = damage / (duration / 1000.0) +
+            pctPerSec * target.status.totalHp;
         target.addEffect(PoisonEffect(kPoisonEffectType, duration, dps));
         game.world.add(poisonBurst(target.position.clone(), game.iso.scaleX));
       }
@@ -307,11 +313,13 @@ class FreezeProjectileComponent extends ProjectileComponent {
     required this.toRadius,
     this.fromRadius = 0,
     this.duration = 1000,
+    this.slowFactor = 0.3,
   }) : super(speed: 1);
 
   final double toRadius;
   final double fromRadius;
   final int duration;
+  final double slowFactor; // 減速倍率（越小＝越慢，0.3 = 剩 30% 速度）
   double currentRadius = 0;
   final Set<EnemyComponent> effected = {};
 
@@ -338,7 +346,8 @@ class FreezeProjectileComponent extends ProjectileComponent {
       if (e.logicalPos.distanceTo(logical) < currentRadius) {
         effected.add(e);
         e.addEffect(
-          SlowMovementEffect(kFrozenEffectType, 800, StatCalcType.multi, 0.3),
+          SlowMovementEffect(
+              kFrozenEffectType, 800, StatCalcType.multi, slowFactor),
         );
       }
     }

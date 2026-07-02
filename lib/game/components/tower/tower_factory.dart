@@ -45,6 +45,12 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
 class LogTowerComponent extends TowerComponent {
   LogTowerComponent(BoardPoint location) : super(TowerType.log, location);
 
+  // 依升級：Lv2 提高傷害、Lv3 縮短發射間隔。
+  @override
+  double get damage => level >= 2 ? 60 : 40;
+  @override
+  int get fireCD => level >= 3 ? 1800 : 3000;
+
   /// 玩家可調整的發射方向（6 個六角方向之一）。
   late HexagonDirection launchDir;
 
@@ -135,6 +141,11 @@ class FreezingTowerComponent extends TowerComponent {
   FreezingTowerComponent(BoardPoint location)
       : super(TowerType.freezing, location);
 
+  // 依升級：冰環範圍與減速強度（值越小＝減速越強）。
+  @override
+  double get range => level >= 3 ? 3.5 : (level >= 2 ? 3.0 : 2.5);
+  double get slowFactor => level >= 3 ? 0.2 : (level >= 2 ? 0.35 : 0.6);
+
   @override
   void update(double dt) {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
@@ -150,6 +161,7 @@ class FreezingTowerComponent extends TowerComponent {
       start: logicalPos.clone(),
       toRadius: game.board.hexagonRadius * range,
       duration: 2000,
+      slowFactor: slowFactor,
     );
   }
 }
@@ -159,6 +171,12 @@ class FlameTowerComponent extends TowerComponent {
   FlameTowerComponent(BoardPoint location) : super(TowerType.flame, location);
 
   static const double rotateSpeed = 0.08;
+
+  // 依升級：Lv2 加長射程、Lv3 提高灼燒 DPS。
+  @override
+  double get range => level >= 2 ? 6 : 4;
+  @override
+  double get damage => level >= 3 ? 14 : 8;
 
   @override
   void update(double dt) {
@@ -212,7 +230,12 @@ class AirBladeTowerComponent extends TowerComponent {
       : super(TowerType.airBlade, location);
 
   /// 刀刃旋轉角速度（rad/秒，dt-based → 不受幀率影響）。4π = 每秒 2 圈。
-  static const double spinSpeed = 4 * pi;
+  /// 依升級：Lv2「疾風」轉更快（每秒 3 圈）。
+  double get spinSpeed => level >= 2 ? 6 * pi : 4 * pi;
+
+  // 依升級：Lv3「巨刃」擴大攻擊範圍。
+  @override
+  double get range => level >= 3 ? 3.5 : 2.5;
 
   double _windEmit = 0;
 
@@ -365,7 +388,9 @@ class ThunderTowerComponent extends TowerComponent {
 class CannonTowerComponent extends TowerComponent {
   CannonTowerComponent(BoardPoint location) : super(TowerType.cannon, location);
 
-  static const double blastHex = 1.9; // 爆炸半徑（格）
+  // 依升級：Lv2「大口徑」擴大爆炸半徑、Lv3「高爆」開啟中心加成（最高 2 倍）。
+  double get blastHex => level >= 2 ? 1.9 : 1.2; // 爆炸半徑（格）
+  bool get centerBonus => level >= 3;
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -375,6 +400,7 @@ class CannonTowerComponent extends TowerComponent {
       speed: 0.6,
       targetPos: enemy.logicalPos.clone(),
       blastHex: blastHex,
+      centerBonus: centerBonus,
     );
   }
 }
@@ -385,6 +411,13 @@ class PoisonTowerComponent extends TowerComponent {
 
   static const int poisonDuration = 3000; // 中毒持續時間(ms)
 
+  // 依升級：固定毒傷總量（3 秒內）。
+  @override
+  double get damage => level >= 3 ? 150 : (level >= 2 ? 100 : 60);
+
+  // 依升級：每秒額外扣「最大血量的百分比」，一開始很低、升級大幅提高。
+  double get pctPerSec => level >= 3 ? 0.04 : (level >= 2 ? 0.02 : 0.01);
+
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return PoisonProjectileComponent(
@@ -393,6 +426,7 @@ class PoisonTowerComponent extends TowerComponent {
       speed: 1.4,
       target: enemy,
       duration: poisonDuration,
+      pctPerSec: pctPerSec,
     );
   }
 }

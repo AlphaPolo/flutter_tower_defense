@@ -39,28 +39,28 @@ class TowerStats {
 
 const Map<TowerType, TowerStats> kTowerStats = {
   TowerType.freezing: TowerStats(
-    cost: 60,
-    range: 3.0,
+    cost: 30, // 基礎費砍半（升級系統）
+    range: 2.5,
     damage: 10,
     fireCD: 1500,
     title: '冰凍塔',
-    description: '傷害較低但能夠減緩周圍的敵人',
+    description: '減緩範圍內的敵人；升級可增強減速並擴大冰環',
   ),
   TowerType.flame: TowerStats(
-    cost: 60,
-    range: 6,
-    damage: 12, // 灼燒 DPS：火球範圍內每秒造成的傷害（依 dt 結算，不受 fps 影響）
+    cost: 30,
+    range: 4,
+    damage: 8, // 灼燒 DPS（Lv1）；依 dt 結算、不受 fps 影響。升級提升
     fireCD: 100,
     title: '火焰塔',
-    description: '能夠噴射一直線的火焰，使其在直線範圍上的敵人受到持續地延燒傷害',
+    description: '噴射直線火焰持續灼燒；升級可加長射程與提高傷害',
   ),
   TowerType.airBlade: TowerStats(
-    cost: 60,
-    range: 3,
-    damage: 12.5, // 每刀傷害；旋轉每秒 2 圈 → DPS = 2 × 12.5 = 25（見 AirBladeTowerComponent）
+    cost: 30,
+    range: 2.5,
+    damage: 12.5, // 每刀傷害；旋轉圈數依等級（見 AirBladeTowerComponent）
     fireCD: 0, // 風刃為旋轉掃擊，不使用冷卻
     title: '風刃塔',
-    description: '製造旋轉風刃，刀刃掃過範圍內的敵人即造成劈砍傷害',
+    description: '旋轉風刃掃到即傷害；升級可轉更快、範圍更大',
   ),
   TowerType.thunder: TowerStats(
     cost: 35, // 基礎費砍半（升級系統）
@@ -71,28 +71,28 @@ const Map<TowerType, TowerStats> kTowerStats = {
     description: '單體電擊、自帶微弱麻痺；升級可解鎖連鎖電鏈並強化麻痺',
   ),
   TowerType.cannon: TowerStats(
-    cost: 90,
+    cost: 45, // 基礎費砍半
     range: 4,
     damage: 40,
     fireCD: 1400,
     title: '火炮塔',
-    description: '發射砲彈命中後爆炸，對落點周圍範圍內的所有敵人造成傷害',
+    description: '砲彈落地爆炸傷害範圍內敵人；升級可擴大範圍、中心加成',
   ),
   TowerType.poison: TowerStats(
-    cost: 60,
+    cost: 30, // 基礎費砍半
     range: 3.5,
-    damage: 100, // 中毒總傷害（3 秒內共 100，見 PoisonTowerComponent.poisonDuration）
+    damage: 60, // 中毒總傷(Lv1，3 秒內)；升級提高。實際 dps 另加「每秒 %血量」
     fireCD: 1200,
     title: '毒塔',
-    description: '射出毒液使敵人中毒，3 秒內持續受到共 100 點毒素傷害',
+    description: '中毒 3 秒（固定毒傷 + 每秒依最大血量%扣血）；升級提高毒傷與%傷害',
   ),
   TowerType.log: TowerStats(
-    cost: 100,
+    cost: 50, // 基礎費砍半
     range: 5,
-    damage: 60,
-    fireCD: 2500,
+    damage: 40, // Lv1 傷害；升級提高
+    fireCD: 3000, // Lv1 發射間隔；Lv3 縮短
     title: '滾木塔',
-    description: '每隔一段時間朝直線滾出巨木，壓過沿途的敵人造成傷害，直到撞上建築或滾出場外。',
+    description: '朝玩家設定方向滾出巨木壓過敵人；升級提高傷害、縮短間隔',
   ),
   TowerType.spike: TowerStats(
     cost: 30,
@@ -142,6 +142,30 @@ const Map<TowerType, List<TowerUpgrade>> kTowerUpgrades = {
     TowerUpgrade(name: '電鏈', cost: 35, desc: '啟用連鎖，一次串到 3 名敵人'),
     TowerUpgrade(
         name: '過載', cost: 55, desc: '連結上限提升到 5，麻痺機率與時間大幅提升'),
+  ],
+  TowerType.freezing: [
+    TowerUpgrade(name: '深寒', cost: 30, desc: '減速更強、冰環範圍加大'),
+    TowerUpgrade(name: '凍結', cost: 45, desc: '減速極強、冰環更大'),
+  ],
+  TowerType.flame: [
+    TowerUpgrade(name: '長焰', cost: 30, desc: '火焰射程加長'),
+    TowerUpgrade(name: '烈焰', cost: 45, desc: '灼燒 DPS 提升'),
+  ],
+  TowerType.airBlade: [
+    TowerUpgrade(name: '疾風', cost: 30, desc: '刀刃旋轉更快、每秒更多刀'),
+    TowerUpgrade(name: '巨刃', cost: 45, desc: '攻擊範圍加大'),
+  ],
+  TowerType.cannon: [
+    TowerUpgrade(name: '大口徑', cost: 45, desc: '爆炸範圍加大'),
+    TowerUpgrade(name: '高爆', cost: 70, desc: '爆炸中心加成，最高 2 倍傷害'),
+  ],
+  TowerType.poison: [
+    TowerUpgrade(name: '劇毒', cost: 30, desc: '中毒總傷提高，每秒%血量傷害提升'),
+    TowerUpgrade(name: '蔓延', cost: 45, desc: '中毒總傷再提高，每秒%血量傷害大幅提升'),
+  ],
+  TowerType.log: [
+    TowerUpgrade(name: '巨木', cost: 50, desc: '滾木傷害提高'),
+    TowerUpgrade(name: '連發', cost: 75, desc: '發射間隔縮短'),
   ],
 };
 
