@@ -65,6 +65,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 滾木滾動 spritesheet（6 列方向 × 8 欄幀，每格 96px）。
   late final ui.Image logSheet;
+
+  /// 爆炸動畫 spritesheet（火炮落地用，10 幀 × 192px）。
+  late final ui.Image explosionSheet;
   static const int logDirCount = 6;
   static const int logFrameCount = 8;
   static const double logCell = 96;
@@ -125,6 +128,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       TowerType.obstacle: obstacleSprites.first,
     };
     logSheet = await isoImages.load('log_roll.png');
+    explosionSheet = await isoImages.load('explosion.png');
     for (final k in [...EnemyKind.all, EnemyKind.juggernaut]) {
       final sheet = k.sheet;
       if (sheet != null) enemySheets[k.id] = await isoImages.load(sheet);

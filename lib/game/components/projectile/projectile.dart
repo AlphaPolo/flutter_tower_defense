@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../constant/game_constant.dart';
 import '../../board/hex.dart';
+import '../explosion_component.dart';
 import '../../effects/effect.dart';
 import '../../effects/particles.dart';
 import '../../tower_defense_game.dart';
@@ -149,28 +150,29 @@ class CannonProjectileComponent extends ProjectileComponent {
       if (e.isDead) continue;
       if (e.logicalPos.distanceTo(goalLogical!) <= blast) e.dealDamage(damage);
     }
-    game.world.add(
-      explosionBurst(game.logicalToScreen(goalLogical!), game.iso.scaleX),
-    );
+    game.world.add(ExplosionComponent(
+      screenPos: game.logicalToScreen(goalLogical!),
+      diameter: blast * 2.6 * game.iso.scaleX,
+    ));
   }
 
   @override
   void render(Canvas canvas) {
     // 拋物線：飛行中段往上抬，像砲彈飛行弧線。
     final t = lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0);
-    final lift = sin(t * pi) * 26 * s;
+    final lift = sin(t * pi) * 32 * s;
     canvas.drawCircle(
       Offset(0, -lift),
-      5 * s,
+      7 * s,
       Paint()..color = const Color(0xFF333333),
     );
     canvas.drawCircle(
       Offset(0, -lift),
-      5 * s,
+      7 * s,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = Colors.orange.withOpacity(0.8),
+        ..strokeWidth = 1.6
+        ..color = Colors.orange.withOpacity(0.85),
     );
   }
 }

@@ -357,14 +357,14 @@ class ThunderTowerComponent extends TowerComponent {
 class CannonTowerComponent extends TowerComponent {
   CannonTowerComponent(BoardPoint location) : super(TowerType.cannon, location);
 
-  static const double blastHex = 1.4; // 爆炸半徑（格）
+  static const double blastHex = 1.9; // 爆炸半徑（格）
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return CannonProjectileComponent(
       damage: damage,
       start: muzzle(),
-      speed: 1.2,
+      speed: 0.8,
       targetPos: enemy.logicalPos.clone(),
       blastHex: blastHex,
     );
