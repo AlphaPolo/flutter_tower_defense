@@ -1,9 +1,44 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'home/home_screen.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 GlobalKey<ScaffoldMessengerState>();
+
+Timer? _bannerTimer;
+
+/// 從畫面「上方」彈出一則提示，改用 Material 官方的 [MaterialBanner]（顯示在頂部，
+/// 不再壓到底部建造列）。MaterialBanner 本身不會自動消失、且至少要有一個 action，
+/// 所以這裡附一個「✕」關閉鈕，並用 Timer 到時自動收起。
+void showTopMessage(String message,
+    {Duration duration = const Duration(seconds: 2)}) {
+  final messenger = scaffoldMessengerKey.currentState;
+  if (messenger == null) return;
+  _bannerTimer?.cancel();
+  messenger
+    ..clearMaterialBanners()
+    ..showMaterialBanner(
+      MaterialBanner(
+        // elevation != 0 → Scaffold 不把 body 往下推，banner 改成「浮」在遊戲上方
+        // （像 floating SnackBar），因此不會 resize 遊戲 → 不觸發相機重置。
+        elevation: 3,
+        backgroundColor: const Color(0xFFD64541).withOpacity(0.96),
+        content: Text(message),
+        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 15),
+        actions: [
+          IconButton(
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+            onPressed: () => messenger.hideCurrentMaterialBanner(),
+          ),
+        ],
+      ),
+    );
+  _bannerTimer = Timer(duration, messenger.hideCurrentMaterialBanner);
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

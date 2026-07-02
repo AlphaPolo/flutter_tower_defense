@@ -8,7 +8,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
-import '../screens/my_app.dart' show scaffoldMessengerKey;
+import '../screens/my_app.dart' show showTopMessage;
 import 'board/hex.dart';
 import 'board/pathfinding.dart';
 import 'components/board_component.dart';
@@ -590,11 +590,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     pauseEngine();
   }
 
-  void showMessage(String message) {
-    scaffoldMessengerKey.currentState
-      ?..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
+  void showMessage(String message) => showTopMessage(message);
 
   @override
   void onRemove() {
