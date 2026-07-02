@@ -18,6 +18,11 @@ class EnemyKind {
     required this.unlockWave,
     required this.weight,
     required this.desc,
+    this.sheet,
+    this.frames = 1,
+    this.frameSize = 0,
+    this.footFrac = 0.70,
+    this.topFrac = 0.28,
   });
 
   final String id;
@@ -32,6 +37,13 @@ class EnemyKind {
   final double weight; // 權重填充用（越大越常出現）
   final String desc; // 資訊卡說明
 
+  // 動畫 sprite（直立 billboard）。sheet == null 時退回顏色圓。
+  final String? sheet; // 水平幀條資產檔名（放 assets/iso/）
+  final int frames; // 幀數
+  final double frameSize; // 每幀像素（正方形）
+  final double footFrac; // 內容「底部(腳/影)」在幀中的比例 → 用來對齊地面線
+  final double topFrac; // 內容「頂部(頭)」在幀中的比例 → 血條定位
+
   static const grunt = EnemyKind(
     id: 'grunt',
     name: '雜兵',
@@ -44,6 +56,11 @@ class EnemyKind {
     unlockWave: 1,
     weight: 5,
     desc: '最基本的敵人，沒有特殊能力。',
+    sheet: 'enemy_skull_run.png',
+    frames: 6,
+    frameSize: 192,
+    footFrac: 0.677,
+    topFrac: 0.286,
   );
 
   static const scout = EnemyKind(
@@ -57,7 +74,12 @@ class EnemyKind {
     sizeMul: 0.7,
     unlockWave: 3,
     weight: 3,
-    desc: '血少但移動很快。用減速（冰/雷）或渦流聚集後清除較有效。',
+    desc: '騎豬的長槍哥布林，血少但移動很快。用減速（冰/雷）或渦流聚集後清除較有效。',
+    sheet: 'enemy_pigrider_run.png',
+    frames: 4,
+    frameSize: 256,
+    footFrac: 0.648,
+    topFrac: 0.117,
   );
 
   static const swarm = EnemyKind(
@@ -72,6 +94,11 @@ class EnemyKind {
     unlockWave: 5,
     weight: 4,
     desc: '血量極低但成群出現。用範圍攻擊（火炮/滾木/地刺）一次清最有效。',
+    sheet: 'enemy_spider_run.png',
+    frames: 5,
+    frameSize: 192,
+    footFrac: 0.708,
+    topFrac: 0.281,
   );
 
   static const brute = EnemyKind(
@@ -86,8 +113,35 @@ class EnemyKind {
     unlockWave: 6,
     weight: 2,
     desc: '血厚、移動慢，漏過會扣 2 點生命。用持續傷害（毒/火）慢慢磨。',
+    sheet: 'enemy_minotaur_walk.png',
+    frames: 8,
+    frameSize: 320,
+    footFrac: 0.669,
+    topFrac: 0.263,
   );
 
-  /// 第一階段的所有種類（依解鎖順序）。
+  /// Boss：巨獸。血量極高、移動慢、漏過重扣。本階段只做數值，
+  /// 「擋停滾木 / 不被渦流吸」等機制留待互動型階段。只在 Boss 波手動生成，
+  /// 不列入 [all]（不參與權重填充）。
+  static const juggernaut = EnemyKind(
+    id: 'juggernaut',
+    name: '巨獸',
+    hpMul: 8.0,
+    speedMul: 0.5,
+    reward: 60,
+    leakDamage: 5,
+    color: Color(0xFF4A148C),
+    sizeMul: 2.2,
+    unlockWave: 999,
+    weight: 0,
+    desc: '極高血量、移動緩慢的 Boss，漏過會重扣生命。集中火力或用持續傷害對付。',
+    sheet: 'enemy_troll_walk.png',
+    frames: 10,
+    frameSize: 384,
+    footFrac: 0.773,
+    topFrac: 0.234,
+  );
+
+  /// 會參與波次「權重填充」的一般種類（依解鎖順序）。
   static const all = [grunt, scout, swarm, brute];
 }

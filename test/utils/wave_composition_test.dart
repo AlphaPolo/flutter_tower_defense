@@ -38,4 +38,23 @@ void main() {
       expect(game.buildWaveComposition(25).length, 27); // round(15)=15
     });
   });
+
+  group('buildWaveSchedule', () {
+    test('Boss 波含巨獸，一般波不含', () {
+      for (final w in [10, 15, 20, 25]) {
+        expect(game.buildWaveSchedule(w).any((t) => t.kind.id == 'juggernaut'),
+            isTrue);
+      }
+      for (final w in [1, 7, 9, 12, 14, 24]) {
+        expect(game.buildWaveSchedule(w).any((t) => t.kind.id == 'juggernaut'),
+            isFalse);
+      }
+    });
+
+    test('招牌小隊波會在填充之外多出小隊數量', () {
+      // W7 小隊 5 隻 → 總長度 = 權重填充長度 + 5
+      expect(game.buildWaveSchedule(7).length,
+          game.buildWaveComposition(7).length + 5);
+    });
+  });
 }

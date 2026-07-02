@@ -40,6 +40,7 @@ class EnemyComponent extends PositionComponent
   bool _settled = false;
 
   double _progress = 0;
+  double _animT = 0; // 動畫計時（秒）
   final Vector2 _segFrom = Vector2.zero();
   final Vector2 _segTo = Vector2.zero();
 
@@ -62,6 +63,7 @@ class EnemyComponent extends PositionComponent
   @override
   void update(double dt) {
     if (isDead) return;
+    _animT += dt;
 
     final dtMs = dt * 1000;
     afterEffects = _tickEffects(dtMs.round());
@@ -185,27 +187,58 @@ class EnemyComponent extends PositionComponent
   @override
   void render(Canvas canvas) {
     final s = game.iso.scaleX;
-    final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
-    canvas.drawCircle(Offset.zero, r, Paint()..color = kind.color);
-    canvas.drawCircle(
-      Offset.zero,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 * s
-        ..color = Colors.black.withOpacity(0.35),
-    );
+    final img = game.enemySheets[kind.id];
+    double barTop;
+    double barW;
 
-    final w = r * 2.2;
-    final h = r * 0.5;
-    final top = -r - h - 2;
+    if (img != null) {
+      // 直立 billboard：底邊貼地(0,0)、往上豎起；素材自帶陰影落在地面。
+      final size = game.board.hexagonRadius * s * 1.9 * kind.sizeMul;
+      final frame = (_animT / 0.11).floor() % kind.frames;
+      final src = Rect.fromLTWH(
+          frame * kind.frameSize, 0, kind.frameSize, kind.frameSize);
+      // 依各自「腳底」對齊同一條地面線：讓內容底部落在格子中心下方 0.12size，
+      // 這樣不同角色高矮不一也都站在同一水平（修正 Boss 偏低等問題）。
+      final centerY = size * (0.62 - kind.footFrac);
+      final dst =
+          Rect.fromCenter(center: Offset(0, centerY), width: size, height: size);
+      // 依螢幕水平移動方向翻轉（素材預設朝右）。
+      final faceLeft = (game.logicalToScreen(_segTo).x -
+              game.logicalToScreen(_segFrom).x) <
+          0;
+      canvas.save();
+      if (faceLeft) canvas.scale(-1, 1);
+      canvas.drawImageRect(
+          img, src, dst, Paint()..filterQuality = FilterQuality.medium);
+      canvas.restore();
+      // 血條在頭頂上方（依 topFrac 推算頭部位置）。
+      final headY = size * (0.12 - kind.footFrac + kind.topFrac);
+      barTop = headY - size * 0.05;
+      barW = size * 0.4;
+    } else {
+      final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
+      canvas.drawCircle(Offset.zero, r, Paint()..color = kind.color);
+      canvas.drawCircle(
+        Offset.zero,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2 * s
+          ..color = Colors.black.withOpacity(0.35),
+      );
+      barW = r * 2.2;
+      barTop = -r - r * 0.5 - 2;
+    }
+
+    // 血條（頭頂上方）
+    final barH = game.board.hexagonRadius * 0.14 * s;
     canvas.drawRect(
-      Rect.fromLTWH(-w / 2, top, w, h),
+      Rect.fromLTWH(-barW / 2, barTop, barW, barH),
       Paint()..color = Colors.grey,
     );
     final ratio = (status.currentHp / status.totalHp).clamp(0.0, 1.0);
     canvas.drawRect(
-      Rect.fromLTWH(-w / 2, top, w * ratio, h),
+      Rect.fromLTWH(-barW / 2, barTop, barW * ratio, barH),
       Paint()..color = Colors.red,
     );
   }

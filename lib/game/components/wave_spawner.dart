@@ -5,30 +5,37 @@ import 'enemy_component.dart';
 import 'enemy_kind.dart';
 import 'enemy_status.dart';
 
-/// 一波敵人：依 [kinds] 的順序，每 [interval] 秒生一隻。
+/// 一次生成指令：等待 [gap] 秒後生出 [kind]。
+/// 小隊(combo)用很小的 gap 讓成員擠在一起出現。
+class SpawnTick {
+  const SpawnTick(this.kind, this.gap);
+  final EnemyKind kind;
+  final double gap;
+}
+
+/// 一波敵人：依 [schedule]（一串帶間隔的生成指令）逐一生成。
 /// 每隻的數值 = 該波基準 [base] × 種類倍率。
 /// 生完不會自己移除，由 game 偵測「生完且場上清空」後才算過關並移除。
 class WaveSpawnerComponent extends Component
     with HasGameReference<TowerDefenseGame> {
-  WaveSpawnerComponent({required this.kinds, required this.base});
+  WaveSpawnerComponent({required this.schedule, required this.base});
 
-  final List<EnemyKind> kinds;
+  final List<SpawnTick> schedule;
   final EnemyStatus base;
-
-  static const double interval = 1.0; // 1000ms
 
   int spawned = 0;
   double timer = 0;
 
-  bool get isDone => spawned >= kinds.length;
+  bool get isDone => spawned >= schedule.length;
 
   @override
   void update(double dt) {
     if (isDone) return;
     timer += dt;
-    if (timer >= interval) {
-      timer -= interval;
-      _spawn(kinds[spawned]);
+    // while：一幀可能跨過多個緊湊的小隊間隔。
+    while (!isDone && timer >= schedule[spawned].gap) {
+      timer -= schedule[spawned].gap;
+      _spawn(schedule[spawned].kind);
       spawned++;
     }
   }

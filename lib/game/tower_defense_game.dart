@@ -60,6 +60,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Map<TowerType, Sprite> towerSprites;
   late final List<Sprite> obstacleSprites;
 
+  /// 敵人直立動畫 spritesheet（水平幀條），依 EnemyKind.id 索引；沒有的用顏色圓。
+  final Map<String, ui.Image> enemySheets = {};
+
   /// 滾木滾動 spritesheet（6 列方向 × 8 欄幀，每格 96px）。
   late final ui.Image logSheet;
   static const int logDirCount = 6;
@@ -120,6 +123,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       TowerType.obstacle: obstacleSprites.first,
     };
     logSheet = await isoImages.load('log_roll.png');
+    for (final k in [...EnemyKind.all, EnemyKind.juggernaut]) {
+      final sheet = k.sheet;
+      if (sheet != null) enemySheets[k.id] = await isoImages.load(sheet);
+    }
 
     world.add(BackgroundTapCatcher());
     boardComponent = BoardComponent();
@@ -405,7 +412,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     wave.value = waveNumber;
     waveRunning.value = true;
     _spawner = WaveSpawnerComponent(
-      kinds: buildWaveComposition(waveNumber),
+      schedule: buildWaveSchedule(waveNumber),
       base: enemyStatusForWave(waveNumber),
     );
     world.add(_spawner!);
@@ -445,6 +452,55 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
     result.shuffle(_spawnRng);
     return result;
+  }
+
+  /// Boss 波（每 5 波）。
+  static const Set<int> bossWaves = {10, 15, 20, 25};
+
+  /// 招牌小隊（combo）：在指定波插入「擠在一起出現」的互補小隊。
+  /// 目前只用已實作的種類；補師/護盾/分裂/再生等敵人做出來後再補更多波。
+  static final Map<int, List<EnemyKind>> _squads = {
+    7: [EnemyKind.brute, EnemyKind.brute, EnemyKind.scout, EnemyKind.scout, EnemyKind.scout],
+    12: [EnemyKind.brute, EnemyKind.brute, EnemyKind.scout, EnemyKind.scout, EnemyKind.scout],
+    14: [
+      EnemyKind.swarm, EnemyKind.swarm, EnemyKind.swarm, EnemyKind.swarm,
+      EnemyKind.swarm, EnemyKind.swarm, EnemyKind.swarm, EnemyKind.swarm,
+    ],
+    17: [
+      EnemyKind.brute, EnemyKind.brute, EnemyKind.brute,
+      EnemyKind.scout, EnemyKind.scout, EnemyKind.scout, EnemyKind.scout,
+    ],
+  };
+
+  /// 該波完整生成序列：Boss 波 → 護衛+Boss；一般波 → 權重填充（可能插入招牌小隊）。
+  List<SpawnTick> buildWaveSchedule(int wave) {
+    if (bossWaves.contains(wave)) return _bossSchedule(wave);
+
+    final ticks = <SpawnTick>[
+      for (final k in buildWaveComposition(wave)) SpawnTick(k, 1.0),
+    ];
+    if (ticks.isNotEmpty) ticks[0] = SpawnTick(ticks.first.kind, 0.5);
+
+    final squad = _squads[wave];
+    if (squad != null) {
+      final squadTicks = <SpawnTick>[
+        for (var i = 0; i < squad.length; i++)
+          SpawnTick(squad[i], i == 0 ? 1.2 : 0.25), // 首隻正常間隔、其餘擠一起
+      ];
+      ticks.insertAll((ticks.length / 2).floor(), squadTicks);
+    }
+    return ticks;
+  }
+
+  /// Boss 波序列：幾隻護衛 → Boss 登場 → 其餘護衛。
+  List<SpawnTick> _bossSchedule(int wave) {
+    final escort = buildWaveComposition(wave).take(10).toList();
+    final ticks = <SpawnTick>[];
+    for (var i = 0; i < escort.length; i++) {
+      ticks.add(SpawnTick(escort[i], i == 0 ? 0.5 : 0.8));
+      if (i == 3) ticks.add(SpawnTick(EnemyKind.juggernaut, 1.6)); // 第 4 隻後 Boss 登場
+    }
+    return ticks;
   }
 
   EnemyStatus enemyStatusForWave(int wave) {
