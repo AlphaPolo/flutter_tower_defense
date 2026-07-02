@@ -340,6 +340,12 @@ class ThunderTowerComponent extends TowerComponent {
   ThunderTowerComponent(BoardPoint location)
       : super(TowerType.thunder, location);
 
+  // 依升級等級：Lv1 單體、Lv2 串 3、Lv3 串 5。
+  int get chainLimit => level >= 3 ? 5 : (level >= 2 ? 3 : 1);
+  // 麻痺每級都有、逐級加強（Lv1 就會偶爾極短暫定住敵人）。
+  double get paralyzeChance => level >= 3 ? 0.5 : (level >= 2 ? 0.25 : 0.1);
+  int get paralyzeMs => level >= 3 ? 500 : (level >= 2 ? 260 : 120);
+
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return ThunderProjectileComponent(
@@ -347,8 +353,10 @@ class ThunderTowerComponent extends TowerComponent {
       start: muzzle(),
       speed: 1,
       target: enemy,
-      chainLimit: 4,
+      chainLimit: chainLimit,
       chainDistance: 5,
+      paralyzeChance: paralyzeChance,
+      paralyzeMs: paralyzeMs,
     );
   }
 }

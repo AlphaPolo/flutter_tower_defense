@@ -18,6 +18,10 @@ class TowerComponent extends PositionComponent
   final TowerType type;
   final BoardPoint location;
 
+  /// 升級等級（1 起）與已投入的升級花費（拆除退款用）。
+  int level = 1;
+  int spentOnUpgrades = 0;
+
   double direction = 0;
   EnemyComponent? target;
   double prepareShoot = 0;
@@ -92,6 +96,27 @@ class TowerComponent extends PositionComponent
   void render(Canvas canvas) {
     if (type != TowerType.obstacle) _renderShadow(canvas); // 障礙物(石頭)不畫陰影
     sprite.render(canvas, size: size);
+    _renderLevelPips(canvas);
+  }
+
+  /// 可升級的塔在腳邊畫等級小圓點（已達等級亮黃、其餘灰）。
+  void _renderLevelPips(Canvas canvas) {
+    final maxLv = maxLevelOf(type);
+    if (maxLv <= 1) return;
+    final s = game.iso.scaleX;
+    final r = 2.6 * s;
+    final gap = r * 2.6;
+    final cx = size.x / 2;
+    final cy = size.y / 2 + game.board.hexagonRadius * 0.42 * s; // 腳邊下方
+    final startX = cx - gap * (maxLv - 1) / 2;
+    for (var i = 0; i < maxLv; i++) {
+      canvas.drawCircle(
+        Offset(startX + gap * i, cy),
+        r,
+        Paint()
+          ..color = i < level ? Colors.amber : Colors.black.withOpacity(0.35),
+      );
+    }
   }
 
   /// 在塔腳底畫一個貼地的橢圓陰影（用 iso 地面基向量，讓它躺在地面角度上）。

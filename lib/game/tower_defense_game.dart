@@ -88,6 +88,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<BoardPoint?> inspecting = ValueNotifier(null);
   // 敵人圖鑑：目前被點選查看特性的敵人種類（null = 未開）。
   final ValueNotifier<EnemyKind?> inspectingEnemy = ValueNotifier(null);
+  // 塔升級 / 狀態改變的通知（讓資訊面板重繪）。
+  final ValueNotifier<int> towerChanged = ValueNotifier(0);
   final ValueNotifier<int> wave = ValueNotifier(0);
   final ValueNotifier<bool> waveRunning = ValueNotifier(false);
   final ValueNotifier<bool> gameOver = ValueNotifier(false);
@@ -307,7 +309,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       // 障礙物拆除不退回額度。
       showMessage('已拆除障礙物');
     } else {
-      final refund = (statsOf(tower.type).cost * 0.5).floor();
+      // 退回 50% ×（基礎費 + 已投入的升級費）。
+      final refund =
+          ((statsOf(tower.type).cost + tower.spentOnUpgrades) * 0.5).floor();
       coin.value += refund;
       showMessage('已拆除，退回 $refund 金幣');
     }
@@ -341,6 +345,35 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void rotateLog(BoardPoint point, int delta) {
     final t = towers[point];
     if (t is LogTowerComponent) t.rotate(delta);
+  }
+
+  int towerLevel(BoardPoint point) => towers[point]?.level ?? 1;
+
+  /// 該塔的下一個升級選項（null = 不可升級或已滿級）。
+  TowerUpgrade? nextUpgrade(BoardPoint point) {
+    final t = towers[point];
+    if (t == null) return null;
+    final ups = kTowerUpgrades[t.type];
+    if (ups == null) return null;
+    final idx = t.level - 1;
+    return idx < ups.length ? ups[idx] : null;
+  }
+
+  /// 升級該塔（扣金幣、提升等級）。
+  bool upgradeTower(BoardPoint point) {
+    final t = towers[point];
+    if (t == null) return false;
+    final up = nextUpgrade(point);
+    if (up == null) return false;
+    if (!cheat.value && coin.value < up.cost) {
+      showMessage('金幣不足');
+      return false;
+    }
+    if (!cheat.value) coin.value -= up.cost;
+    t.level += 1;
+    t.spentOnUpgrades += up.cost;
+    towerChanged.value++; // 讓資訊面板更新
+    return true;
   }
 
   /// 讓場上的陷阱對「敵人的路線位置 [pos]」施加位置力場（如渦流吸引），就地修改
@@ -567,6 +600,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     selecting.dispose();
     inspecting.dispose();
     inspectingEnemy.dispose();
+    towerChanged.dispose();
     wave.dispose();
     waveRunning.dispose();
     gameOver.dispose();

@@ -63,12 +63,12 @@ const Map<TowerType, TowerStats> kTowerStats = {
     description: '製造旋轉風刃，刀刃掃過範圍內的敵人即造成劈砍傷害',
   ),
   TowerType.thunder: TowerStats(
-    cost: 70,
+    cost: 35, // 基礎費砍半（升級系統）
     range: 2,
     damage: 10,
     fireCD: 2000,
     title: '雷電塔',
-    description: '能夠在敵人之間製造連鎖的電鏈一起受到電擊傷害，並有機率麻痺該敵人',
+    description: '單體電擊、自帶微弱麻痺；升級可解鎖連鎖電鏈並強化麻痺',
   ),
   TowerType.cannon: TowerStats(
     cost: 90,
@@ -121,3 +121,29 @@ const Map<TowerType, TowerStats> kTowerStats = {
 };
 
 TowerStats statsOf(TowerType type) => kTowerStats[type]!;
+
+/// 一個升級選項（給 UI 顯示名稱/費用/說明；實際效果邏輯在各塔的 level getter）。
+class TowerUpgrade {
+  const TowerUpgrade({
+    required this.name,
+    required this.cost,
+    required this.desc,
+  });
+
+  final String name;
+  final int cost;
+  final String desc;
+}
+
+/// 各塔的升級路線（index 0 = Lv1→Lv2、index 1 = Lv2→Lv3…）。
+/// 沒列出的塔目前不可升級。
+const Map<TowerType, List<TowerUpgrade>> kTowerUpgrades = {
+  TowerType.thunder: [
+    TowerUpgrade(name: '電鏈', cost: 35, desc: '啟用連鎖，一次串到 3 名敵人'),
+    TowerUpgrade(
+        name: '過載', cost: 55, desc: '連結上限提升到 5，麻痺機率與時間大幅提升'),
+  ],
+};
+
+/// 該塔的最高等級（1 = 不可升級）。
+int maxLevelOf(TowerType type) => 1 + (kTowerUpgrades[type]?.length ?? 0);

@@ -344,9 +344,10 @@ class LeftColOverlay extends StatelessWidget {
 
   /// 點到格子時顯示資訊：塔(可拆除) / 主堡 / 敵人出生點。
   Widget _inspectPanel() {
-    return ValueListenableBuilder<BoardPoint?>(
-      valueListenable: game.inspecting,
-      builder: (context, bp, _) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([game.inspecting, game.towerChanged]),
+      builder: (context, _) {
+        final bp = game.inspecting.value;
         if (bp == null) return const SizedBox.shrink();
 
         late final Widget icon;
@@ -430,6 +431,7 @@ class LeftColOverlay extends StatelessWidget {
                   ],
                 ),
               ],
+              if (tower) _upgradeControl(bp),
               if (tower) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
@@ -446,6 +448,47 @@ class LeftColOverlay extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// 塔升級區：顯示等級與下一級升級鈕（不可升級的塔不顯示）。
+  Widget _upgradeControl(BoardPoint bp) {
+    final type = game.typeAt(bp);
+    if (type == null || maxLevelOf(type) <= 1) return const SizedBox.shrink();
+    final lv = game.towerLevel(bp);
+    final up = game.nextUpgrade(bp);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          '等級 $lv / ${maxLevelOf(type)}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        if (up != null) ...[
+          const SizedBox(height: 4),
+          Text('▶ ${up.name}',
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown)),
+          Text(up.desc, style: const TextStyle(fontSize: 11)),
+          const SizedBox(height: 6),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => game.upgradeTower(bp),
+            icon: const Icon(Icons.upgrade, size: 18),
+            label: Text('升級 (${up.cost})'),
+          ),
+        ] else
+          const Text('已滿級',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
     );
   }
 

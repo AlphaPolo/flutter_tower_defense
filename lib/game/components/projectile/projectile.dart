@@ -404,11 +404,15 @@ class ThunderProjectileComponent extends ProjectileComponent {
     required this.target,
     required this.chainLimit,
     this.chainDistance = 2,
+    this.paralyzeChance = 0,
+    this.paralyzeMs = 0,
   });
 
   EnemyComponent target;
   final int chainLimit;
   double chainDistance;
+  final double paralyzeChance;
+  final int paralyzeMs;
   List<Vector2>? bindLogical;
   final Vector2 _start = Vector2.zero();
 
@@ -448,7 +452,11 @@ class ThunderProjectileComponent extends ProjectileComponent {
     final chained = _chainEnemies();
     final list = <Vector2>[];
     for (final e in chained) {
-      e.addEffect(SlowMovementEffect.flat(kThunderEffectType, 800, 0.0, 300));
+      // 機率性麻痺（速度設為 0），時間依塔等級。
+      if (_rnd.nextDouble() < paralyzeChance) {
+        e.addEffect(
+            SlowMovementEffect.flat(kThunderEffectType, paralyzeMs, 0.0, 300));
+      }
       e.dealDamage(damage);
       list.add(e.logicalPos.clone());
       game.world.add(sparkBurst(game.logicalToScreen(e.logicalPos), s));
