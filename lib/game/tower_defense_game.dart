@@ -83,6 +83,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<TowerType?> selecting = ValueNotifier(null);
   // 目前被點選查看的「已蓋建築」格子（顯示資訊面板 + 拆除按鈕）。
   final ValueNotifier<BoardPoint?> inspecting = ValueNotifier(null);
+  // 敵人圖鑑：目前被點選查看特性的敵人種類（null = 未開）。
+  final ValueNotifier<EnemyKind?> inspectingEnemy = ValueNotifier(null);
   final ValueNotifier<int> wave = ValueNotifier(0);
   final ValueNotifier<bool> waveRunning = ValueNotifier(false);
   final ValueNotifier<bool> gameOver = ValueNotifier(false);
@@ -492,6 +494,16 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return ticks;
   }
 
+  /// 目前「已解鎖（出現過）」的敵人種類，給敵人圖鑑 UI 用。
+  List<EnemyKind> unlockedKinds() {
+    final w = waveNumber < 1 ? 1 : waveNumber;
+    return [
+      for (final k in EnemyKind.all)
+        if (k.unlockWave <= w) k,
+      if (w >= bossWaves.first) EnemyKind.juggernaut,
+    ];
+  }
+
   /// Boss 波序列：幾隻護衛 → Boss 登場 → 其餘護衛。
   List<SpawnTick> _bossSchedule(int wave) {
     final escort = buildWaveComposition(wave).take(10).toList();
@@ -523,9 +535,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void _onWaveCompleted() {
     completedWaves++;
     waveRunning.value = false;
-    if (completedWaves % 2 == 0) {
-      freeObstacle.value += 1;
-    }
+    freeObstacle.value += 1; // 每完成一波送一個障礙物
     if (completedWaves >= totalWaves) {
       gameWon.value = true;
       pauseEngine();
@@ -552,6 +562,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     cheat.dispose();
     selecting.dispose();
     inspecting.dispose();
+    inspectingEnemy.dispose();
     wave.dispose();
     waveRunning.dispose();
     gameOver.dispose();

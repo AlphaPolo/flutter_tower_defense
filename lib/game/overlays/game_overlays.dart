@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
@@ -8,6 +9,7 @@ import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 
 import '../../utils/fullscreen.dart';
 import '../board/hex.dart';
+import '../components/enemy_kind.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
 
@@ -162,10 +164,28 @@ class LeftColOverlay extends StatelessWidget {
                     ],
                   ),
                 ),
-                // 左下：開始 / 下一波
+                // 左下：敵人資訊卡 +（開始鈕 + 敵人圖鑑）
                 Align(
                   alignment: Alignment.bottomLeft,
-                  child: _startButton(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: c.maxWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _enemyInfoCard(),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            _startButton(),
+                            const SizedBox(width: 10),
+                            Flexible(child: _enemyBestiary()),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 // 右側：選取塔資訊 / 已蓋建築資訊（限高、可捲動）
                 Align(
@@ -482,6 +502,154 @@ class LeftColOverlay extends StatelessWidget {
       },
     );
   }
+
+  /// 敵人圖鑑：已解鎖敵人的頭像列（水平可捲動），點擊浮出資訊卡。
+  Widget _enemyBestiary() {
+    return ValueListenableBuilder<int>(
+      valueListenable: game.wave,
+      builder: (context, _, __) {
+        final kinds = game.unlockedKinds();
+        return ValueListenableBuilder<EnemyKind?>(
+          valueListenable: game.inspectingEnemy,
+          builder: (context, sel, ___) => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final k in kinds) ...[
+                  _enemyAvatarButton(k, sel == k),
+                  const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _enemyAvatarButton(EnemyKind kind, bool selected) {
+    return GestureDetector(
+      onTap: () =>
+          game.inspectingEnemy.value = selected ? null : kind,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? Colors.orangeAccent : Colors.white24,
+            width: selected ? 2.5 : 1.5,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: CustomPaint(
+          painter: _EnemyAvatarPainter(game.enemySheets[kind.id], kind),
+        ),
+      ),
+    );
+  }
+
+  /// 敵人資訊卡：顯示被點選敵人的特性。
+  Widget _enemyInfoCard() {
+    return ValueListenableBuilder<EnemyKind?>(
+      valueListenable: game.inspectingEnemy,
+      builder: (context, kind, _) {
+        if (kind == null) return const SizedBox.shrink();
+        return Container(
+          padding: const EdgeInsets.all(10),
+          constraints: const BoxConstraints(maxWidth: 230),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.all(Radius.circular(8)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.5),
+                spreadRadius: 2,
+                blurRadius: 3,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: CustomPaint(
+                      painter:
+                          _EnemyAvatarPainter(game.enemySheets[kind.id], kind),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    kind.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(kind.desc, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 6),
+              Text('血量：${_hpLabel(kind)}　速度：${_spdLabel(kind)}',
+                  style: const TextStyle(fontSize: 12)),
+              Text('賞金：${kind.reward}　漏過扣血：${kind.leakDamage}',
+                  style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _hpLabel(EnemyKind k) => k.hpMul < 0.5
+      ? '低'
+      : k.hpMul < 1.5
+          ? '普通'
+          : k.hpMul < 4
+              ? '高'
+              : '極高';
+
+  String _spdLabel(EnemyKind k) =>
+      k.speedMul < 0.8 ? '慢' : (k.speedMul <= 1.3 ? '普通' : '快');
+}
+
+/// 用敵人 spritesheet 的第 0 幀（裁到內容、方形）當頭像，畫進圓形頭像框。
+class _EnemyAvatarPainter extends CustomPainter {
+  _EnemyAvatarPainter(this.img, this.kind);
+  final ui.Image? img;
+  final EnemyKind kind;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final image = img;
+    if (image == null || kind.frameSize <= 0) {
+      canvas.drawCircle(
+        Offset(s.width / 2, s.height / 2),
+        s.width * 0.34,
+        Paint()..color = kind.color,
+      );
+      return;
+    }
+    final fs = kind.frameSize;
+    final side = (kind.footFrac - kind.topFrac) * fs; // 內容高度當方形邊長
+    final src = Rect.fromLTWH((fs - side) / 2, kind.topFrac * fs, side, side);
+    canvas.drawImageRect(
+      image,
+      src,
+      Offset.zero & s,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _EnemyAvatarPainter old) =>
+      old.img != img || old.kind != kind;
 }
 
 /// 底部：防禦塔選單。點擊選取要蓋的塔。

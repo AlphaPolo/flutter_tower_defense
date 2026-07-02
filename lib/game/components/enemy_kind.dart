@@ -71,7 +71,7 @@ class EnemyKind {
     reward: 4,
     leakDamage: 1,
     color: Color(0xFFFFC107),
-    sizeMul: 0.7,
+    sizeMul: 1.05,
     unlockWave: 3,
     weight: 3,
     desc: '騎豬的長槍哥布林，血少但移動很快。用減速（冰/雷）或渦流聚集後清除較有效。',
