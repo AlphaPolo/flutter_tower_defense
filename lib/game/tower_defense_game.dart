@@ -18,6 +18,7 @@ import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
 import 'components/trap/trap_component.dart';
 import 'components/wave_spawner.dart';
+import 'effects/camera_shake.dart';
 import 'iso/iso_projection.dart';
 import 'tower_type.dart';
 
@@ -53,6 +54,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final Map<BoardPoint, TrapComponent> traps = {};
 
   late final BoardComponent boardComponent;
+
+  /// 相機震動（火炮落地爆炸等會觸發）。
+  final CameraShakeController cameraShake = CameraShakeController();
 
   // ── isometric 素材 ───────────────────────────────────────
   final Images isoImages = Images(prefix: 'assets/iso/');
@@ -139,6 +143,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     world.add(BackgroundTapCatcher());
     boardComponent = BoardComponent();
     await world.add(boardComponent);
+    add(cameraShake); // 掛在遊戲根層，直接抖動 camera.viewfinder
 
     _fitCamera();
   }

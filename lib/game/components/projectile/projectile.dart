@@ -157,11 +157,19 @@ class CannonProjectileComponent extends ProjectileComponent {
         e.dealDamage(damage * mult);
       }
     }
+    final screenPos = game.logicalToScreen(goalLogical!);
     game.world.add(ExplosionComponent(
-      screenPos: game.logicalToScreen(goalLogical!),
+      screenPos: screenPos,
       diameter: blast * 2.6 * game.iso.scaleX,
       blastLogical: blast,
     ));
+
+    // 螢幕震動：離觀測點（畫面中心）越近震得越明顯，稍微隨位置變動。
+    final vf = game.camera.viewfinder;
+    final visibleHalf = game.size.length / (2 * vf.zoom); // 視野半對角線(世界單位)
+    final t = (screenPos.distanceTo(vf.position) / visibleHalf).clamp(0.0, 1.0);
+    final falloff = 1.0 - 0.4 * t; // 中心 1.0、邊緣 0.6
+    game.cameraShake.shake(7.0 * falloff);
   }
 
   @override
