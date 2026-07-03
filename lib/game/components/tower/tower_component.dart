@@ -18,9 +18,24 @@ class TowerComponent extends PositionComponent
   final TowerType type;
   final BoardPoint location;
 
-  /// 升級等級（1 起）與已投入的升級花費（拆除退款用）。
-  int level = 1;
+  /// 已選的升級節點（依序 [Lv2 分支, Lv3 葉]）與已投入的升級花費（拆除退款用）。
+  final List<TowerUpgradeNode> chosen = [];
   int spentOnUpgrades = 0;
+
+  /// 目前等級（1 起）＝ 基礎 + 已選節點數。
+  int get level => 1 + chosen.length;
+
+  /// 已選節點疊出來的「有效數值覆寫」（葉覆寫分支覆寫基礎）。
+  final Map<String, double> _mods = {};
+
+  /// 讀有效數值：有升級覆寫就用覆寫，否則用 [base]。
+  double mod(String key, double base) => _mods[key] ?? base;
+
+  /// 套用一個升級節點（加入 chosen 並疊上其 mods）。
+  void applyUpgrade(TowerUpgradeNode node) {
+    chosen.add(node);
+    _mods.addAll(node.mods);
+  }
 
   double direction = 0;
   EnemyComponent? target;

@@ -345,7 +345,8 @@ class LeftColOverlay extends StatelessWidget {
   /// 點到格子時顯示資訊：塔(可拆除) / 主堡 / 敵人出生點。
   Widget _inspectPanel() {
     return AnimatedBuilder(
-      animation: Listenable.merge([game.inspecting, game.towerChanged]),
+      animation:
+          Listenable.merge([game.inspecting, game.towerChanged, game.coin]),
       builder: (context, _) {
         final bp = game.inspecting.value;
         if (bp == null) return const SizedBox.shrink();
@@ -451,12 +452,16 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 塔升級區：顯示等級與下一級升級鈕（不可升級的塔不顯示）。
+  /// 塔升級區：分支樹。顯示等級、已選路徑，並在可升級時並排兩張選項卡（二擇一）。
   Widget _upgradeControl(BoardPoint bp) {
     final type = game.typeAt(bp);
     if (type == null || maxLevelOf(type) <= 1) return const SizedBox.shrink();
     final lv = game.towerLevel(bp);
-    final up = game.nextUpgrade(bp);
+    final tower = game.towers[bp];
+    final options = game.upgradeOptions(bp);
+    final chosenPath = (tower == null || tower.chosen.isEmpty)
+        ? null
+        : tower.chosen.map((n) => n.name).join(' ▸ ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -466,29 +471,79 @@ class LeftColOverlay extends StatelessWidget {
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
-        if (up != null) ...[
+        if (chosenPath != null) ...[
+          const SizedBox(height: 2),
+          Text('已選：$chosenPath',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Colors.brown)),
+        ],
+        if (options.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            lv == 1 ? '選擇升級方向（二擇一，選了就鎖）' : '選擇強化（二擇一）',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
           const SizedBox(height: 4),
-          Text('▶ ${up.name}',
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < options.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                Expanded(child: _upgradeOptionCard(bp, options[i])),
+              ],
+            ],
+          ),
+        ] else
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('已滿級',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ),
+      ],
+    );
+  }
+
+  /// 單張升級選項卡（名稱 / 說明 / 升級鈕；金幣不足時禁用）。
+  Widget _upgradeOptionCard(BoardPoint bp, TowerUpgradeNode node) {
+    final affordable = game.cheat.value || game.coin.value >= node.cost;
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade700),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(node.name,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Colors.brown)),
-          Text(up.desc, style: const TextStyle(fontSize: 11)),
-          const SizedBox(height: 6),
-          ElevatedButton.icon(
+          const SizedBox(height: 2),
+          Text(node.desc,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 10)),
+          const SizedBox(height: 4),
+          ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.amber.shade700,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              minimumSize: const Size(0, 30),
+              textStyle:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
-            onPressed: () => game.upgradeTower(bp),
-            icon: const Icon(Icons.upgrade, size: 18),
-            label: Text('升級 (${up.cost})'),
+            onPressed: affordable ? () => game.upgradeTower(bp, node) : null,
+            child: Text('升級 (${node.cost})'),
           ),
-        ] else
-          const Text('已滿級',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
+        ],
+      ),
     );
   }
 

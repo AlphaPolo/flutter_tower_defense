@@ -354,29 +354,27 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   int towerLevel(BoardPoint point) => towers[point]?.level ?? 1;
 
-  /// 該塔的下一個升級選項（null = 不可升級或已滿級）。
-  TowerUpgrade? nextUpgrade(BoardPoint point) {
+  /// 該塔目前可選的升級節點：Lv1 → 兩個分支；Lv2 → 所選分支底下兩個葉；Lv3 → 空。
+  List<TowerUpgradeNode> upgradeOptions(BoardPoint point) {
     final t = towers[point];
-    if (t == null) return null;
-    final ups = kTowerUpgrades[t.type];
-    if (ups == null) return null;
-    final idx = t.level - 1;
-    return idx < ups.length ? ups[idx] : null;
+    if (t == null) return const [];
+    if (t.chosen.isEmpty) return kTowerUpgradeTree[t.type] ?? const [];
+    if (t.chosen.length == 1) return t.chosen.last.children;
+    return const [];
   }
 
-  /// 升級該塔（扣金幣、提升等級）。
-  bool upgradeTower(BoardPoint point) {
+  /// 升級該塔：選定某個升級節點（扣金幣、套用該節點的 mods）。
+  bool upgradeTower(BoardPoint point, TowerUpgradeNode node) {
     final t = towers[point];
     if (t == null) return false;
-    final up = nextUpgrade(point);
-    if (up == null) return false;
-    if (!cheat.value && coin.value < up.cost) {
+    if (!upgradeOptions(point).contains(node)) return false; // 只能選當前可選項
+    if (!cheat.value && coin.value < node.cost) {
       showMessage('金幣不足');
       return false;
     }
-    if (!cheat.value) coin.value -= up.cost;
-    t.level += 1;
-    t.spentOnUpgrades += up.cost;
+    if (!cheat.value) coin.value -= node.cost;
+    t.applyUpgrade(node);
+    t.spentOnUpgrades += node.cost;
     towerChanged.value++; // 讓資訊面板更新
     return true;
   }

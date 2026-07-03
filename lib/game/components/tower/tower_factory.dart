@@ -45,11 +45,11 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
 class LogTowerComponent extends TowerComponent {
   LogTowerComponent(BoardPoint location) : super(TowerType.log, location);
 
-  // 依升級：Lv2 提高傷害、Lv3 縮短發射間隔。
+  // 依升級：傷害 / 發射間隔(ms)。
   @override
-  double get damage => level >= 2 ? 60 : 40;
+  double get damage => mod('dmg', 40);
   @override
-  int get fireCD => level >= 3 ? 1800 : 3000;
+  int get fireCD => mod('cd', 3000).toInt();
 
   /// 玩家可調整的發射方向（6 個六角方向之一）。
   late HexagonDirection launchDir;
@@ -141,10 +141,11 @@ class FreezingTowerComponent extends TowerComponent {
   FreezingTowerComponent(BoardPoint location)
       : super(TowerType.freezing, location);
 
-  // 依升級：冰環範圍與減速強度（值越小＝減速越強）。
+  // 依升級（值越小＝減速越強）。
   @override
-  double get range => level >= 3 ? 3.5 : (level >= 2 ? 3.0 : 2.5);
-  double get slowFactor => level >= 3 ? 0.2 : (level >= 2 ? 0.35 : 0.6);
+  double get range => mod('range', 2.5);
+  double get slowFactor => mod('slow', 0.6);
+  int get freezeDuration => mod('fdur', 2000).toInt();
 
   @override
   void update(double dt) {
@@ -160,7 +161,7 @@ class FreezingTowerComponent extends TowerComponent {
       damage: damage,
       start: logicalPos.clone(),
       toRadius: game.board.hexagonRadius * range,
-      duration: 2000,
+      duration: freezeDuration,
       slowFactor: slowFactor,
     );
   }
@@ -172,11 +173,11 @@ class FlameTowerComponent extends TowerComponent {
 
   static const double rotateSpeed = 0.08;
 
-  // 依升級：Lv2 加長射程、Lv3 提高灼燒 DPS。
+  // 依升級：射程 / 灼燒 DPS。
   @override
-  double get range => level >= 2 ? 6 : 4;
+  double get range => mod('range', 4);
   @override
-  double get damage => level >= 3 ? 14 : 8;
+  double get damage => mod('dmg', 8);
 
   @override
   void update(double dt) {
@@ -230,12 +231,12 @@ class AirBladeTowerComponent extends TowerComponent {
       : super(TowerType.airBlade, location);
 
   /// 刀刃旋轉角速度（rad/秒，dt-based → 不受幀率影響）。4π = 每秒 2 圈。
-  /// 依升級：Lv2「疾風」轉更快（每秒 3 圈）。
-  double get spinSpeed => level >= 2 ? 6 * pi : 4 * pi;
+  /// 依升級（疾風系）可轉更快。
+  double get spinSpeed => mod('spin', 4 * pi);
 
-  // 依升級：Lv3「巨刃」擴大攻擊範圍。
+  // 依升級（巨刃系）擴大攻擊範圍。
   @override
-  double get range => level >= 3 ? 3.5 : 2.5;
+  double get range => mod('range', 2.5);
 
   double _windEmit = 0;
 
@@ -363,11 +364,12 @@ class ThunderTowerComponent extends TowerComponent {
   ThunderTowerComponent(BoardPoint location)
       : super(TowerType.thunder, location);
 
-  // 依升級等級：Lv1 單體、Lv2 串 3、Lv3 串 5。
-  int get chainLimit => level >= 3 ? 5 : (level >= 2 ? 3 : 1);
-  // 麻痺每級都有、逐級加強（Lv1 就會偶爾極短暫定住敵人）。
-  double get paralyzeChance => level >= 3 ? 0.5 : (level >= 2 ? 0.25 : 0.1);
-  int get paralyzeMs => level >= 3 ? 500 : (level >= 2 ? 260 : 120);
+  // 依升級：連鎖人數 / 麻痺 / 單擊傷害。麻痺一開始就有、非常微弱。
+  int get chainLimit => mod('chain', 1).toInt();
+  double get paralyzeChance => mod('pchance', 0.1);
+  int get paralyzeMs => mod('pms', 120).toInt();
+  @override
+  double get damage => mod('dmg', 10);
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -388,9 +390,9 @@ class ThunderTowerComponent extends TowerComponent {
 class CannonTowerComponent extends TowerComponent {
   CannonTowerComponent(BoardPoint location) : super(TowerType.cannon, location);
 
-  // 依升級：Lv2「大口徑」擴大爆炸半徑、Lv3「高爆」開啟中心加成（最高 2 倍）。
-  double get blastHex => level >= 2 ? 1.9 : 1.2; // 爆炸半徑（格）
-  bool get centerBonus => level >= 3;
+  // 依升級：爆炸半徑（格）/ 中心加成峰值（0=關）。
+  double get blastHex => mod('blast', 1.2);
+  double get centerPeak => mod('center', 0);
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -400,7 +402,7 @@ class CannonTowerComponent extends TowerComponent {
       speed: 0.6,
       targetPos: enemy.logicalPos.clone(),
       blastHex: blastHex,
-      centerBonus: centerBonus,
+      centerPeak: centerPeak,
     );
   }
 }
@@ -409,14 +411,11 @@ class CannonTowerComponent extends TowerComponent {
 class PoisonTowerComponent extends TowerComponent {
   PoisonTowerComponent(BoardPoint location) : super(TowerType.poison, location);
 
-  static const int poisonDuration = 3000; // 中毒持續時間(ms)
-
-  // 依升級：固定毒傷總量（3 秒內）。
+  // 依升級：固定毒傷總量 / 每秒%最大血量 / 中毒持續時間(ms)。
   @override
-  double get damage => level >= 3 ? 150 : (level >= 2 ? 100 : 60);
-
-  // 依升級：每秒額外扣「最大血量的百分比」，一開始很低、升級大幅提高。
-  double get pctPerSec => level >= 3 ? 0.04 : (level >= 2 ? 0.02 : 0.01);
+  double get damage => mod('pdmg', 60);
+  double get pctPerSec => mod('pct', 0.01);
+  int get poisonDuration => mod('pdur', 3000).toInt();
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {

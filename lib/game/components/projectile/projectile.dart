@@ -119,12 +119,14 @@ class CannonProjectileComponent extends ProjectileComponent {
     required super.speed,
     required this.targetPos,
     required this.blastHex,
-    this.centerBonus = false,
+    this.centerPeak = 0,
   });
 
   final Vector2 targetPos;
   final double blastHex;
-  final bool centerBonus; // Lv3「高爆」：越靠中心傷害加成，最高 2×
+  // 中心加成峰值（0=關）：中心處傷害 = damage × (1 + centerPeak)，邊緣為 1×。
+  // 例：1.0 → 最高 2×、1.5 → 最高 2.5×。
+  final double centerPeak;
   final Vector2 _start = Vector2.zero();
 
   @override
@@ -152,8 +154,8 @@ class CannonProjectileComponent extends ProjectileComponent {
       if (e.isDead) continue;
       final d = e.logicalPos.distanceTo(goalLogical!);
       if (d <= blast) {
-        // 基礎傷害不變(邊緣 1×)；升級「高爆」後越靠中心加成越高，最高中心 2×（線性）。
-        final mult = centerBonus ? 1.0 + (1 - d / blast) : 1.0;
+        // 基礎傷害(邊緣 1×)；中心加成峰值 centerPeak（0=關），越靠中心加越多（線性）。
+        final mult = 1.0 + centerPeak * (1 - d / blast);
         e.dealDamage(damage * mult);
       }
     }
