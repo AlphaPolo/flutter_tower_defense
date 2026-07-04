@@ -161,8 +161,6 @@ class LeftColOverlay extends StatelessWidget {
                       _statusPill(),
                       const SizedBox(height: 8),
                       _cheatSwitch(),
-                      const SizedBox(height: 8),
-                      _demoButton(),
                     ],
                   ),
                 ),
@@ -288,32 +286,6 @@ class LeftColOverlay extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 自動演示按鈕：AI 自動蓋建築、繞迷宮、跑完 25 波（加速播放）。
-  Widget _demoButton() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: game.demoRunning,
-      builder: (context, on, _) {
-        return SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: on ? Colors.redAccent : Colors.deepPurple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              visualDensity: VisualDensity.compact,
-              textStyle:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () =>
-                on ? game.stopAutoDemo() : game.startAutoDemo(),
-            icon: Icon(on ? Icons.stop : Icons.smart_toy, size: 16),
-            label: Text(on ? '停止演示' : '自動演示'),
           ),
         );
       },
