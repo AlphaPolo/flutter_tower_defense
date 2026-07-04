@@ -32,6 +32,8 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return PoisonTowerComponent(location);
     case TowerType.log:
       return LogTowerComponent(location);
+    case TowerType.multishot:
+      return MultishotTowerComponent(location);
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
     case TowerType.spike:
@@ -94,15 +96,31 @@ class LogTowerComponent extends TowerComponent {
     if (prepareShoot > 0) return;
     if (game.enemies.isEmpty) return; // 沒有敵人時不發射
     direction = _launchAngle;
+    // 相鄰有多重箭 → 除了選定方向，再往左右兩側各投一根（三向齊發）。
+    final dirs = game.multishotAt(location)
+        ? <HexagonDirection>[
+            launchDir,
+            HexagonDirection.values[(launchDir.index + 1) % 6],
+            HexagonDirection.values[(launchDir.index + 5) % 6],
+          ]
+        : <HexagonDirection>[launchDir];
+    for (final d in dirs) {
+      _throwLog(d);
+    }
+    prepareShoot = fireCD.toDouble();
+  }
+
+  /// 朝指定六角方向丟一根滾木。
+  void _throwLog(HexagonDirection dir) {
+    final n = game.boardToLogical(location.getNeighbor(dir)) - logicalPos;
     game.world.add(RollingLogProjectileComponent(
       damage: damage,
       start: logicalPos.clone(),
       speed: 0.9,
-      travelAngle: direction,
+      travelAngle: atan2(n.y, n.x),
       originCell: location,
-      dirIndex: launchDir.index, // 對應 spritesheet 的方向列
+      dirIndex: dir.index, // 對應 spritesheet 的方向列
     ));
-    prepareShoot = fireCD.toDouble();
   }
 
   @override
@@ -244,7 +262,9 @@ class AirBladeTowerComponent extends TowerComponent {
   double get range => mod(TowerMod.range,2.5);
 
   /// 依升級（亂舞）刀刃片數：每圈對每個敵人掃 bladeCount 次 → DPS ×bladeCount。
-  int get bladeCount => mod(TowerMod.blades, 1).toInt();
+  /// 相鄰有多重箭再 +1 片。
+  int get bladeCount =>
+      mod(TowerMod.blades, 1).toInt() + (game.multishotAt(location) ? 1 : 0);
 
   /// 依升級（撕裂）每刀疊一層流血，每層每秒傷害（0=無）。
   double get bleedPerStack => mod(TowerMod.bleed, 0);
@@ -398,6 +418,16 @@ class ThunderTowerComponent extends TowerComponent {
   double get damage => mod(TowerMod.dmg,10);
 
   @override
+  void update(double dt) {
+    prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
+    if (prepareShoot > 0) return;
+    // 相鄰有多重箭 → 同時電最近 2 個目標（各自再連鎖）。
+    if (shootNearest(game.multishotAt(location) ? 2 : 1)) {
+      prepareShoot = fireCD.toDouble();
+    }
+  }
+
+  @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return ThunderProjectileComponent(
       damage: damage,
@@ -421,6 +451,16 @@ class CannonTowerComponent extends TowerComponent {
   double get centerPeak => mod(TowerMod.center,0);
 
   @override
+  void update(double dt) {
+    prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
+    if (prepareShoot > 0) return;
+    // 相鄰有多重箭 → 同時射最近 2 個目標（2 發砲彈）。
+    if (shootNearest(game.multishotAt(location) ? 2 : 1)) {
+      prepareShoot = fireCD.toDouble();
+    }
+  }
+
+  @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return CannonProjectileComponent(
       damage: damage,
@@ -442,6 +482,16 @@ class PoisonTowerComponent extends TowerComponent {
   double get damage => mod(TowerMod.pdmg,60);
   double get pctPerSec => mod(TowerMod.pct,0.01);
   int get poisonDuration => mod(TowerMod.pdur,3000).toInt();
+
+  @override
+  void update(double dt) {
+    prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
+    if (prepareShoot > 0) return;
+    // 相鄰有多重箭 → 同時射最近 3 個敵人，否則射最近 1 個。
+    if (shootNearest(game.multishotAt(location) ? 3 : 1)) {
+      prepareShoot = fireCD.toDouble();
+    }
+  }
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -469,4 +519,51 @@ class ObstacleTowerComponent extends TowerComponent {
 
   @override
   void update(double dt) {}
+}
+
+/// 多重箭：支援塔，本身不攻擊；相鄰(6 格)的塔會依塔種被強化（見各塔 update
+/// 與 game.multishotAt）。外觀為程式繪製的「向外發散箭頭」佔位圖示。
+class MultishotTowerComponent extends TowerComponent {
+  MultishotTowerComponent(BoardPoint location)
+      : super(TowerType.multishot, location);
+
+  @override
+  void update(double dt) {} // 純支援、被動生效，不做任何攻擊
+
+  @override
+  void render(Canvas canvas) {
+    final s = game.iso.scaleX;
+    final foot = Offset(size.x / 2, size.y / 2);
+    // 貼地陰影
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: foot.translate(0, 5 * s), width: 24 * s, height: 11 * s),
+      Paint()..color = Colors.black.withOpacity(0.25),
+    );
+    // 底座
+    canvas.drawCircle(foot, 11 * s, Paint()..color = const Color(0xFF5D4037));
+    canvas.drawCircle(
+      foot,
+      11 * s,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 * s
+        ..color = Colors.amber,
+    );
+    // 三支往上發散的箭（多重箭意象）
+    final arrow = Paint()
+      ..color = Colors.amberAccent
+      ..strokeWidth = 2.5 * s
+      ..strokeCap = StrokeCap.round;
+    for (final off in const [-0.6, 0.0, 0.6]) {
+      final a = -pi / 2 + off; // 往上為主、左右發散
+      final tip = foot + Offset(cos(a), sin(a)) * (16 * s);
+      canvas
+        ..drawLine(foot, tip, arrow)
+        ..drawLine(tip, tip + Offset(cos(a + 2.6), sin(a + 2.6)) * (5 * s),
+            arrow)
+        ..drawLine(tip, tip + Offset(cos(a - 2.6), sin(a - 2.6)) * (5 * s),
+            arrow);
+    }
+  }
 }

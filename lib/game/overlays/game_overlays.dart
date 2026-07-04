@@ -17,14 +17,53 @@ import '../tower_type.dart';
 /// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
 /// BoxFit.contain 讓裁切後的塔身維持比例並置中。
 Widget towerIcon(TowerType type) {
-  // 陷阱類沒有 3D 模型素材，用程式繪製。
+  // 陷阱類 / 支援塔沒有 3D 模型素材，用程式繪製。
   if (type == TowerType.spike) return const SpikeIcon();
   if (type == TowerType.vortex) return const VortexIcon();
+  if (type == TowerType.multishot) return const MultishotIcon();
   // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
   return Image.asset(
     'assets/iso/icon_${type.name.toLowerCase()}.png',
     fit: BoxFit.contain,
   );
+}
+
+/// 多重箭圖示（程式繪製）：三支向外發散的箭。
+class MultishotIcon extends StatelessWidget {
+  const MultishotIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const CustomPaint(size: Size.infinite, painter: _MultishotIconPainter());
+}
+
+class _MultishotIconPainter extends CustomPainter {
+  const _MultishotIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final base = Offset(w * 0.5, h * 0.78);
+    canvas.drawCircle(base, w * 0.12, Paint()..color = const Color(0xFF5D4037));
+    final arrow = Paint()
+      ..color = const Color(0xFFFFC107)
+      ..strokeWidth = w * 0.05
+      ..strokeCap = StrokeCap.round;
+    for (final off in const [-0.6, 0.0, 0.6]) {
+      final a = -pi / 2 + off;
+      final tip = base + Offset(cos(a), sin(a)) * (h * 0.5);
+      canvas
+        ..drawLine(base, tip, arrow)
+        ..drawLine(
+            tip, tip + Offset(cos(a + 2.6), sin(a + 2.6)) * (h * 0.14), arrow)
+        ..drawLine(
+            tip, tip + Offset(cos(a - 2.6), sin(a - 2.6)) * (h * 0.14), arrow);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// 地刺圖示（程式繪製，與場上地刺風格一致）。
@@ -161,6 +200,8 @@ class LeftColOverlay extends StatelessWidget {
                       _statusPill(),
                       const SizedBox(height: 8),
                       _cheatSwitch(),
+                      const SizedBox(height: 8),
+                      _flameDimSwitch(),
                     ],
                   ),
                 ),
@@ -283,6 +324,43 @@ class LeftColOverlay extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: cheat ? Colors.greenAccent : Colors.grey[300],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 開關：噴火塔特效變淡（提高透明度）。
+  Widget _flameDimSwitch() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: game.dimFlame,
+      builder: (context, dim, _) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: 0.7,
+                child: CupertinoSwitch(
+                  value: dim,
+                  onChanged: (_) => game.dimFlame.value = !game.dimFlame.value,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '火焰變淡',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: dim ? Colors.orangeAccent : Colors.grey[300],
                 ),
               ),
             ],

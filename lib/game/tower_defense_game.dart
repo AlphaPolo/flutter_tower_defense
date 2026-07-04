@@ -88,6 +88,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<int> heart = ValueNotifier(20);
   final ValueNotifier<int> freeObstacle = ValueNotifier(3);
   final ValueNotifier<bool> cheat = ValueNotifier(false);
+  // 開關：開啟後噴火塔特效變淡（提高透明度），預設關（原亮度）。
+  final ValueNotifier<bool> dimFlame = ValueNotifier(false);
   final ValueNotifier<TowerType?> selecting = ValueNotifier(null);
   // 目前被點選查看的「已蓋建築」格子（顯示資訊面板 + 拆除按鈕）。
   final ValueNotifier<BoardPoint?> inspecting = ValueNotifier(null);
@@ -138,6 +140,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
           await Sprite.load('tower_poison.png', images: isoImages),
       TowerType.log: await Sprite.load('tower_log.png', images: isoImages),
       TowerType.obstacle: obstacleSprites.first,
+      // 多重箭：暫用佔位 sprite（實際外觀由元件自行繪製）。
+      TowerType.multishot: obstacleSprites.first,
     };
     logSheet = await isoImages.load('log_roll.png');
     explosionSheet = await isoImages.load('explosion.png');
@@ -356,6 +360,14 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void rotateLog(BoardPoint point, int delta) {
     final t = towers[point];
     if (t is LogTowerComponent) t.rotate(delta);
+  }
+
+  /// 該格是否相鄰(6 格)有「多重箭」支援塔 → 用來強化該塔的攻擊。
+  bool multishotAt(BoardPoint point) {
+    for (final n in point.getNeighbors()) {
+      if (towers[n] is MultishotTowerComponent) return true;
+    }
+    return false;
   }
 
   int towerLevel(BoardPoint point) => towers[point]?.level ?? 1;

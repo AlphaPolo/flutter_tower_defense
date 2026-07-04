@@ -9,9 +9,10 @@ void main() {
   const origin = BoardPoint(0, 0);
 
   group('升級樹形狀', () {
-    test('每塔 2 分支 × 各 2 葉、且 maxLevel = 3', () {
+    test('每塔 1~2 分支、每分支 2 葉、且 maxLevel = 3', () {
       for (final entry in kTowerUpgradeTree.entries) {
-        expect(entry.value.length, 2, reason: '${entry.key} 應有兩個 Lv2 分支');
+        expect(entry.value.length, inInclusiveRange(1, 2),
+            reason: '${entry.key} 應有 1~2 個 Lv2 分支');
         for (final branch in entry.value) {
           expect(branch.children.length, 2,
               reason: '${entry.key}/${branch.key} 應有兩個 Lv3 葉');

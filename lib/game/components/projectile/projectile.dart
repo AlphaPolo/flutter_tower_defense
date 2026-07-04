@@ -306,7 +306,8 @@ class FlameProjectileComponent extends ProjectileComponent {
     _emit += dtMs;
     if (_emit >= 50) {
       _emit = 0;
-      game.world.add(fireBurst(game.logicalToScreen(logical), s, count: 2));
+      game.world.add(fireBurst(game.logicalToScreen(logical), s,
+          count: 2, opacity: game.dimFlame.value ? 0.5 : 1.0));
     }
   }
 
@@ -315,12 +316,13 @@ class FlameProjectileComponent extends ProjectileComponent {
     final t = lifeTime <= 0 ? 0.0 : (clock / lifeTime).clamp(0.0, 1.0);
     final base = (6 + 6 * t) * s;
     final flick = 0.85 + _rnd.nextDouble() * 0.3;
+    final a = game.dimFlame.value ? 0.5 : 1.0; // 開關：變淡時整體透明度減半
     void blob(double r, Color c) => canvas.drawCircle(
         Offset.zero, r, Paint()..color = c..blendMode = BlendMode.plus);
-    blob(base * 1.4 * flick, Colors.red.withOpacity(0.22));
-    blob(base * flick, Colors.deepOrange.withOpacity(0.5));
-    blob(base * 0.6 * flick, Colors.orange.withOpacity(0.85));
-    blob(base * 0.3 * flick, Colors.yellow);
+    blob(base * 1.4 * flick, Colors.red.withOpacity(0.22 * a));
+    blob(base * flick, Colors.deepOrange.withOpacity(0.5 * a));
+    blob(base * 0.6 * flick, Colors.orange.withOpacity(0.85 * a));
+    blob(base * 0.3 * flick, Colors.yellow.withOpacity(a));
   }
 }
 

@@ -141,7 +141,7 @@ int _buildMaze(TowerDefenseGame game) {
 
 const _builds = {
   TowerType.cannon: [0, 0],
-  TowerType.airBlade: [1, 0],
+  TowerType.airBlade: [0, 1], // 疾風→亂舞（單分支後 branch 0）
   TowerType.flame: [0, 0],
   TowerType.poison: [1, 0],
   TowerType.freezing: [0, 0],

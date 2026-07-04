@@ -12,7 +12,7 @@ import '../tower_type.dart';
 /// 各塔的預定升級路線 [分支 index, 葉 index]。
 const autoBuilds = <TowerType, List<int>>{
   TowerType.cannon: [0, 0], // 大口徑→飽和轟炸（大 AoE）
-  TowerType.airBlade: [1, 0], // 巨刃→大回旋（大範圍同時打）
+  TowerType.airBlade: [0, 1], // 疾風→亂舞（雙刃，DPS 翻倍）
   TowerType.flame: [0, 0], // 烈焰→熔核（高 DPS）
   TowerType.poison: [1, 0], // 蝕血→深蝕（%最大血量，打坦/王）
   TowerType.freezing: [0, 0], // 深寒→絕對零度（強減速）

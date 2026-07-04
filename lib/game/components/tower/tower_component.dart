@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -92,6 +93,21 @@ class TowerComponent extends PositionComponent
     final projectile = createProjectile(enemy);
     if (projectile != null) game.world.add(projectile);
     prepareShoot = fireCD.toDouble();
+  }
+
+  /// 對射程內最近的 [n] 個敵人各發射一次（多重箭增益用）。有開火回 true。
+  /// 每發前先把 direction 對準該敵人（muzzle 依 direction）。
+  bool shootNearest(int n) {
+    final targets = game.enemiesInRange(logicalPos, range)
+        .sortedBy<num>((e) => logicalPos.distanceToSquared(e.logicalPos));
+    if (targets.isEmpty) return false;
+    for (final e in targets.take(n)) {
+      final diff = e.logicalPos - logicalPos;
+      direction = atan2(diff.y, diff.x);
+      final p = createProjectile(e);
+      if (p != null) game.world.add(p);
+    }
+    return true;
   }
 
   ProjectileComponent? createProjectile(EnemyComponent enemy) {

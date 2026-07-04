@@ -9,6 +9,7 @@ enum TowerType {
   cannon,
   poison,
   log,
+  multishot,
   spike,
   vortex,
   obstacle,
@@ -95,6 +96,14 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 3000, // Lv1 發射間隔；Lv3 縮短
     title: '滾木塔',
     description: '朝玩家設定方向滾出巨木壓過敵人；升級提高傷害、縮短間隔',
+  ),
+  TowerType.multishot: TowerStats(
+    cost: 40,
+    range: 1.0, // 影響相鄰(6 格)的塔
+    damage: 0,
+    fireCD: 0,
+    title: '多重箭',
+    description: '支援塔：放在其他塔旁邊會強化它們（依塔種不同）——滾木三向齊發、毒塔同時射最近 3 個、火炮/雷電同時打最近 2 個、風刃多一片刀刃。本身不攻擊。',
   ),
   TowerType.spike: TowerStats(
     cost: 30,

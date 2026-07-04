@@ -16,6 +16,7 @@ ParticleSystemComponent _burst(
   required List<Color> colors,
   Vector2? accel,
   bool additive = false,
+  double opacity = 1.0, // 整體透明度倍率（1=原樣，越小越淡）
 }) {
   return ParticleSystemComponent(
     position: pos.clone(),
@@ -33,7 +34,7 @@ ParticleSystemComponent _burst(
           acceleration: accel ?? Vector2.zero(),
           child: ComputedParticle(
             renderer: (canvas, p) {
-              final op = (1 - p.progress).clamp(0.0, 1.0);
+              final op = (1 - p.progress).clamp(0.0, 1.0) * opacity;
               final paint = Paint()..color = col.withOpacity(op);
               if (additive) paint.blendMode = BlendMode.plus;
               canvas.drawCircle(Offset.zero, rad * (1 - 0.4 * p.progress), paint);
@@ -45,7 +46,8 @@ ParticleSystemComponent _burst(
   );
 }
 
-ParticleSystemComponent fireBurst(Vector2 pos, double s, {int count = 3}) =>
+ParticleSystemComponent fireBurst(Vector2 pos, double s,
+        {int count = 3, double opacity = 1.0}) =>
     _burst(pos,
         count: count,
         life: 0.45,
@@ -58,7 +60,8 @@ ParticleSystemComponent fireBurst(Vector2 pos, double s, {int count = 3}) =>
           Colors.red
         ],
         accel: Vector2(0, -50 * s),
-        additive: true);
+        additive: true,
+        opacity: opacity);
 
 ParticleSystemComponent frostBurst(Vector2 pos, double s, {int count = 16}) =>
     _burst(pos,
