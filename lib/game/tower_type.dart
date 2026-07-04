@@ -230,15 +230,15 @@ const Map<TowerType, List<TowerUpgradeNode>> kTowerUpgradeTree = {
       TowerUpgradeNode(
           key: 'A1', name: '閃電風暴', cost: 25, desc: '連結上限提升到 6', mods: {TowerMod.chain: 6}),
       TowerUpgradeNode(
-          key: 'A2', name: '過載', cost: 25, desc: '麻痺時間大幅提升', mods: {TowerMod.pms: 800}),
+          key: 'A2', name: '過載', cost: 25, desc: '麻痺時間大幅提升', mods: {TowerMod.pms: 700}),
     ]),
     TowerUpgradeNode(key: 'B', name: '麻痺', cost: 15, desc: '麻痺時間提升', mods: {
       TowerMod.pms: 600
     }, children: [
       TowerUpgradeNode(
-          key: 'B1', name: '電癱', cost: 25, desc: '麻痺時間大幅提升', mods: {TowerMod.pms: 1200}),
+          key: 'B1', name: '電癱', cost: 25, desc: '麻痺時間大幅提升', mods: {TowerMod.pms: 1000}),
       TowerUpgradeNode(
-          key: 'B2', name: '感電', cost: 25, desc: '麻痺時間提升，並可連結 3 名敵人', mods: {TowerMod.pms: 800, TowerMod.chain: 3}),
+          key: 'B2', name: '感電', cost: 25, desc: '麻痺時間提升，並可連結 3 名敵人', mods: {TowerMod.pms: 700, TowerMod.chain: 3}),
     ]),
   ],
   // 火炮：A 爆炸範圍 / B 中心加成。base blast 1.2, center 0。滿升總價=原費 90
