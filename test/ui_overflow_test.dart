@@ -6,6 +6,8 @@ import 'package:tower_defense/game/overlays/game_overlays.dart';
 import 'package:tower_defense/game/tower_defense_game.dart';
 import 'package:tower_defense/game/tower_type.dart';
 
+void _noop() {}
+
 /// 模擬橫向矮螢幕手機，確認 HUD 與底部塔列不會爆版（RenderFlex overflow）。
 void main() {
   Future<void> pumpHud(
@@ -32,7 +34,7 @@ void main() {
                 child: Stack(
                   children: [
                     const ColoredBox(color: Colors.black),
-                    LeftColOverlay(game: game),
+                    LeftColOverlay(game: game, onRestart: _noop),
                   ],
                 ),
               ),
@@ -78,7 +80,7 @@ void main() {
                 child: Stack(
                   children: [
                     const ColoredBox(color: Colors.black),
-                    LeftColOverlay(game: game),
+                    LeftColOverlay(game: game, onRestart: _noop),
                   ],
                 ),
               ),

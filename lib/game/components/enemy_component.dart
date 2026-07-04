@@ -83,6 +83,7 @@ class EnemyComponent extends PositionComponent
     final t0 = (_progress / speedComplete).clamp(0.0, 1.0);
     final here = _segFrom + (_segTo - _segFrom) * t0;
     speed *= game.trapSlowFactor(here);
+    speed *= game.envSlowAt(currentLocation); // 泥沼等天然環境減速
 
     _progress += dtMs * speed;
     if (_progress >= speedComplete) {
@@ -105,6 +106,13 @@ class EnemyComponent extends PositionComponent
     // 陷阱位置力場（如渦流）：依與陷阱的距離，就地把顯示位置往中心拉。純空間
     // 計算、不存任何狀態；邊緣為 0 → 不會鎖死、離開即平滑復原，也不影響尋路進度。
     game.applyTrapPull(logicalPos, hashCode);
+
+    // 荊棘等天然環境：站在上面持續受少量傷害。
+    final envDps = game.envDpsAt(currentLocation);
+    if (envDps > 0) {
+      dealDamage(envDps * dt, physical: false);
+      if (isDead) return;
+    }
 
     _syncScreen();
   }

@@ -42,6 +42,10 @@ class TowerComponent extends PositionComponent
   EnemyComponent? target;
   double prepareShoot = 0;
 
+  /// 相鄰是否有多重箭支援塔的「快取」——只在建造/拆除時由 game 重算，
+  /// 各塔每幀只讀這個 bool（不用每幀掃鄰格、零配置）。
+  bool multishotBuffed = false;
+
   /// top-down 邏輯位置。
   final Vector2 logicalPos = Vector2.zero();
 

@@ -74,12 +74,29 @@ void main() {
         'heart=${game.heart.value} wave=${game.waveNumber}');
     expect(game.gameWon.value, isTrue, reason: '產品自動演示無法通關');
   });
+
+  testWidgets('隨機天然環境不會封死路線', (tester) async {
+    final game = TowerDefenseGame(); // withEnvironment 預設 true
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
+      final sw = Stopwatch()..start();
+      while (!game.isLoaded && sw.elapsed < const Duration(seconds: 30)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+    await tester.pump();
+    expect(game.isLoaded, isTrue);
+    expect(game.environment.length, inInclusiveRange(1, 10));
+    // 路線仍能從出生點走到主堡（沒被環境封死）。
+    expect(game.route.first, game.spawnLocation);
+    expect(game.route.last, game.targetLocation);
+  });
 }
 
 // ───────────────────────── 共用 ─────────────────────────
 
 Future<TowerDefenseGame> _boot(WidgetTester tester) async {
-  final game = TowerDefenseGame();
+  final game = TowerDefenseGame(withEnvironment: false); // 模擬不產生隨機環境
   await tester.runAsync(() async {
     await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
     final sw = Stopwatch()..start();

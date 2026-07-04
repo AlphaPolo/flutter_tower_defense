@@ -34,6 +34,8 @@ flutter:
   - assets/images/fire.png
   - assets/images/ice.png
   - assets/iso/
+  shaders:
+  - assets/shaders/water.frag
 flutter_gen:
   output: lib/gen/
   line_length: 80

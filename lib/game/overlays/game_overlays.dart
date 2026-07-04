@@ -10,6 +10,7 @@ import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 import '../../utils/fullscreen.dart';
 import '../board/hex.dart';
 import '../components/enemy_kind.dart';
+import '../components/environment.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
 
@@ -175,8 +176,9 @@ class _VortexIconPainter extends CustomPainter {
 
 /// HUD overlay：左下放作弊開關/狀態表/開始鈕，右下放塔資訊/建築資訊面板。
 class LeftColOverlay extends StatelessWidget {
-  const LeftColOverlay({super.key, required this.game});
+  const LeftColOverlay({super.key, required this.game, required this.onRestart});
   final TowerDefenseGame game;
+  final VoidCallback onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +204,8 @@ class LeftColOverlay extends StatelessWidget {
                       _cheatSwitch(),
                       const SizedBox(height: 8),
                       _flameDimSwitch(),
+                      const SizedBox(height: 8),
+                      _resetButton(context),
                     ],
                   ),
                 ),
@@ -333,6 +337,52 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
+  /// 重置按鈕：詢問確認後重新開始整場遊戲。
+  Widget _resetButton(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blueGrey.shade700,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          visualDensity: VisualDensity.compact,
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        onPressed: () => _confirmReset(context),
+        icon: const Icon(Icons.refresh, size: 16),
+        label: const Text('重置'),
+      ),
+    );
+  }
+
+  void _confirmReset(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重新開始？'),
+        content: const Text('目前的進度（金幣、生命、已蓋的塔）會全部清除，確定要重置嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onRestart();
+            },
+            child: const Text('確定重置'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 開關：噴火塔特效變淡（提高透明度）。
   Widget _flameDimSwitch() {
     return ValueListenableBuilder<bool>(
@@ -433,6 +483,7 @@ class LeftColOverlay extends StatelessWidget {
         late final String title;
         late final List<String> lines;
         var tower = false;
+        var env = false;
 
         if (bp == game.targetLocation) {
           icon = const Icon(Icons.castle, color: Colors.green, size: 44);
@@ -442,6 +493,12 @@ class LeftColOverlay extends StatelessWidget {
           icon = const Icon(Icons.flag, color: Colors.redAccent, size: 44);
           title = '敵人出生點';
           lines = ['敵人從這裡出現', '沿著路線前往主堡'];
+        } else if (game.environment.containsKey(bp)) {
+          env = true;
+          final e = game.environment[bp]!;
+          icon = const Icon(Icons.terrain, color: Color(0xFF6D4C41), size: 44);
+          title = e.label;
+          lines = [e.desc, e.blocks ? '（阻擋路線）' : '（可經過）'];
         } else {
           final type = game.typeAt(bp);
           if (type == null) return const SizedBox.shrink();
@@ -521,6 +578,18 @@ class LeftColOverlay extends StatelessWidget {
                   onPressed: () => game.demolishAt(bp),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('拆除'),
+                ),
+              ],
+              if (env) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade800,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => game.clearEnvironmentAt(bp),
+                  icon: const Icon(Icons.cleaning_services, size: 18),
+                  label: Text('清除 (${TowerDefenseGame.envClearCost})'),
                 ),
               ],
             ],

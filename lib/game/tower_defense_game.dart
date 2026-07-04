@@ -13,6 +13,7 @@ import 'board/hex.dart';
 import 'board/pathfinding.dart';
 import 'components/board_component.dart';
 import 'components/enemy_component.dart';
+import 'components/environment.dart';
 import 'components/enemy_kind.dart';
 import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
@@ -29,7 +30,10 @@ import 'tower_type.dart';
 /// [iso] 只在繪製時把邏輯座標投影成 isometric 螢幕座標。棋盤是預先用
 /// Blender 渲染好的一張 isometric 圖。
 class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
-  TowerDefenseGame();
+  TowerDefenseGame({this.withEnvironment = true});
+
+  /// 是否在開局隨機佈置天然環境（測試/模擬設 false 以保持穩定）。
+  final bool withEnvironment;
 
   static const int boardRadius = 5;
   static const double hexRadius = 32;
@@ -54,6 +58,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 不會阻擋敵人、可蓋在路徑上。
   final Map<BoardPoint, TrapComponent> traps = {};
 
+  /// 每場隨機佈置的天然環境（擋路的會擋路、不擋路的有經過效果）。一律不可建塔。
+  final Map<BoardPoint, EnvType> environment = {};
+
   late final BoardComponent boardComponent;
 
   /// 相機震動（火炮落地爆炸等會觸發）。
@@ -73,6 +80,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 爆炸動畫 spritesheet（火炮落地用，10 幀 × 192px）。
   late final ui.Image explosionSheet;
+
+  /// 水池動態水面 shader（載入失敗則為 null → 水池退回平面繪製）。
+  ui.FragmentProgram? waterProgram;
   static const int logDirCount = 6;
   static const int logFrameCount = 8;
   static const double logCell = 96;
@@ -145,6 +155,12 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     };
     logSheet = await isoImages.load('log_roll.png');
     explosionSheet = await isoImages.load('explosion.png');
+    try {
+      waterProgram =
+          await ui.FragmentProgram.fromAsset('assets/shaders/water.frag');
+    } catch (_) {
+      waterProgram = null; // shader 不可用時退回平面水池
+    }
     for (final k in [...EnemyKind.all, EnemyKind.juggernaut]) {
       final sheet = k.sheet;
       if (sheet != null) enemySheets[k.id] = await isoImages.load(sheet);
@@ -154,6 +170,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     boardComponent = BoardComponent();
     await world.add(boardComponent);
     add(cameraShake); // 掛在遊戲根層，直接抖動 camera.viewfinder
+
+    if (withEnvironment) generateEnvironment(); // 每場隨機天然環境
 
     _fitCamera();
   }
@@ -217,7 +235,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   // ── 尋路 / 放置 ──────────────────────────────────────────
   bool isPointCanMove(BoardPoint point) =>
-      board.validateBoardPoint(point) && !towers.containsKey(point);
+      board.validateBoardPoint(point) &&
+      !towers.containsKey(point) &&
+      !(environment[point]?.blocks ?? false); // 擋路型天然環境
 
   void recomputeGuide() {
     guide = recalculate(targetLocation, isPointCanMove);
@@ -237,6 +257,44 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return path;
   }
 
+  /// 開局隨機佈置天然環境（未指定 [count] → 每場隨機 5~10 個）；擋路型會確保
+  /// 「放下去仍有路可通」→ 不封死路線。
+  void generateEnvironment({int? count}) {
+    final rng = Random();
+    final n = count ?? (5 + rng.nextInt(6)); // 5..10
+    var placed = 0, tries = 0;
+    while (placed < n && tries < 600) {
+      tries++;
+      final type = EnvType.values[rng.nextInt(EnvType.values.length)];
+      final cell = BoardPoint(
+        rng.nextInt(boardRadius * 2 + 1) - boardRadius,
+        rng.nextInt(boardRadius * 2 + 1) - boardRadius,
+      );
+      if (!board.validateBoardPoint(cell)) continue;
+      if (cell == spawnLocation || cell == targetLocation) continue;
+      if (environment.containsKey(cell)) continue;
+      // 擋路型：放下去(含既有擋路環境)仍要有路 → 不封死。
+      if (type.blocks &&
+          hasPathBetween(spawnLocation, targetLocation, isPointCanMove,
+                  {cell}) ==
+              null) {
+        continue;
+      }
+      environment[cell] = type;
+      world.add(EnvComponent(type, cell));
+      placed++;
+    }
+    recomputeGuide();
+  }
+
+  /// 敵人所在格的天然環境減速係數（1＝不減速；泥沼會變慢）。
+  double envSlowAt(BoardPoint cell) =>
+      environment[cell] == EnvType.mud ? 0.6 : 1.0;
+
+  /// 敵人所在格的天然環境每秒傷害（0＝無；荊棘會持續扣血）。
+  double envDpsAt(BoardPoint cell) =>
+      environment[cell] == EnvType.thorns ? 8.0 : 0.0;
+
   bool hasEnemyOn(BoardPoint point) => enemies.any(
         (e) => e.currentLocation == point || e.goalLocation == point,
       );
@@ -247,6 +305,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   bool isPlaceable(BoardPoint point) {
     if (hasBuildingAt(point)) return false;
+    if (environment.containsKey(point)) return false; // 天然環境格不可建塔
     if (hasEnemyOn(point)) return false;
     if (point == spawnLocation || point == targetLocation) return false;
     final path =
@@ -258,6 +317,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   bool isTrapPlaceable(BoardPoint point) {
     if (!board.validateBoardPoint(point)) return false;
     if (hasBuildingAt(point)) return false;
+    if (environment.containsKey(point)) return false; // 天然環境格不可放陷阱
     if (point == spawnLocation || point == targetLocation) return false;
     return true;
   }
@@ -292,6 +352,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     towers[point] = tower;
     world.add(tower);
     recomputeGuide();
+    refreshMultishotBuffs(); // 新塔/多重箭可能改變鄰塔增益
 
     if (type == TowerType.obstacle) {
       freeObstacle.value -= 1;
@@ -318,6 +379,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     if (tower == null) return false;
     tower.removeFromParent();
     recomputeGuide();
+    refreshMultishotBuffs(); // 拆掉多重箭/鄰塔可能改變增益
     if (inspecting.value == point) inspecting.value = null;
 
     if (tower.type == TowerType.obstacle) {
@@ -333,12 +395,36 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return true;
   }
 
-  /// 該格可否查看資訊：已蓋建築 / 陷阱、主堡(終點)、敵人出生點。
+  /// 清除天然環境的費用。
+  static const int envClearCost = 40;
+
+  /// 該格可否查看資訊：已蓋建築 / 陷阱 / 天然環境、主堡(終點)、敵人出生點。
   bool isInspectable(BoardPoint point) =>
       towers.containsKey(point) ||
       traps.containsKey(point) ||
+      environment.containsKey(point) ||
       point == targetLocation ||
       point == spawnLocation;
+
+  /// 花費金幣清除某格天然環境（擋路型清掉後路線會開通、該格變可建造）。
+  bool clearEnvironmentAt(BoardPoint point) {
+    if (!environment.containsKey(point)) return false;
+    if (!cheat.value && coin.value < envClearCost) {
+      showMessage('金幣不足');
+      return false;
+    }
+    if (!cheat.value) coin.value -= envClearCost;
+    environment.remove(point);
+    world.children
+        .whereType<EnvComponent>()
+        .where((c) => c.location == point)
+        .toList()
+        .forEach((c) => c.removeFromParent());
+    recomputeGuide(); // 擋路型清除後重算路線
+    if (inspecting.value == point) inspecting.value = null;
+    showMessage('已清除天然環境，退還該格可建造');
+    return true;
+  }
 
   /// 點選某格：可查看→顯示資訊（並取消正在選的塔）；否則→關閉資訊面板。
   void inspectAt(BoardPoint point) {
@@ -362,12 +448,20 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     if (t is LogTowerComponent) t.rotate(delta);
   }
 
-  /// 該格是否相鄰(6 格)有「多重箭」支援塔 → 用來強化該塔的攻擊。
+  /// 該格是否相鄰(6 格)有「多重箭」支援塔（來源真值，只在重算時用）。
   bool multishotAt(BoardPoint point) {
     for (final n in point.getNeighbors()) {
       if (towers[n] is MultishotTowerComponent) return true;
     }
     return false;
+  }
+
+  /// 重算每座塔的多重箭快取旗標。只在建造/拆除塔時呼叫（稀有事件），
+  /// 各塔平時只讀 `multishotBuffed`，不必每幀掃鄰格。
+  void refreshMultishotBuffs() {
+    for (final entry in towers.entries) {
+      entry.value.multishotBuffed = multishotAt(entry.key);
+    }
   }
 
   int towerLevel(BoardPoint point) => towers[point]?.level ?? 1;

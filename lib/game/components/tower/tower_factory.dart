@@ -97,7 +97,7 @@ class LogTowerComponent extends TowerComponent {
     if (game.enemies.isEmpty) return; // 沒有敵人時不發射
     direction = _launchAngle;
     // 相鄰有多重箭 → 除了選定方向，再往左右兩側各投一根（三向齊發）。
-    final dirs = game.multishotAt(location)
+    final dirs = multishotBuffed
         ? <HexagonDirection>[
             launchDir,
             HexagonDirection.values[(launchDir.index + 1) % 6],
@@ -264,7 +264,7 @@ class AirBladeTowerComponent extends TowerComponent {
   /// 依升級（亂舞）刀刃片數：每圈對每個敵人掃 bladeCount 次 → DPS ×bladeCount。
   /// 相鄰有多重箭再 +1 片。
   int get bladeCount =>
-      mod(TowerMod.blades, 1).toInt() + (game.multishotAt(location) ? 1 : 0);
+      mod(TowerMod.blades, 1).toInt() + (multishotBuffed ? 1 : 0);
 
   /// 依升級（撕裂）每刀疊一層流血，每層每秒傷害（0=無）。
   double get bleedPerStack => mod(TowerMod.bleed, 0);
@@ -422,7 +422,7 @@ class ThunderTowerComponent extends TowerComponent {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
     if (prepareShoot > 0) return;
     // 相鄰有多重箭 → 同時電最近 2 個目標（各自再連鎖）。
-    if (shootNearest(game.multishotAt(location) ? 2 : 1)) {
+    if (shootNearest(multishotBuffed ? 2 : 1)) {
       prepareShoot = fireCD.toDouble();
     }
   }
@@ -455,7 +455,7 @@ class CannonTowerComponent extends TowerComponent {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
     if (prepareShoot > 0) return;
     // 相鄰有多重箭 → 同時射最近 2 個目標（2 發砲彈）。
-    if (shootNearest(game.multishotAt(location) ? 2 : 1)) {
+    if (shootNearest(multishotBuffed ? 2 : 1)) {
       prepareShoot = fireCD.toDouble();
     }
   }
@@ -488,7 +488,7 @@ class PoisonTowerComponent extends TowerComponent {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
     if (prepareShoot > 0) return;
     // 相鄰有多重箭 → 同時射最近 3 個敵人，否則射最近 1 個。
-    if (shootNearest(game.multishotAt(location) ? 3 : 1)) {
+    if (shootNearest(multishotBuffed ? 3 : 1)) {
       prepareShoot = fireCD.toDouble();
     }
   }

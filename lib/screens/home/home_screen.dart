@@ -38,7 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
               key: ValueKey(game),
               game: game,
               overlayBuilderMap: {
-                'leftCol': (context, g) => LeftColOverlay(game: g),
+                'leftCol': (context, g) =>
+                    LeftColOverlay(game: g, onRestart: _restart),
                 'end': (context, g) => EndOverlay(game: g, onRestart: _restart),
               },
               initialActiveOverlays: const ['leftCol', 'end'],
