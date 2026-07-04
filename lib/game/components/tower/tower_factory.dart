@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../../constant/game_constant.dart';
 import '../../board/hex.dart';
 import '../../effects/particles.dart';
 import '../../tower_type.dart';
@@ -47,9 +48,9 @@ class LogTowerComponent extends TowerComponent {
 
   // 依升級：傷害 / 發射間隔(ms)。
   @override
-  double get damage => mod('dmg', 40);
+  double get damage => mod(TowerMod.dmg,40);
   @override
-  int get fireCD => mod('cd', 3000).toInt();
+  int get fireCD => mod(TowerMod.cd,3000).toInt();
 
   /// 玩家可調整的發射方向（6 個六角方向之一）。
   late HexagonDirection launchDir;
@@ -141,11 +142,12 @@ class FreezingTowerComponent extends TowerComponent {
   FreezingTowerComponent(BoardPoint location)
       : super(TowerType.freezing, location);
 
-  // 依升級（值越小＝減速越強）。
+  // 依升級（slow 值越小＝減速越強）。
   @override
-  double get range => mod('range', 2.5);
-  double get slowFactor => mod('slow', 0.6);
-  int get freezeDuration => mod('fdur', 2000).toInt();
+  double get range => mod(TowerMod.range, 2.5);
+  double get slowFactor => mod(TowerMod.slow, 0.6);
+  int get freezeDuration => mod(TowerMod.fdur, 2000).toInt();
+  double get vulnAmp => mod(TowerMod.vuln, 0); // 霜牢：脆弱化物理受傷加成
 
   @override
   void update(double dt) {
@@ -163,6 +165,7 @@ class FreezingTowerComponent extends TowerComponent {
       toRadius: game.board.hexagonRadius * range,
       duration: freezeDuration,
       slowFactor: slowFactor,
+      vulnAmp: vulnAmp,
     );
   }
 }
@@ -173,11 +176,12 @@ class FlameTowerComponent extends TowerComponent {
 
   static const double rotateSpeed = 0.08;
 
-  // 依升級：射程 / 灼燒 DPS。
+  // 依升級：射程 / 灼燒 DPS / 命中後持續燃燒 DPS（0=無，熾流分支給）。
   @override
-  double get range => mod('range', 4);
+  double get range => mod(TowerMod.range,4);
   @override
-  double get damage => mod('dmg', 8);
+  double get damage => mod(TowerMod.dmg,8);
+  double get burnDps => mod(TowerMod.burn,0);
 
   @override
   void update(double dt) {
@@ -221,6 +225,7 @@ class FlameTowerComponent extends TowerComponent {
       speed: 0.5,
       travelAngle: direction + fix,
       lengthHex: range / 2,
+      burnDps: burnDps,
     );
   }
 }
@@ -232,28 +237,43 @@ class AirBladeTowerComponent extends TowerComponent {
 
   /// 刀刃旋轉角速度（rad/秒，dt-based → 不受幀率影響）。4π = 每秒 2 圈。
   /// 依升級（疾風系）可轉更快。
-  double get spinSpeed => mod('spin', 4 * pi);
+  double get spinSpeed => mod(TowerMod.spin,4 * pi);
 
   // 依升級（巨刃系）擴大攻擊範圍。
   @override
-  double get range => mod('range', 2.5);
+  double get range => mod(TowerMod.range,2.5);
+
+  /// 依升級（亂舞）刀刃片數：每圈對每個敵人掃 bladeCount 次 → DPS ×bladeCount。
+  int get bladeCount => mod(TowerMod.blades, 1).toInt();
+
+  /// 依升級（撕裂）每刀疊一層流血，每層每秒傷害（0=無）。
+  double get bleedPerStack => mod(TowerMod.bleed, 0);
 
   double _windEmit = 0;
 
   @override
   void update(double dt) {
-    // dt-based 旋轉：每秒固定轉 2 圈，與幀率無關。
+    // dt-based 旋轉，與幀率無關。
     final prev = direction;
     direction = (direction + spinSpeed * dt) % (2 * pi);
     final swept = spinSpeed * dt; // 這一幀前緣掃過的角度
 
-    // 刀刃「前緣」這一幀掃過哪些敵人就砍一刀：一圈只會掃過每隻一次 → 一刀一次，
-    // 與幀率無關。每隻 DPS = 每秒圈數(2) × damage(12.5) = 25。
+    // 多重刀刃：N 片等角前緣，任一片這一幀掃過敵人就砍一刀。一圈每隻被每片各掃
+    // 一次 → 共 N 刀 → DPS ×N。與幀率無關。
+    final n = bladeCount;
+    final step = 2 * pi / n;
     for (final e in game.enemiesInRange(logicalPos, range)) {
       final diff = e.logicalPos - logicalPos;
-      var rel = (atan2(diff.y, diff.x) - prev) % (2 * pi); // 敵人角度相對前緣的正向位移
-      if (rel < 0) rel += 2 * pi;
-      if (rel > 0 && rel <= swept) e.dealDamage(damage);
+      final ang = atan2(diff.y, diff.x);
+      for (var k = 0; k < n; k++) {
+        var rel = (ang - (prev + k * step)) % (2 * pi);
+        if (rel < 0) rel += 2 * pi;
+        if (rel > 0 && rel <= swept) {
+          e.dealDamage(damage);
+          if (bleedPerStack > 0) e.addBleed(kBleedEffectType, bleedPerStack);
+          break; // 同一幀最多算一刀，避免重複
+        }
+      }
     }
 
     // 刃尖噴出風的粒子。
@@ -276,9 +296,14 @@ class AirBladeTowerComponent extends TowerComponent {
     // 後方兩道較淡殘影做出揮砍的動態模糊。
     final foot = Offset(size.x / 2, size.y / 2);
     final rOut = game.board.hexagonRadius * 1.4; // 邏輯半徑
-    _slash(canvas, foot, rOut, direction - 0.34, fill: 0.06, edge: 0.0);
-    _slash(canvas, foot, rOut, direction - 0.17, fill: 0.13, edge: 0.25);
-    _slash(canvas, foot, rOut, direction, fill: 0.26, edge: 0.8);
+    // 每片刀刃各畫一組刀光（前緣最亮、後方兩道漸淡殘影）。
+    final step = 2 * pi / bladeCount;
+    for (var k = 0; k < bladeCount; k++) {
+      final a = direction + k * step;
+      _slash(canvas, foot, rOut, a - 0.34, fill: 0.06, edge: 0.0);
+      _slash(canvas, foot, rOut, a - 0.17, fill: 0.13, edge: 0.25);
+      _slash(canvas, foot, rOut, a, fill: 0.26, edge: 0.8);
+    }
     super.render(canvas);
   }
 
@@ -364,12 +389,13 @@ class ThunderTowerComponent extends TowerComponent {
   ThunderTowerComponent(BoardPoint location)
       : super(TowerType.thunder, location);
 
-  // 依升級：連鎖人數 / 麻痺 / 單擊傷害。麻痺一開始就有、非常微弱。
-  int get chainLimit => mod('chain', 1).toInt();
-  double get paralyzeChance => mod('pchance', 0.1);
-  int get paralyzeMs => mod('pms', 120).toInt();
+  // 依升級：連鎖人數 / 麻痺時間 / 單擊傷害。
+  // 麻痺「命中必定觸發(100%)」，強弱由麻痺時間(pms)決定；基礎時間很短＝很微弱。
+  int get chainLimit => mod(TowerMod.chain,1).toInt();
+  double get paralyzeChance => 1.0;
+  int get paralyzeMs => mod(TowerMod.pms,500).toInt();
   @override
-  double get damage => mod('dmg', 10);
+  double get damage => mod(TowerMod.dmg,10);
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -391,8 +417,8 @@ class CannonTowerComponent extends TowerComponent {
   CannonTowerComponent(BoardPoint location) : super(TowerType.cannon, location);
 
   // 依升級：爆炸半徑（格）/ 中心加成峰值（0=關）。
-  double get blastHex => mod('blast', 1.2);
-  double get centerPeak => mod('center', 0);
+  double get blastHex => mod(TowerMod.blast,1.2);
+  double get centerPeak => mod(TowerMod.center,0);
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {
@@ -413,9 +439,9 @@ class PoisonTowerComponent extends TowerComponent {
 
   // 依升級：固定毒傷總量 / 每秒%最大血量 / 中毒持續時間(ms)。
   @override
-  double get damage => mod('pdmg', 60);
-  double get pctPerSec => mod('pct', 0.01);
-  int get poisonDuration => mod('pdur', 3000).toInt();
+  double get damage => mod(TowerMod.pdmg,60);
+  double get pctPerSec => mod(TowerMod.pct,0.01);
+  int get poisonDuration => mod(TowerMod.pdur,3000).toInt();
 
   @override
   ProjectileComponent createProjectile(EnemyComponent enemy) {

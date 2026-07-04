@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tower_defense/game/board/hex.dart';
+import 'package:tower_defense/game/components/tower/tower_factory.dart';
 import 'package:tower_defense/game/overlays/game_overlays.dart';
 import 'package:tower_defense/game/tower_defense_game.dart';
 import 'package:tower_defense/game/tower_type.dart';
@@ -49,6 +51,49 @@ void main() {
 
   testWidgets('HUD 在橫向矮螢幕不爆版（顯示塔資訊面板）', (tester) async {
     await pumpHud(tester, const Size(640, 300), selecting: TowerType.flame);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('點塔升級面板不爆版（Lv2 兩分支 → Lv3 兩葉）', (tester) async {
+    final game = TowerDefenseGame();
+    game.waveRunning.value = true;
+    // 這兩個平常在 onLoad 設定；測試不跑 onLoad，手動給值讓資訊面板能判斷格子。
+    game.targetLocation = const BoardPoint(0, -5);
+    game.spawnLocation = const BoardPoint(0, 5);
+    const bp = BoardPoint(0, 0); // 非主堡/出生點 → 視為塔
+    game.towers[bp] = buildTower(TowerType.freezing, bp);
+    game.inspecting.value = bp; // 打開已蓋塔的資訊/升級面板
+
+    tester.view.physicalSize = const Size(640, 300);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    const ColoredBox(color: Colors.black),
+                    LeftColOverlay(game: game),
+                  ],
+                ),
+              ),
+              BuildBar(game: game),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull); // Lv1 → 兩張分支選項卡
+
+    // 升到 Lv2 → 出現該分支底下兩張葉卡，面板重建後仍不爆版
+    game.towers[bp]!.applyUpgrade(kTowerUpgradeTree[TowerType.freezing]!.first);
+    game.towerChanged.value++;
+    await tester.pump();
     expect(tester.takeException(), isNull);
   });
 }

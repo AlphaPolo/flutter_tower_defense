@@ -264,10 +264,13 @@ class FlameProjectileComponent extends ProjectileComponent {
     required super.speed,
     required this.travelAngle,
     required this.lengthHex,
+    this.burnDps = 0,
   });
 
   final double travelAngle;
   final double lengthHex;
+  final double burnDps; // >0：命中後留下持續燃燒（每秒 burnDps，離開火焰後仍延燒）
+  static const int _burnMs = 3000; // 持續燃燒時間（每次命中刷新）
   final Vector2 _start = Vector2.zero();
   double _emit = 0;
 
@@ -292,7 +295,13 @@ class FlameProjectileComponent extends ProjectileComponent {
     final burn = damage * dtMs / 1000;
     for (final e in game.enemies) {
       if (e.isDead) continue;
-      if (e.logicalPos.distanceTo(logical) <= 40) e.dealDamage(burn);
+      if (e.logicalPos.distanceTo(logical) <= 40) {
+        e.dealDamage(burn, physical: false); // 火焰＝元素傷害
+        // 熾流：命中即附加/刷新持續燃燒（離開火焰後仍延燒 _burnMs）。
+        if (burnDps > 0) {
+          e.addEffect(PoisonEffect(kBurnEffectType, _burnMs, burnDps));
+        }
+      }
     }
     _emit += dtMs;
     if (_emit >= 50) {
@@ -324,12 +333,14 @@ class FreezeProjectileComponent extends ProjectileComponent {
     this.fromRadius = 0,
     this.duration = 1000,
     this.slowFactor = 0.3,
+    this.vulnAmp = 0,
   }) : super(speed: 1);
 
   final double toRadius;
   final double fromRadius;
   final int duration;
   final double slowFactor; // 減速倍率（越小＝越慢，0.3 = 剩 30% 速度）
+  final double vulnAmp; // >0：冰環同時使敵人脆弱化（物理受傷 +vulnAmp）
   double currentRadius = 0;
   final Set<EnemyComponent> effected = {};
 
@@ -359,6 +370,10 @@ class FreezeProjectileComponent extends ProjectileComponent {
           SlowMovementEffect(
               kFrozenEffectType, 800, StatCalcType.multi, slowFactor),
         );
+        // 霜牢：冰環同時使敵人脆弱化（受物理攻擊多吃傷害），持續 5 秒、可刷新。
+        if (vulnAmp > 0) {
+          e.addEffect(VulnerableEffect(kVulnerableEffectType, 5000, vulnAmp));
+        }
       }
     }
   }
@@ -471,12 +486,12 @@ class ThunderProjectileComponent extends ProjectileComponent {
     final chained = _chainEnemies();
     final list = <Vector2>[];
     for (final e in chained) {
-      // 機率性麻痺（速度設為 0），時間依塔等級。
+      // 命中必定麻痺（速度設為 0），時間依塔等級。
       if (_rnd.nextDouble() < paralyzeChance) {
         e.addEffect(
             SlowMovementEffect.flat(kThunderEffectType, paralyzeMs, 0.0, 300));
       }
-      e.dealDamage(damage);
+      e.dealDamage(damage, physical: false); // 雷電＝元素傷害
       list.add(e.logicalPos.clone());
       game.world.add(sparkBurst(game.logicalToScreen(e.logicalPos), s));
     }

@@ -114,9 +114,19 @@ class EnemyComponent extends PositionComponent
     priority = position.y.round();
   }
 
-  void dealDamage(double damage) {
+  /// 對敵人造成傷害。[physical]=true（滾木/火炮/風刃/地刺等直擊）會被「脆弱化」
+  /// (VulnerableEffect) 放大；元素/持續傷害（火焰、毒、雷電）傳 false，不受放大。
+  void dealDamage(double damage, {bool physical = true}) {
     if (isDead) return;
-    status = status.sub(hp: damage);
+    var dmg = damage;
+    if (physical) {
+      var amp = 0.0;
+      for (final e in effects) {
+        if (e is VulnerableEffect && e.physicalAmp > amp) amp = e.physicalAmp;
+      }
+      dmg *= 1 + amp;
+    }
+    status = status.sub(hp: dmg);
     if (status.currentHp <= 0) _die();
   }
 
@@ -148,7 +158,7 @@ class EnemyComponent extends PositionComponent
       dot += effect.takeDamage();
       if (effect.dead) dirty = true;
     }
-    if (dot > 0) dealDamage(dot); // 持續傷害（毒等）
+    if (dot > 0) dealDamage(dot, physical: false); // 持續傷害（毒/火）：非物理
     if (dirty) {
       effects.removeWhere((e) {
         if (e.dead) e.onEnd();
@@ -156,6 +166,18 @@ class EnemyComponent extends PositionComponent
       });
     }
     return result;
+  }
+
+  /// 疊一層流血：已有同型流血就疊層+續期，否則新增一個。
+  void addBleed(IdWithEffectType id, double perStackDps,
+      {int maxStacks = 8, int durationMs = 2500}) {
+    for (final ef in effects) {
+      if (ef is BleedEffect && ef.idWithType.sameTypeId == id.sameTypeId) {
+        ef.refresh(durationMs);
+        return;
+      }
+    }
+    addEffect(BleedEffect(id, durationMs, perStackDps, maxStacks));
   }
 
   void addEffect(BaseEffect effect) {

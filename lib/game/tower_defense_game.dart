@@ -18,6 +18,7 @@ import 'components/tower/tower_component.dart';
 import 'components/tower/tower_factory.dart';
 import 'components/trap/trap_component.dart';
 import 'components/wave_spawner.dart';
+import 'demo/auto_player.dart';
 import 'effects/camera_shake.dart';
 import 'iso/iso_projection.dart';
 import 'tower_type.dart';
@@ -98,6 +99,11 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<bool> waveRunning = ValueNotifier(false);
   final ValueNotifier<bool> gameOver = ValueNotifier(false);
   final ValueNotifier<bool> gameWon = ValueNotifier(false);
+
+  // ── 自動演示 ──────────────────────────────────────────────
+  final ValueNotifier<bool> demoRunning = ValueNotifier(false);
+  AutoPlayerComponent? _autoPlayer;
+  int demoSpeed = 1; // 演示時把每幀模擬步數加倍 → 加速播放（每步仍用正常 dt）
 
   @override
   Future<void> onLoad() async {
@@ -293,12 +299,12 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 拆除某格的建築：移除元件、退回部分資源、重算路線。
   bool demolishAt(BoardPoint point) {
-    // 陷阱：不影響尋路，退回半額後直接移除（不需重算）。
+    // 陷阱：不影響尋路，退回 75% 後直接移除（不需重算）。
     final trap = traps.remove(point);
     if (trap != null) {
       trap.removeFromParent();
       if (inspecting.value == point) inspecting.value = null;
-      final refund = (statsOf(trap.type).cost * 0.5).floor();
+      final refund = (statsOf(trap.type).cost * 0.75).floor();
       coin.value += refund;
       showMessage('已拆除陷阱，退回 $refund 金幣');
       return true;
@@ -314,9 +320,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       // 障礙物拆除不退回額度。
       showMessage('已拆除障礙物');
     } else {
-      // 退回 50% ×（基礎費 + 已投入的升級費）。
+      // 退回 75% ×（基礎費 + 已投入的升級費）。
       final refund =
-          ((statsOf(tower.type).cost + tower.spentOnUpgrades) * 0.5).floor();
+          ((statsOf(tower.type).cost + tower.spentOnUpgrades) * 0.75).floor();
       coin.value += refund;
       showMessage('已拆除，退回 $refund 金幣');
     }
@@ -556,20 +562,74 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   }
 
   EnemyStatus enemyStatusForWave(int wave) {
-    final hp = 100.0 + (wave - 1) * 40;
-    final speed = 1.5 + (wave - 1) * 0.05;
+    final hp = (100.0 + (wave - 1) * 40) * 0.9; // 全怪血量 -10%
+    final speed = (1.5 + (wave - 1) * 0.05) * 0.9; // 全怪移速 -10%
     return EnemyStatus(totalHp: hp, currentHp: hp, speed: speed);
   }
 
   @override
   void update(double dt) {
-    super.update(dt);
-    final spawner = _spawner;
-    if (spawner != null && spawner.isDone && enemies.isEmpty) {
-      spawner.removeFromParent();
-      _spawner = null;
-      _onWaveCompleted();
+    // demoSpeed 個子步，每步都用正常 dt（保留細粒度、只是播放變快）。
+    for (var step = 0; step < demoSpeed; step++) {
+      super.update(dt);
+      final spawner = _spawner;
+      if (spawner != null && spawner.isDone && enemies.isEmpty) {
+        spawner.removeFromParent();
+        _spawner = null;
+        _onWaveCompleted();
+      }
+      if (gameOver.value || gameWon.value) break;
     }
+  }
+
+  /// 開始自動演示：清空重來 → 掛上自動玩家 → 加速播放。
+  void startAutoDemo() {
+    resetForDemo();
+    _autoPlayer ??= AutoPlayerComponent();
+    if (!_autoPlayer!.isMounted) add(_autoPlayer!);
+    demoSpeed = 4;
+    demoRunning.value = true;
+    resumeEngine();
+  }
+
+  /// 停止自動演示（保留目前盤面，恢復正常速度、交還玩家操作）。
+  void stopAutoDemo() {
+    _autoPlayer?.removeFromParent();
+    _autoPlayer = null;
+    demoSpeed = 1;
+    demoRunning.value = false;
+  }
+
+  /// 把整局重設回開局狀態（給演示用，不重建 game）。
+  void resetForDemo() {
+    for (final t in towers.values) {
+      t.removeFromParent();
+    }
+    towers.clear();
+    for (final t in traps.values) {
+      t.removeFromParent();
+    }
+    traps.clear();
+    for (final e in [...enemies]) {
+      e.removeFromParent();
+    }
+    enemies.clear();
+    _spawner?.removeFromParent();
+    _spawner = null;
+
+    coin.value = 150;
+    heart.value = 20;
+    freeObstacle.value = 3;
+    waveNumber = 0;
+    completedWaves = 0;
+    wave.value = 0;
+    waveRunning.value = false;
+    gameOver.value = false;
+    gameWon.value = false;
+    inspecting.value = null;
+    selecting.value = null;
+    recomputeGuide();
+    resumeEngine();
   }
 
   void _onWaveCompleted() {

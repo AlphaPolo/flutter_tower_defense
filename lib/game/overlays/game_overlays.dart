@@ -161,6 +161,8 @@ class LeftColOverlay extends StatelessWidget {
                       _statusPill(),
                       const SizedBox(height: 8),
                       _cheatSwitch(),
+                      const SizedBox(height: 8),
+                      _demoButton(),
                     ],
                   ),
                 ),
@@ -286,6 +288,32 @@ class LeftColOverlay extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 自動演示按鈕：AI 自動蓋建築、繞迷宮、跑完 25 波（加速播放）。
+  Widget _demoButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: game.demoRunning,
+      builder: (context, on, _) {
+        return SizedBox(
+          height: 30,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: on ? Colors.redAccent : Colors.deepPurple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              visualDensity: VisualDensity.compact,
+              textStyle:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () =>
+                on ? game.stopAutoDemo() : game.startAutoDemo(),
+            icon: Icon(on ? Icons.stop : Icons.smart_toy, size: 16),
+            label: Text(on ? '停止演示' : '自動演示'),
           ),
         );
       },
@@ -485,15 +513,11 @@ class LeftColOverlay extends StatelessWidget {
             style: const TextStyle(fontSize: 11, color: Colors.grey),
           ),
           const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < options.length; i++) ...[
-                if (i > 0) const SizedBox(width: 6),
-                Expanded(child: _upgradeOptionCard(bp, options[i])),
-              ],
-            ],
-          ),
+          // 面板窄（maxWidth 150），兩張選項卡改上下堆疊（各佔滿寬），避免爆版。
+          for (var i = 0; i < options.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            _upgradeOptionCard(bp, options[i]),
+          ],
         ] else
           const Padding(
             padding: EdgeInsets.only(top: 4),

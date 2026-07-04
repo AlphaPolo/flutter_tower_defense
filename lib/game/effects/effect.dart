@@ -99,6 +99,70 @@ class SlowMovementEffect extends DefaultTimerEffect {
   int get order => _order;
 }
 
+/// 流血：可疊層的持續傷害。每疊一層 [perStackDps]，總 DPS = 層數 × perStackDps；
+/// 每次被割到 [refresh] 疊一層(上限 [maxStacks])並重置壽命，太久沒被割到就整組消失。
+class BleedEffect extends DefaultTimerEffect {
+  BleedEffect(this.idWithType, super.lifetime, this.perStackDps, this.maxStacks);
+
+  final IdWithEffectType idWithType;
+  final double perStackDps;
+  final int maxStacks;
+  int stacks = 1;
+
+  static const int _tickMs = 200;
+  int _acc = 0;
+  double _pending = 0;
+
+  /// 再疊一層並重置壽命。
+  void refresh(int durationMs) {
+    if (stacks < maxStacks) stacks++;
+    clock = 0;
+    lifetime = durationMs;
+    dead = false;
+  }
+
+  @override
+  void tick(int dtMillis) {
+    super.tick(dtMillis);
+    _acc += dtMillis;
+    while (_acc >= _tickMs) {
+      _acc -= _tickMs;
+      _pending += perStackDps * stacks * _tickMs / 1000.0;
+    }
+  }
+
+  @override
+  double takeDamage() {
+    final d = _pending;
+    _pending = 0;
+    return d;
+  }
+
+  @override
+  EnemyStatus calc(EnemyStatus status) => status;
+
+  @override
+  int get order => 450;
+}
+
+/// 脆弱化：不改屬性、不造成傷害，只在敵人受到「物理」傷害時放大傷害
+/// （放大邏輯在 EnemyComponent.dealDamage）。多個重疊取最強。
+class VulnerableEffect extends DefaultTimerEffect {
+  VulnerableEffect(this.idWithType, super.lifetime, this.physicalAmp);
+
+  /// 物理受傷加成，例如 0.35 = 受物理攻擊多吃 35% 傷害。
+  final double physicalAmp;
+
+  @override
+  final IdWithEffectType idWithType;
+
+  @override
+  EnemyStatus calc(EnemyStatus status) => status;
+
+  @override
+  int get order => 500;
+}
+
 /// 中毒：持續一段時間，每秒造成 [dps] 點傷害（依幀累積後交給敵人扣血）。
 class PoisonEffect extends DefaultTimerEffect {
   PoisonEffect(this.idWithType, super.lifetime, this.dps);

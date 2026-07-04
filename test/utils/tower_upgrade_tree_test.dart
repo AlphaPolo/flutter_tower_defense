@@ -46,18 +46,17 @@ void main() {
       expect(cannon.blastHex, 1.2); // 這條沒動到 blast → 維持基礎
     });
 
-    test('冰凍：混合葉可同時覆寫兩個 stat（range + slow）', () {
-      final f =
-          buildTower(TowerType.freezing, origin) as FreezingTowerComponent;
-      final frostArea = kTowerUpgradeTree[TowerType.freezing]![1]; // 霜域 range 3.5
-      f.applyUpgrade(frostArea);
-      expect(f.range, 3.5);
-      expect(f.slowFactor, 0.6); // 尚未動到 slow → 基礎
+    test('火炮 齊射：混合葉可同時覆寫兩個 stat（blast + center）', () {
+      final c = buildTower(TowerType.cannon, origin) as CannonTowerComponent;
+      final bigBore = kTowerUpgradeTree[TowerType.cannon]![0]; // 大口徑 blast 1.9
+      c.applyUpgrade(bigBore);
+      expect(c.blastHex, 1.9);
+      expect(c.centerPeak, 0); // 尚未動到 center → 基礎
 
-      final frostPrison = frostArea.children[1]; // 霜牢 range 3.9 + slow 0.4
-      f.applyUpgrade(frostPrison);
-      expect(f.range, 3.9);
-      expect(f.slowFactor, 0.4);
+      final salvo = bigBore.children[1]; // 齊射 blast 2.2 + center 0.6
+      c.applyUpgrade(salvo);
+      expect(c.blastHex, 2.2);
+      expect(c.centerPeak, 0.6);
     });
   });
 }
