@@ -103,7 +103,7 @@ const Map<TowerType, TowerStats> kTowerStats = {
     damage: 0,
     fireCD: 0,
     title: '多重箭',
-    description: '支援塔：放在其他塔旁邊會強化它們（依塔種不同）——滾木三向齊發、毒塔同時射最近 3 個、火炮/雷電同時打最近 2 個、風刃多一片刀刃。本身不攻擊。',
+    description: '支援塔，本身不攻擊。蓋在其他防禦塔旁邊會依塔種給予不同的強化——自己搭配看看會發生什麼吧！',
   ),
   TowerType.spike: TowerStats(
     cost: 30,
