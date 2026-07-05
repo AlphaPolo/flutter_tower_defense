@@ -129,7 +129,8 @@ class LogTowerComponent extends TowerComponent {
     _renderAimArrow(canvas);
   }
 
-  /// 在塔上畫出目前發射方向的箭頭（點選時橘色高亮，平時淡白提示）。
+  /// 在塔腳畫出目前發射方向的箭頭：圓角錐形箭 + 漸層氣泡質感（無深色外框）。
+  /// 大小固定、限制在格內；點選時橘色高亮、平時淡白提示。
   void _renderAimArrow(Canvas canvas) {
     final s = game.iso.scaleX;
     final inspected = game.inspecting.value == location;
@@ -137,21 +138,66 @@ class LogTowerComponent extends TowerComponent {
             game.boardToLogical(location.getNeighbor(launchDir))) -
         game.logicalToScreen(logicalPos);
     final ang = atan2(d.y, d.x);
+    final u = Offset(cos(ang), sin(ang)); // 方向
+    final perp = Offset(-sin(ang), cos(ang)) * 0.7; // 壓扁 → 貼地感
+    final foot = Offset(size.x / 2, size.y / 2); // sprite 中心＝塔腳
 
-    final origin = Offset(size.x / 2, size.y / 2); // sprite 中心＝塔腳
-    final len = game.board.hexagonRadius * s * (inspected ? 1.5 : 1.0);
-    final tip = origin + Offset(cos(ang), sin(ang)) * len;
-    final paint = Paint()
-      ..color = (inspected ? Colors.orangeAccent : Colors.white)
-          .withOpacity(inspected ? 0.95 : 0.45)
-      ..strokeWidth = 3 * s
+    // 尺寸固定且較短，讓箭頭不突出格子；頭偏鈍 + 圓角描邊柔化。
+    final len = game.board.hexagonRadius * s * 0.6;
+    final start = 4.0 * s;
+    final headLen = 8.0 * s;
+    final headHalf = 5.5 * s;
+    final shaftHalf = 2.0 * s;
+    final neck = len - headLen;
+
+    Offset at(double x, double y) => foot + u * x + perp * y;
+    final path = Path()
+      ..moveTo(at(start, -shaftHalf).dx, at(start, -shaftHalf).dy)
+      ..lineTo(at(neck, -shaftHalf).dx, at(neck, -shaftHalf).dy)
+      ..lineTo(at(neck, -headHalf).dx, at(neck, -headHalf).dy)
+      ..lineTo(at(len, 0).dx, at(len, 0).dy)
+      ..lineTo(at(neck, headHalf).dx, at(neck, headHalf).dy)
+      ..lineTo(at(neck, shaftHalf).dx, at(neck, shaftHalf).dy)
+      ..lineTo(at(start, shaftHalf).dx, at(start, shaftHalf).dy)
+      ..close();
+
+    final rim = 2.5 * s; // 圓角描邊：膨脹＋磨圓銳角
+    final bounds = path.getBounds().inflate(rim + 3 * s);
+    final groupAlpha = inspected ? 1.0 : 0.55;
+
+    // saveLayer 套群組透明度 → 內部畫不透明、疊層不接縫。
+    canvas.saveLayer(
+        bounds, Paint()..color = Colors.white.withOpacity(groupAlpha));
+
+    // 柔和貼地陰影
+    canvas.drawPath(
+      path.shift(Offset(0, 1.5 * s)),
+      Paint()
+        ..color = Colors.black.withOpacity(0.18)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 * s),
+    );
+
+    // 漸層氣泡填色（左上高光 → 中間主色 → 邊緣深色）
+    final grad = RadialGradient(
+      center: const Alignment(-0.3, -0.6),
+      radius: 1.0,
+      colors: inspected
+          ? const [Color(0xFFFFEFC2), Color(0xFFF7A81E), Color(0xFFDE7A12)]
+          : const [Colors.white, Color(0xFFE9F0F8), Color(0xFFB7C6D8)],
+      stops: const [0.0, 0.55, 1.0],
+    ).createShader(bounds);
+    final fillPaint = Paint()..shader = grad;
+    final roundStroke = Paint()
+      ..shader = grad
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = rim
+      ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round;
     canvas
-      ..drawLine(origin, tip, paint)
-      ..drawLine(
-          tip, tip + Offset(cos(ang + 2.6), sin(ang + 2.6)) * (9 * s), paint)
-      ..drawLine(
-          tip, tip + Offset(cos(ang - 2.6), sin(ang - 2.6)) * (9 * s), paint);
+      ..drawPath(path, fillPaint)
+      ..drawPath(path, roundStroke);
+
+    canvas.restore();
   }
 }
 

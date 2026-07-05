@@ -138,7 +138,17 @@ Widget _themedDialog({
           Row(mainAxisSize: MainAxisSize.min, children: actions),
         ],
       ),
-    ),
+    )
+        // flutter_animate 入場：淡入 + 由小彈出（easeOutBack 過衝），有彈跳感。
+        .animate()
+        .fadeIn(duration: 180.ms)
+        .scale(
+          begin: const Offset(0.25, 1.5),
+          // end: const Offset(1, 1),
+          duration: 300.ms,
+          // curve: Curves.easeOutBack,
+          curve: const Cubic(0.34, 1.56, 0.64, 1),
+        ),
   );
 }
 
