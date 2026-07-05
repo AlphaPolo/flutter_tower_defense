@@ -97,48 +97,20 @@ class SpikeTrapComponent extends TrapComponent {
     final r = game.board.hexagonRadius * s;
     final lit = _flash > 0;
 
-    // 貼地基座（iso 扁橢圓陰影）
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset.zero, width: r * 1.6, height: r * 0.85),
-      Paint()..color = Colors.black.withOpacity(0.28),
+    // KayKit 地牢尖刺：去掉平板金屬地面與外框，只留原素材的圓孔內壁 + 尖刺。
+    // 無陰影；垂直位移讓圓孔座落在格中心（貼地），尖刺往上。
+    // 命中時以暖色 srcATop 疊染做「觸發發亮」回饋。
+    final w = r * 1.4;
+    game.spikeTrapSprite.render(
+      canvas,
+      position: Vector2(-w / 2, -0.52 * w),
+      size: Vector2(w, w),
+      overridePaint: lit
+          ? (Paint()
+            ..colorFilter = const ColorFilter.mode(
+                Color(0x88FF8A3D), BlendMode.srcATop))
+          : null,
     );
-
-    // 一叢向上的尖刺（螢幕垂直），命中時偏暖色發亮。
-    final body = lit ? const Color(0xFFC07A2B) : const Color(0xFF74818D);
-    final highlight = lit ? const Color(0xFFFFE7A6) : const Color(0xFFE9EEF3);
-
-    // (相對基座中心的位置, 高度比例)；由後(上)往前(下)畫，前面的蓋住後面的。
-    const layout = [
-      [-0.42, 0.02, 0.62],
-      [0.40, 0.04, 0.62],
-      [0.02, -0.10, 0.70],
-      [-0.20, 0.18, 0.92],
-      [0.24, 0.18, 0.92],
-    ];
-    for (final spike in layout) {
-      final cx = spike[0] * r;
-      final cy = spike[1] * r;
-      final h = spike[2] * r;
-      final w = r * 0.17;
-      // 主體三角
-      canvas.drawPath(
-        Path()
-          ..moveTo(cx - w, cy)
-          ..lineTo(cx, cy - h)
-          ..lineTo(cx + w, cy)
-          ..close(),
-        Paint()..color = body,
-      );
-      // 左半高光，增加立體感
-      canvas.drawPath(
-        Path()
-          ..moveTo(cx - w, cy)
-          ..lineTo(cx, cy - h)
-          ..lineTo(cx, cy)
-          ..close(),
-        Paint()..color = highlight.withOpacity(0.9),
-      );
-    }
   }
 }
 

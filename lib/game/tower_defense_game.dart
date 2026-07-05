@@ -75,6 +75,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Sprite rockSprite; // 巨石(boulder)天然環境用
   late final Sprite thornsSprite; // 荊棘(thorns)天然環境用
   late final Sprite mudSprite; // 泥沼(mud)天然環境用
+  late final Sprite spikeTrapSprite; // 地刺陷阱(spike)用
 
   /// 敵人直立動畫 spritesheet（水平幀條），依 EnemyKind.id 索引；沒有的用顏色圓。
   final Map<String, ui.Image> enemySheets = {};
@@ -164,6 +165,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     rockSprite = await Sprite.load('rock.png', images: isoImages);
     thornsSprite = await Sprite.load('thorns.png', images: isoImages);
     mudSprite = await Sprite.load('mud.png', images: isoImages);
+    spikeTrapSprite = await Sprite.load('trap_spike.png', images: isoImages);
     logSheet = await isoImages.load('log_roll.png');
     explosionSheet = await isoImages.load('explosion.png');
     try {

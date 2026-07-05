@@ -31,6 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black87,
+      // 設定抽屜：由左上「設定」鈕開啟；關閉邊緣滑動手勢，避免與棋盤拖曳衝突。
+      drawer: SettingsDrawer(game: game),
+      drawerEnableOpenDragGesture: false,
       body: Column(
         children: [
           Expanded(

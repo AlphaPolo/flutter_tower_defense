@@ -116,6 +116,64 @@ def main():
         stack_top = 0.0
         for m in job["models"]:
             objs = import_gltf(m["path"])
+            # 選擇性排除子網格（依名稱子字串）：例如只留 spikes、去掉 floor_tile。
+            # 先把保留物件解除父子關係並保留世界座標，再刪除排除物件，避免位移。
+            excl = [e.lower() for e in (m.get("exclude") or [])]
+            if excl:
+                to_remove = [o for o in objs
+                             if any(e in o.name.lower() for e in excl)]
+                keep = [o for o in objs if o not in to_remove]
+                for o in keep:
+                    mw = o.matrix_world.copy()
+                    o.parent = None
+                    o.matrix_world = mw
+                for o in to_remove:
+                    bpy.data.objects.remove(o, do_unlink=True)
+                objs = keep
+                bpy.context.view_layer.update()
+            # 選擇性刪除「接近水平」的面（世界法線 |z|>threshold）：可去掉平板地面，
+            # 只留下垂直的圓孔內壁（保留原素材的圓孔），尖刺為錐面不受影響。
+            drop = m.get("dropFlatFaces")
+            if drop:
+                import bmesh
+                for o in objs:
+                    if o.type != "MESH":
+                        continue
+                    rot = o.matrix_world.to_3x3()
+                    bm = bmesh.new()
+                    bm.from_mesh(o.data)
+                    to_del = [f for f in bm.faces
+                              if abs((rot @ f.normal).normalized().z) > drop]
+                    bmesh.ops.delete(bm, geom=to_del, context="FACES")
+                    bm.to_mesh(o.data)
+                    bm.free()
+                bpy.context.view_layer.update()
+            # 選擇性刪除「靠外緣」的面（面中心 xy 超過 bbox 半徑 threshold）：
+            # 用來去掉方塊四周的外框，只留中央的圓孔內壁 + 尖刺。
+            outer = m.get("dropOuterFaces")
+            if outer:
+                import bmesh
+                mn0, mx0 = bbox_world(objs)
+                ocx = (mn0.x + mx0.x) / 2
+                ocy = (mn0.y + mx0.y) / 2
+                ohx = max((mx0.x - mn0.x) / 2, 1e-6)
+                ohy = max((mx0.y - mn0.y) / 2, 1e-6)
+                for o in objs:
+                    if o.type != "MESH":
+                        continue
+                    wm = o.matrix_world
+                    bm = bmesh.new()
+                    bm.from_mesh(o.data)
+                    to_del = []
+                    for f in bm.faces:
+                        c = wm @ f.calc_center_median()
+                        if max(abs(c.x - ocx) / ohx,
+                               abs(c.y - ocy) / ohy) > outer:
+                            to_del.append(f)
+                    bmesh.ops.delete(bm, geom=to_del, context="FACES")
+                    bm.to_mesh(o.data)
+                    bm.free()
+                bpy.context.view_layer.update()
             sc = m.get("scale", 1.0)
             if sc != 1.0:
                 for o in objs:

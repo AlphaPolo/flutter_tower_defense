@@ -69,8 +69,7 @@ BoxDecoration _panelBox({double radius = 12}) => BoxDecoration(
 /// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
 /// BoxFit.contain 讓裁切後的塔身維持比例並置中。
 Widget towerIcon(TowerType type) {
-  // 陷阱類 / 支援塔沒有 3D 模型素材，用程式繪製。
-  if (type == TowerType.spike) return const SpikeIcon();
+  // 渦流陷阱沒有 3D 模型素材，用程式繪製。
   if (type == TowerType.vortex) return const VortexIcon();
 
   // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
@@ -243,7 +242,7 @@ class LeftColOverlay extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             child: Stack(
               children: [
-                // 左上：狀態列 + 作弊開關
+                // 左上：狀態列 + 設定鈕（開啟設定抽屜）
                 Align(
                   alignment: Alignment.topLeft,
                   child: Column(
@@ -252,7 +251,9 @@ class LeftColOverlay extends StatelessWidget {
                     children: [
                       _statusPill(),
                       const SizedBox(height: 8),
-                      _SettingsMenu(game: game, trailing: _resetButton(context)),
+                      _hudButtons(),
+                      const SizedBox(height: 8),
+                      _cheatButton(), // 作弊模式（在設定/重新開始列下方）
                     ],
                   ),
                 ),
@@ -313,7 +314,13 @@ class LeftColOverlay extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _stat(
-              const Icon(Icons.waves, color: Colors.lightBlueAccent, size: 18),
+              // 波次：game-icons.net「crossed-sabres」(lorc, CC BY 3.0)，
+              // 白色 alpha 形狀以 srcIn 染成藍色。
+              Image.asset('assets/ui/crossed_sabres.png',
+                  width: 18,
+                  height: 18,
+                  color: Colors.lightBlueAccent,
+                  colorBlendMode: BlendMode.srcIn),
               game.wave,
               (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
           const SizedBox(width: 14),
@@ -349,29 +356,80 @@ class LeftColOverlay extends StatelessWidget {
   }
 
   /// 重置按鈕：詢問確認後重新開始整場遊戲。
-  Widget _resetButton(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF3C2A1C),
-          foregroundColor: _kGold,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          visualDensity: VisualDensity.compact,
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: _kGoldDeep, width: 1.2),
-          ),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-        onPressed: () => _confirmReset(context),
-        icon: const Icon(Icons.refresh, size: 16),
-        label: const Text('重置'),
-      ),
+  /// 左上 HUD 按鈕列：「設定」（開啟設定抽屜）＋「重新開始」（確認後重置）。
+  Widget _hudButtons() {
+    return Builder(
+      builder: (context) {
+        return Row(
+          spacing: 6,
+          children: [
+            GestureDetector(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: _woodBox(radius: 18, strong: false),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.settings, color: _kGold, size: 18),
+                    SizedBox(width: 6),
+                    Text('設定', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+                  ],
+                ),
+              ),
+            ),
+
+            GestureDetector(
+              onTap: () => _confirmReset(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: _woodBox(radius: 18, strong: false),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh, color: _kGold, size: 18),
+                    SizedBox(width: 6),
+                    Text('重新開始', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
+  /// 作弊模式切換鈕（HUD，設定/重新開始列下方）：開啟時整顆變綠。
+  Widget _cheatButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: game.cheat,
+      builder: (context, on, _) {
+        final color = on ? Colors.greenAccent : _kGold;
+        return GestureDetector(
+          onTap: () => game.toggleCheat(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: _woodBox(radius: 18, strong: false),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.bolt, color: color, size: 18),
+                const SizedBox(width: 6),
+                Text('作弊模式${on ? '：開' : ''}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 重新開始確認：清除進度前先跳確認對話框。
   void _confirmReset(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -807,114 +865,68 @@ class LeftColOverlay extends StatelessWidget {
       k.speedMul < 0.8 ? '慢' : (k.speedMul <= 1.3 ? '普通' : '快');
 }
 
-/// 齒輪設定選單：把開發用開關（作弊 / 火焰變淡 / 水面倒影）收進可展開的
-/// 木質小面板，讓主畫面更乾淨。點齒輪展開/收合。
-class _SettingsMenu extends StatefulWidget {
-  const _SettingsMenu({required this.game, required this.trailing});
+/// 設定抽屜：特效開關（由左上「設定」鈕開啟）。
+/// 作弊模式與重新開始鈕都在左上 HUD、不在此。
+class SettingsDrawer extends StatelessWidget {
+  const SettingsDrawer({super.key, required this.game});
   final TowerDefenseGame game;
-  final Widget trailing; // 齒輪旁固定顯示的按鈕（重置）——展開開關時不會被推擠。
-
-  @override
-  State<_SettingsMenu> createState() => _SettingsMenuState();
-}
-
-class _SettingsMenuState extends State<_SettingsMenu> {
-  bool _open = false;
-  TowerDefenseGame get game => widget.game;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 齒輪 + 重置固定在同一列；展開只會往「下方」長出開關列，不動這一列。
-        Row(
-          mainAxisSize: MainAxisSize.min,
+    return Drawer(
+      width: 300,
+      backgroundColor: const Color(0xFF241811), // 深木底
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _gearChip(),
-            const SizedBox(width: 8),
-            widget.trailing,
-          ],
-        ),
-        // 展開：三個開關以橫向 row 出現在下方（覆在棋盤上、不推擠上方按鈕）。
-        if (_open)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _switchChip(game.cheat, () => game.toggleCheat(), '作弊',
-                    Colors.greenAccent),
-                const SizedBox(width: 8),
-                _switchChip(
-                    game.dimFlame,
-                    () => game.dimFlame.value = !game.dimFlame.value,
-                    '火焰變淡',
-                    Colors.orangeAccent),
-                const SizedBox(width: 8),
-                _switchChip(
-                    game.waterReflection,
-                    () => game.waterReflection.value = !game.waterReflection.value,
-                    '水面倒影',
-                    Colors.lightBlueAccent),
-              ],
+            // 標題
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 12, 12),
+              child: Row(
+                children: [
+                  Icon(Icons.settings, color: _kGold, size: 24),
+                  SizedBox(width: 10),
+                  Text('設定',
+                      style: TextStyle(
+                          color: _kGold,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
-          ),
-      ],
-    );
-  }
-
-  Widget _gearChip() {
-    return GestureDetector(
-      onTap: () => setState(() => _open = !_open),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: _woodBox(radius: 18, strong: false),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_open ? Icons.expand_less : Icons.settings,
-                color: _kGold, size: 18),
-            const SizedBox(width: 4),
-            const Text('設定',
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+            const Divider(color: _kGoldDeep, height: 1),
+            // 一般設定
+            _switchTile(game.dimFlame,
+                () => game.dimFlame.value = !game.dimFlame.value,
+                Icons.local_fire_department, '火焰特效變淡', Colors.orangeAccent),
+            _switchTile(
+                game.waterReflection,
+                () => game.waterReflection.value = !game.waterReflection.value,
+                Icons.water,
+                '水面倒影',
+                Colors.lightBlueAccent),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
-  /// 單一開關晶片：綁一個 bool ValueNotifier + 切換動作 + 標籤 + 開啟色。
-  Widget _switchChip(ValueListenable<bool> vn, VoidCallback onToggle,
-      String label, Color onColor) {
+  /// 單一開關列：圖示 + 標籤 + CupertinoSwitch；開啟時以 [onColor] 上色。
+  Widget _switchTile(ValueListenable<bool> vn, VoidCallback onToggle,
+      IconData icon, String label, Color onColor) {
     return ValueListenableBuilder<bool>(
       valueListenable: vn,
-      builder: (context, on, _) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: _woodBox(radius: 18, strong: false),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Transform.scale(
-                scale: 0.7,
-                child: CupertinoSwitch(value: on, onChanged: (_) => onToggle()),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: on ? onColor : Colors.grey[300],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (context, on, _) => ListTile(
+        leading: Icon(icon, color: on ? onColor : Colors.grey[500]),
+        title: Text(label,
+            style: TextStyle(
+                color: on ? onColor : Colors.grey[300],
+                fontWeight: FontWeight.bold)),
+        trailing: CupertinoSwitch(value: on, onChanged: (_) => onToggle()),
+        onTap: onToggle,
+      ),
     );
   }
 }
