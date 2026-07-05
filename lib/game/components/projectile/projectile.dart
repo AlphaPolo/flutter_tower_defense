@@ -617,7 +617,8 @@ class RollingLogProjectileComponent extends ProjectileComponent {
       }
     }
 
-    // 停止：滾出棋盤，或撞到建築（塔/障礙；陷阱不在 towers → 不擋）。起始格(塔自身)不算。
+    // 停止：滾出棋盤，或撞到建築（塔/障礙；陷阱不在 towers → 不擋），
+    // 或撞到擋路型天然環境（巨石/密林/水池）。起始格(塔自身)不算。
     final bp = game.board.pointToBoardPoint(Offset(logical.x, logical.y));
     if (bp == null) {
       dead = true; // 滾出場外
@@ -625,6 +626,10 @@ class RollingLogProjectileComponent extends ProjectileComponent {
     }
     if (bp != originCell && game.towers.containsKey(bp)) {
       dead = true; // 撞上建築停下
+      return;
+    }
+    if (bp != originCell && (game.environment[bp]?.blocks ?? false)) {
+      dead = true; // 撞上擋路型天然環境（巨石/密林/水池）停下
       return;
     }
   }
