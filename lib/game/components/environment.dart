@@ -43,6 +43,8 @@ class EnvComponent extends PositionComponent
   // 倒影往水池中心拉近的比例：0＝落在物件腳下(常被裁掉、露出少)，1＝拉到水池
   // 正中央。離水池越遠的物件被拉越多，正好補償「後方物件倒影跑到池外」。
   static const double _reflPull = 0.3;
+  // 水池外型不規則程度：0＝正圓，越大邊緣越有機（各池外型不同但固定）。
+  static const double _pondWobble = 0.05;
 
   bool get _standing => envType == EnvType.boulder || envType == EnvType.woods;
 
@@ -96,13 +98,13 @@ class EnvComponent extends PositionComponent
             ..setFloat(2, _t);
           canvas
             ..save()
-            ..clipPath(_groundPath(foot))
+            ..clipPath(_groundPath(foot, wobble: _pondWobble))
             ..drawRect(
                 Offset.zero & Size(size.x, size.y), Paint()..shader = shader)
             ..restore();
         } else {
           // 退回：平面水池 + 反光。
-          _flat(canvas, foot, const Color(0xCC1E88E5));
+          _flat(canvas, foot, const Color(0xCC1E88E5), wobble: _pondWobble);
           canvas.drawOval(
             Rect.fromCenter(
                 center: foot.translate(-3 * s, -2 * s),
@@ -130,15 +132,24 @@ class EnvComponent extends PositionComponent
     }
   }
 
-  /// 貼地的橢圓路徑（用 iso 地面基向量，讓它躺在地面角度上）。
-  Path _groundPath(Offset foot) {
+  /// 貼地的路徑（用 iso 地面基向量，讓它躺在地面角度上）。
+  /// [wobble]>0 時把半徑依角度做週期擾動 → 有機、非正圓的外型；用 location 當
+  /// 種子，讓每個水池長得不一樣但每幀穩定（不會抖）。
+  Path _groundPath(Offset foot, {double wobble = 0}) {
     final ax = game.iso.axisX;
     final ay = game.iso.axisY;
     final r = game.board.hexagonRadius * 0.72;
+    final seed = location.q * 2.7 + location.r * 1.3;
+    const steps = 40;
     final path = Path();
-    for (var i = 0; i <= 24; i++) {
-      final a = i / 24 * 2 * pi;
-      final d = ax * (r * cos(a)) + ay * (r * sin(a));
+    for (var i = 0; i <= steps; i++) {
+      final a = i / steps * 2 * pi;
+      final k = wobble == 0
+          ? 1.0
+          : 1.0 +
+              wobble * (sin(a * 3 + seed) * 0.6 + sin(a * 5 - seed * 1.7) * 0.4);
+      final rr = r * k;
+      final d = ax * (rr * cos(a)) + ay * (rr * sin(a));
       final pt = Offset(foot.dx + d.x, foot.dy + d.y);
       i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
     }
@@ -169,7 +180,7 @@ class EnvComponent extends PositionComponent
     // 藍色調 + 淡出一次套在整個倒影圖層上（srcATop 只染有內容處，空白處維持透明）。
     canvas
       ..save()
-      ..clipPath(_groundPath(foot))
+      ..clipPath(_groundPath(foot, wobble: _pondWobble))
       ..saveLayer(
         null,
         Paint()
@@ -220,6 +231,6 @@ class EnvComponent extends PositionComponent
   }
 
   /// 用貼地橢圓填一塊顏色。
-  void _flat(Canvas canvas, Offset foot, Color col) =>
-      canvas.drawPath(_groundPath(foot), Paint()..color = col);
+  void _flat(Canvas canvas, Offset foot, Color col, {double wobble = 0}) =>
+      canvas.drawPath(_groundPath(foot, wobble: wobble), Paint()..color = col);
 }
