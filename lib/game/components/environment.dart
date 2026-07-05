@@ -175,6 +175,10 @@ class EnvComponent extends PositionComponent
     return _cachedGround = (path..close());
   }
 
+  /// 會在水面產生倒影的「立體」天然環境（平面的泥沼/水池本身不倒映）。
+  bool _reflectable(EnvType? e) =>
+      e == EnvType.boulder || e == EnvType.woods || e == EnvType.thorns;
+
   /// 建立本幀的「倒影圖」：把水池後方相鄰的塔與附近敵人翻轉、往池中心拉近、
   /// 垂直壓縮後畫進一張與水池同尺寸的圖（不染色、不折射 → 交給 water.frag 逐像素
   /// 折射與上色）。沒有可倒映物件時回傳 null（呼叫端改綁透明圖、關閉倒影）。
@@ -184,6 +188,11 @@ class EnvComponent extends PositionComponent
       for (final n in location.getNeighbors())
         if (game.towers[n] != null && game.boardToScreen(n).y < sp.y) n,
     ];
+    final envCells = <BoardPoint>[
+      for (final n in location.getNeighbors())
+        if (_reflectable(game.environment[n]) && game.boardToScreen(n).y < sp.y)
+          n,
+    ];
     final range = size.x * 1.1;
     final enemies = [
       for (final e in game.enemies)
@@ -192,7 +201,7 @@ class EnvComponent extends PositionComponent
             (e.position - sp).length2 < range * range)
           e,
     ];
-    if (towerCells.isEmpty && enemies.isEmpty) return null;
+    if (towerCells.isEmpty && envCells.isEmpty && enemies.isEmpty) return null;
 
     final recorder = ui.PictureRecorder();
     final rc = Canvas(recorder);
@@ -211,6 +220,40 @@ class EnvComponent extends PositionComponent
         ..translate(0, -lc.dy);
       t.sprite.render(rc,
           position: Vector2(lc.dx - sz.x / 2, lc.dy - sz.y / 2), size: sz);
+      rc.restore();
+    }
+    // 天然環境（巨石/密林/荊棘）：與塔相同方式鏡射進倒影。
+    for (final n in envCells) {
+      final Sprite spr;
+      final double f; // 尺寸倍率，與 render() 內各環境一致
+      switch (game.environment[n]!) {
+        case EnvType.boulder:
+          spr = game.rockSprite;
+          f = 1.2;
+          break;
+        case EnvType.woods:
+          spr = game.treeSprite;
+          f = 1.6;
+          break;
+        case EnvType.thorns:
+          spr = game.thornsSprite;
+          f = 1.3;
+          break;
+        default:
+          continue;
+      }
+      final sc = game.boardToScreen(n);
+      final lc = Offset(sc.x - sp.x + foot.dx, sc.y - sp.y + foot.dy);
+      final w = size.x * f;
+      final pull = (foot - lc) * _reflPull;
+      rc
+        ..save()
+        ..translate(pull.dx, pull.dy)
+        ..translate(0, lc.dy)
+        ..scale(1, -_reflScaleY)
+        ..translate(0, -lc.dy);
+      spr.render(rc,
+          position: Vector2(lc.dx - w / 2, lc.dy - w / 2), size: Vector2(w, w));
       rc.restore();
     }
     // 敵人：renderBody 圍繞原點(接地點)繪製，把原點移到水池內位置後翻轉。
