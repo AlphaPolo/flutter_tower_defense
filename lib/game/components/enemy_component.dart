@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../board/hex.dart';
 import '../effects/effect.dart';
 import '../effects/particles.dart';
+import '../effects/pop_in.dart';
 import '../tower_defense_game.dart';
 import 'enemy_kind.dart';
 import 'enemy_status.dart';
@@ -52,6 +53,9 @@ class EnemyComponent extends PositionComponent
     game.registerEnemy(this);
     logicalPos.setFrom(game.boardToLogical(currentLocation));
     _syncScreen();
+    // 出場 squash & stretch 彈出（與塔共用）。
+    scale.setValues(0, 0);
+    add(popInEffect());
   }
 
   @override

@@ -77,6 +77,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Sprite mudSprite; // 泥沼(mud)天然環境用
   late final Sprite spikeTrapSprite; // 地刺陷阱(spike)用
 
+  // ── 粒子特效素材 ─────────────────────────────────────────
+  final Images fxImages = Images(prefix: 'assets/fx/');
+  late final SpriteAnimation dustAnim; // 敵人出場的塵土特效（一次性）
+
   /// 敵人直立動畫 spritesheet（水平幀條），依 EnemyKind.id 索引；沒有的用顏色圓。
   final Map<String, ui.Image> enemySheets = {};
 
@@ -166,6 +170,16 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     thornsSprite = await Sprite.load('thorns.png', images: isoImages);
     mudSprite = await Sprite.load('mud.png', images: isoImages);
     spikeTrapSprite = await Sprite.load('trap_spike.png', images: isoImages);
+    final dustImg = await fxImages.load('dust.png');
+    dustAnim = SpriteAnimation.fromFrameData(
+      dustImg,
+      SpriteAnimationData.sequenced(
+        amount: 8,
+        stepTime: 0.045,
+        textureSize: Vector2.all(64),
+        loop: false,
+      ),
+    );
     logSheet = await isoImages.load('log_roll.png');
     explosionSheet = await isoImages.load('explosion.png');
     try {
@@ -307,6 +321,21 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 敵人所在格的天然環境每秒傷害（0＝無；荊棘會持續扣血）。
   double envDpsAt(BoardPoint cell) =>
       environment[cell] == EnvType.thorns ? 8.0 : 0.0;
+
+  /// 在螢幕座標 [pos] 播放一次性塵土特效（敵人出場用）。
+  void spawnDust(Vector2 pos) {
+    final sz = board.hexagonRadius * 1.5 * iso.scaleX;
+    world.add(
+      SpriteAnimationComponent(
+        animation: dustAnim,
+        anchor: Anchor.center,
+        position: pos,
+        size: Vector2.all(sz),
+        removeOnFinish: true,
+        priority: pos.y.round() - 2, // 畫在敵人之後(下)，敵人像從塵土中冒出
+      )..paint.filterQuality = FilterQuality.none,
+    );
+  }
 
   bool hasEnemyOn(BoardPoint point) => enemies.any(
         (e) => e.currentLocation == point || e.goalLocation == point,

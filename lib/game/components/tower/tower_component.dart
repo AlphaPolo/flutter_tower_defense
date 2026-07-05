@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../board/hex.dart';
+import '../../effects/pop_in.dart';
 import '../../tower_defense_game.dart';
 import '../../tower_type.dart';
 import '../enemy_component.dart';
@@ -68,6 +69,10 @@ class TowerComponent extends PositionComponent
     size = sprite.srcSize * spriteScale;
     position.setFrom(game.boardToScreen(location));
     priority = position.y.round();
+
+    // 蓋出來時的 squash & stretch 彈出（塔與敵人共用 popInEffect）。
+    scale.setValues(0, 0);
+    add(popInEffect());
   }
 
   @override
