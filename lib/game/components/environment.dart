@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
@@ -36,13 +37,14 @@ class EnvComponent extends PositionComponent
   double _t = 0; // 水面 shader 的動畫時間
 
   // ── 水面倒影可調參數（Route B）──────────────────────────────
-  static const double _reflAlpha = 0.42; // 倒影整體不透明度
   static const double _reflScaleY = 0.9; // 垂直壓縮（水面透視感）
-  static const double _reflSway = 2.5; // 隨水波左右晃動幅度(px)
-  static const Color _reflTint = Color(0x552A6FB0); // 藍色調（倒影用，維持原設定）
-  // 倒影往水池中心拉近的比例：0＝落在物件腳下(常被裁掉、露出少)，1＝拉到水池
-  // 正中央。離水池越遠的物件被拉越多，正好補償「後方物件倒影跑到池外」。
+  static const double _reflAmt = 0.7; // 倒影不透明度（傳進 shader，按 R 生效）
+  static const double _reflRefract = 0.016; // 倒影左右搖擺幅度（按 R 生效）
+  // 倒影往水池中心拉近的比例：0＝落在物件腳下(常被裁掉、露出少)，1＝拉到池中央。
   static const double _reflPull = 0.3;
+
+  ui.Image? _reflImg; // 本幀倒影圖（延後一幀釋放，避免 GPU 記憶體累積）
+  static ui.Image? _blankImg; // 沒有可倒映物件時綁的 1x1 透明圖
   // 水池外型不規則程度：0＝正圓，越大邊緣越有機（各池外型不同但固定）。
   static const double _pondWobble = 0.05;
 
@@ -91,19 +93,27 @@ class EnvComponent extends PositionComponent
       case EnvType.pond:
         final prog = game.waterProgram;
         if (prog != null) {
-          // 動態水面 fragment shader，剪裁成貼地橢圓。
+          // 倒影圖：把後方相鄰的塔/附近敵人翻轉畫進一張圖，交給 shader 逐像素折射。
+          // 開關關閉時不建圖（省下每幀 toImageSync），水面照常繪製、只是沒有倒影。
+          final refl =
+              game.waterReflection.value ? _buildReflectionImage(foot) : null;
           final shader = prog.fragmentShader()
             ..setFloat(0, size.x)
             ..setFloat(1, size.y)
-            ..setFloat(2, _t);
+            ..setFloat(2, _t)
+            ..setFloat(3, refl != null ? _reflAmt : 0.0)
+            ..setFloat(4, _reflRefract)
+            ..setImageSampler(0, refl ?? _blank());
           canvas
             ..save()
             ..clipPath(_groundPath(foot, wobble: _pondWobble))
             ..drawRect(
                 Offset.zero & Size(size.x, size.y), Paint()..shader = shader)
             ..restore();
+          _reflImg?.dispose(); // 釋放上一幀（已光柵化）的圖
+          _reflImg = refl;
         } else {
-          // 退回：平面水池 + 反光。
+          // 退回：平面水池 + 反光（無 shader → 無倒影）。
           _flat(canvas, foot, const Color(0xCC1E88E5), wobble: _pondWobble);
           canvas.drawOval(
             Rect.fromCenter(
@@ -113,7 +123,6 @@ class EnvComponent extends PositionComponent
             Paint()..color = const Color(0x88BBDEFB),
           );
         }
-        _renderReflections(canvas, foot);
         break;
       case EnvType.mud:
         _flat(canvas, foot, const Color(0xCC5D4037));
@@ -132,10 +141,16 @@ class EnvComponent extends PositionComponent
     }
   }
 
+  Path? _cachedGround; // 剪裁路徑對本元件固定 → 只算一次、之後每幀重用
+  double? _cachedWobble;
+
   /// 貼地的路徑（用 iso 地面基向量，讓它躺在地面角度上）。
   /// [wobble]>0 時把半徑依角度做週期擾動 → 有機、非正圓的外型；用 location 當
   /// 種子，讓每個水池長得不一樣但每幀穩定（不會抖）。
+  /// foot／iso／半徑／wobble 對本元件皆固定，故算一次後快取重用（免每幀重建）。
   Path _groundPath(Offset foot, {double wobble = 0}) {
+    final cached = _cachedGround;
+    if (cached != null && _cachedWobble == wobble) return cached;
     final ax = game.iso.axisX;
     final ay = game.iso.axisY;
     final r = game.board.hexagonRadius * 0.72;
@@ -153,20 +168,19 @@ class EnvComponent extends PositionComponent
       final pt = Offset(foot.dx + d.x, foot.dy + d.y);
       i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
     }
-    return path..close();
+    _cachedWobble = wobble;
+    return _cachedGround = (path..close());
   }
 
-  /// 水面倒影：把水池「後方」相鄰的塔上下翻轉、藍調、淡出、隨水波輕晃，
-  /// 裁進水池橢圓後疊在水面上（參考 Cyanilux 2D water 的倒影概念，
-  /// 用 Flame 直接複製翻轉 sprite 取代 Unity 的反射攝影機 + RenderTexture）。
-  void _renderReflections(Canvas canvas, Offset foot) {
+  /// 建立本幀的「倒影圖」：把水池後方相鄰的塔與附近敵人翻轉、往池中心拉近、
+  /// 垂直壓縮後畫進一張與水池同尺寸的圖（不染色、不折射 → 交給 water.frag 逐像素
+  /// 折射與上色）。沒有可倒映物件時回傳 null（呼叫端改綁透明圖、關閉倒影）。
+  ui.Image? _buildReflectionImage(Offset foot) {
     final sp = position; // 水池中心（世界座標 = boardToScreen(location)）
-    // 後方(螢幕較上)相鄰格上的塔。
     final towerCells = <BoardPoint>[
       for (final n in location.getNeighbors())
         if (game.towers[n] != null && game.boardToScreen(n).y < sp.y) n,
     ];
-    // 靠近且在後方、還活著的敵人（型別由 game.enemies 推得為 EnemyComponent）。
     final range = size.x * 1.1;
     final enemies = [
       for (final e in game.enemies)
@@ -175,59 +189,60 @@ class EnvComponent extends PositionComponent
             (e.position - sp).length2 < range * range)
           e,
     ];
-    if (towerCells.isEmpty && enemies.isEmpty) return;
+    if (towerCells.isEmpty && enemies.isEmpty) return null;
 
-    // 藍色調 + 淡出一次套在整個倒影圖層上（srcATop 只染有內容處，空白處維持透明）。
-    canvas
-      ..save()
-      ..clipPath(_groundPath(foot, wobble: _pondWobble))
-      ..saveLayer(
-        null,
-        Paint()
-          ..color = Colors.white.withOpacity(_reflAlpha)
-          ..colorFilter = const ColorFilter.mode(_reflTint, BlendMode.srcATop),
-      );
-
-    // 塔：sprite 圍繞元件中心；翻轉後往水池中心拉近(_reflPull)，讓倒影落在水面內。
+    final recorder = ui.PictureRecorder();
+    final rc = Canvas(recorder);
+    // 塔：以接地點(格中心)鏡射、往池中心拉近、垂直壓縮。
     for (final n in towerCells) {
       final t = game.towers[n]!;
       final sc = game.boardToScreen(n);
       final lc = Offset(sc.x - sp.x + foot.dx, sc.y - sp.y + foot.dy);
       final sz = t.size;
-      final sway = sin(_t * 1.3 + n.q * 1.7 + n.r * 0.9) * _reflSway;
       final pull = (foot - lc) * _reflPull;
-      canvas
+      rc
         ..save()
-        ..translate(pull.dx + sway, pull.dy)
+        ..translate(pull.dx, pull.dy)
         ..translate(0, lc.dy)
         ..scale(1, -_reflScaleY)
         ..translate(0, -lc.dy);
-      t.sprite.render(
-        canvas,
-        position: Vector2(lc.dx - sz.x / 2, lc.dy - sz.y / 2),
-        size: sz,
-      );
-      canvas.restore();
+      t.sprite.render(rc,
+          position: Vector2(lc.dx - sz.x / 2, lc.dy - sz.y / 2), size: sz);
+      rc.restore();
     }
-
-    // 敵人：renderBody 圍繞 local 原點(=接地點)繪製；把原點移到牠在水池內的
-    // 位置(往中心拉 _reflPull)後直接垂直翻轉（會隨牠移動每幀更新）。
+    // 敵人：renderBody 圍繞原點(接地點)繪製，把原點移到水池內位置後翻轉。
     for (final e in enemies) {
       final lc =
           Offset(e.position.x - sp.x + foot.dx, e.position.y - sp.y + foot.dy);
-      final sway = sin(_t * 1.3 + (e.hashCode % 100) * 0.1) * _reflSway;
-      final o = lc + (foot - lc) * _reflPull; // 往水池中心拉近的接地點
-      canvas
+      final o = lc + (foot - lc) * _reflPull;
+      rc
         ..save()
-        ..translate(o.dx + sway, o.dy)
+        ..translate(o.dx, o.dy)
         ..scale(1, -_reflScaleY);
-      e.renderBody(canvas);
-      canvas.restore();
+      e.renderBody(rc);
+      rc.restore();
     }
+    final picture = recorder.endRecording();
+    final img = picture.toImageSync(
+        size.x.ceil().clamp(1, 2048), size.y.ceil().clamp(1, 2048));
+    picture.dispose();
+    return img;
+  }
 
-    canvas
-      ..restore() // saveLayer
-      ..restore(); // clipPath
+  /// sampler 一定要綁東西：沒有倒影時綁這張快取的 1x1 透明圖。
+  ui.Image _blank() {
+    final cached = _blankImg;
+    if (cached != null) return cached;
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder); // 什麼都不畫 → 透明
+    return _blankImg = recorder.endRecording().toImageSync(1, 1);
+  }
+
+  @override
+  void onRemove() {
+    _reflImg?.dispose();
+    _reflImg = null;
+    super.onRemove();
   }
 
   /// 用貼地橢圓填一塊顏色。

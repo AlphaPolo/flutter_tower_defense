@@ -201,9 +201,16 @@ class LeftColOverlay extends StatelessWidget {
                     children: [
                       _statusPill(),
                       const SizedBox(height: 8),
-                      _cheatSwitch(),
-                      const SizedBox(height: 8),
-                      _flameDimSwitch(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _cheatSwitch(),
+                          const SizedBox(width: 8),
+                          _flameDimSwitch(),
+                          const SizedBox(width: 8),
+                          _waterReflectionSwitch(),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       _resetButton(context),
                     ],
@@ -411,6 +418,44 @@ class LeftColOverlay extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: dim ? Colors.orangeAccent : Colors.grey[300],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 開關：水面倒影（逐像素折射）。效能吃緊時可關 → 水面照舊、只省倒影運算。
+  Widget _waterReflectionSwitch() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: game.waterReflection,
+      builder: (context, on, _) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: 0.7,
+                child: CupertinoSwitch(
+                  value: on,
+                  onChanged: (_) =>
+                      game.waterReflection.value = !game.waterReflection.value,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '水面倒影',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: on ? Colors.lightBlueAccent : Colors.grey[300],
                 ),
               ),
             ],

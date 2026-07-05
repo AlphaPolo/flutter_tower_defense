@@ -7,8 +7,11 @@
 //   2. 兩層反向流動的雜訊疊出「會動」的水面高度場
 //   3. 對高度場取等高線 + step，壓出銳利的白色焦散亮線與浪花斑塊
 // uniform 維持 uSize/uTime（Dart 端 setFloat 索引不變）。
-uniform vec2 uSize;  // 繪製區塊尺寸(px)
-uniform float uTime; // 秒
+uniform vec2 uSize;   // 繪製區塊尺寸(px)
+uniform float uTime;  // 秒
+uniform float uReflectAmt;  // 倒影不透明度(0=關閉)
+uniform float uRefract;     // 折射強度（水波扭動倒影的幅度）
+uniform sampler2D uReflect; // 倒影圖（翻轉後的塔/敵人，水池本地座標）
 out vec4 fragColor;
 
 float hash(vec2 p) {
@@ -61,7 +64,15 @@ void main() {
   float foamPatch = smoothstep(0.80, 0.82, surf) * 0.6;
 
   float foam = clamp(lines + foamPatch, 0.0, 1.0);
-  vec3 col = mix(base, vec3(1.0), foam);
+
+  // 倒影：水平方向隨時間左右擺盪（sway；用 y 給一點相位差 → 帶水波感），
+  // 再取樣倒影圖疊在水色與浪花之間 → 像照在盪漾水面上左右搖擺。
+  float swayX = sin(uv.y * 8.0 + uTime * 1.5) * uRefract;
+  vec2 ruv = uv + vec2(swayX, 0.0);
+  vec4 refl = texture(uReflect, ruv);
+  vec3 reflCol = mix(refl.rgb, vec3(0.165, 0.435, 0.69), 0.33); // 藍色調
+  vec3 col = mix(base, reflCol, refl.a * uReflectAmt);
+  col = mix(col, vec3(1.0), foam);
 
   fragColor = vec4(col, 0.92);
 }

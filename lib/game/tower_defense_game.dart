@@ -100,6 +100,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<bool> cheat = ValueNotifier(false);
   // 開關：開啟後噴火塔特效變淡（提高透明度），預設關（原亮度）。
   final ValueNotifier<bool> dimFlame = ValueNotifier(false);
+  // 開關：水面倒影（逐像素折射）。預設開；效能吃緊可關 → 水面照舊、只省倒影運算。
+  final ValueNotifier<bool> waterReflection = ValueNotifier(true);
   final ValueNotifier<TowerType?> selecting = ValueNotifier(null);
   // 目前被點選查看的「已蓋建築」格子（顯示資訊面板 + 拆除按鈕）。
   final ValueNotifier<BoardPoint?> inspecting = ValueNotifier(null);
