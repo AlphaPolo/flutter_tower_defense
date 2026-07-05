@@ -740,13 +740,35 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     resumeEngine();
   }
 
+  /// 風刃塔相鄰密林時，每波產出的林木金幣。
+  static const int kWoodsIncome = 8;
+
   void _onWaveCompleted() {
     completedWaves++;
     waveRunning.value = false;
     freeObstacle.value += 1; // 每完成一波送一個障礙物
+    _grantWoodsIncome(); // 風刃塔 × 密林：每波產小量金幣
     if (completedWaves >= totalWaves) {
       gameWon.value = true;
       pauseEngine();
+    }
+  }
+
+  /// 風刃塔每有一片「相鄰密林(woods)」，每波就產出 [kWoodsIncome] 金幣
+  /// （相鄰兩片密林＝2×，以此類推）。
+  void _grantWoodsIncome() {
+    var gold = 0;
+    for (final entry in towers.entries) {
+      if (entry.value is! AirBladeTowerComponent) continue;
+      for (final n in entry.key.getNeighbors()) {
+        if (environment[n] == EnvType.woods) {
+          gold += kWoodsIncome; // 每片相鄰密林各算一次
+        }
+      }
+    }
+    if (gold > 0) {
+      coin.value += gold;
+      showMessage('密林資源 +$gold');
     }
   }
 
