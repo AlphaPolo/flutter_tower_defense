@@ -7,14 +7,12 @@ import 'package:flutter/material.dart';
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
 
-final _rnd = Random();
-
 /// 每場隨機佈置的天然環境種類。
 /// [blocks]＝是否阻擋敵人路線（也一律不可在上面建塔，見 game.isPlaceable）。
 enum EnvType {
   boulder(blocks: true, label: '巨石', desc: '天然巨石，單純阻擋敵人前進。'),
   pond(blocks: true, label: '水池', desc: '無法跨越的水池，阻擋路線。'),
-  woods(blocks: true, label: '密林', desc: '茂密樹林，阻擋路線。'),
+  woods(blocks: true, label: '密林', desc: '茂密樹林，阻擋路線。風刃塔蓋在旁邊時，每波會產出金幣（每片密林各算一次）。'),
   mud(blocks: false, label: '泥沼', desc: '不阻擋路線；經過的敵人會被減速。'),
   thorns(blocks: false, label: '荊棘', desc: '不阻擋路線；經過的敵人持續受到少量傷害。');
 
@@ -33,7 +31,6 @@ class EnvComponent extends PositionComponent
 
   final EnvType envType;
   final BoardPoint location;
-  late final int _variant = _rnd.nextInt(game.obstacleSprites.length);
   double _t = 0; // 水面 shader 的動畫時間
 
   // ── 水面倒影可調參數（Route B）──────────────────────────────
@@ -72,23 +69,23 @@ class EnvComponent extends PositionComponent
     final foot = Offset(size.x / 2, size.y / 2);
     switch (envType) {
       case EnvType.boulder:
-        game.obstacleSprites[_variant].render(canvas, size: size);
+        // KayKit 岩石群 3D 素材（多塊石頭組成），底部對齊格子中心。
+        final rw = size.x * 1.2;
+        game.rockSprite.render(
+          canvas,
+          position: Vector2(size.x / 2 - rw / 2, size.y / 2 - rw * 0.5),
+          size: Vector2(rw, rw),
+        );
         break;
       case EnvType.woods:
-        _flat(canvas, foot, const Color(0x553B5323));
-        for (final dx in const [-0.35, 0.08, 0.4]) {
-          final c = foot.translate(dx * r * s, -0.15 * r * s);
-          canvas
-            ..drawRect(
-                Rect.fromCenter(
-                    center: c.translate(0, 7 * s),
-                    width: 2.5 * s,
-                    height: 8 * s),
-                Paint()..color = const Color(0xFF5D4037))
-            ..drawCircle(c, 7.5 * s, Paint()..color = const Color(0xFF2E7D32))
-            ..drawCircle(c.translate(-2 * s, -2 * s), 3 * s,
-                Paint()..color = const Color(0xFF43A047));
-        }
+        // KayKit 樹叢 3D 素材：畫大一點、樹叢底部對齊格子中心 → 像從格子長出來、
+        // 立體地擋在路上（素材裡樹叢底約在圖高 62% 處）。
+        final w = size.x * 1.6;
+        game.treeSprite.render(
+          canvas,
+          position: Vector2(size.x / 2 - w / 2, size.y / 2 - w * 0.5),
+          size: Vector2(w, w),
+        );
         break;
       case EnvType.pond:
         final prog = game.waterProgram;
@@ -128,15 +125,13 @@ class EnvComponent extends PositionComponent
         _flat(canvas, foot, const Color(0xCC5D4037));
         break;
       case EnvType.thorns:
-        _flat(canvas, foot, const Color(0xAA33691E));
-        final p = Paint()
-          ..color = const Color(0xFF9CCC65)
-          ..strokeWidth = 1.8 * s
-          ..strokeCap = StrokeCap.round;
-        for (final off in const [-0.35, -0.1, 0.15, 0.4]) {
-          final b = foot.translate(off * r * s, 0.15 * r * s);
-          canvas.drawLine(b, b.translate(1 * s, -8 * s), p);
-        }
+        // KayKit 灌木叢 3D 素材（帶刺矮樹叢），底部對齊格子中心。
+        final tw = size.x * 1.3;
+        game.thornsSprite.render(
+          canvas,
+          position: Vector2(size.x / 2 - tw / 2, size.y / 2 - tw * 0.5),
+          size: Vector2(tw, tw),
+        );
         break;
     }
   }
