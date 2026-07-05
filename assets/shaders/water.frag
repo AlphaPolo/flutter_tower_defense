@@ -40,8 +40,9 @@ void main() {
   float t = uTime;
 
   // --- 底色：深/淺藍雙色，用慢速大尺度雜訊做水深變化 ---
-  vec3 deep = vec3(0.03, 0.22, 0.60);
-  vec3 shallow = vec3(0.18, 0.60, 0.98);
+  // 想更淺→把數值往 1.0 加；想更深→往 0 減。
+  vec3 deep = vec3(0.26, 0.53, 0.86);
+  vec3 shallow = vec3(0.62, 0.85, 1.0);
   float depth = fbm(uv * 2.5 + vec2(t * 0.03, -t * 0.02));
   vec3 base = mix(deep, shallow, smoothstep(0.30, 0.75, depth));
 

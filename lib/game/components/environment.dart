@@ -35,6 +35,15 @@ class EnvComponent extends PositionComponent
   late final int _variant = _rnd.nextInt(game.obstacleSprites.length);
   double _t = 0; // 水面 shader 的動畫時間
 
+  // ── 水面倒影可調參數（Route B）──────────────────────────────
+  static const double _reflAlpha = 0.42; // 倒影整體不透明度
+  static const double _reflScaleY = 0.9; // 垂直壓縮（水面透視感）
+  static const double _reflSway = 2.5; // 隨水波左右晃動幅度(px)
+  static const Color _reflTint = Color(0x552A6FB0); // 藍色調（倒影用，維持原設定）
+  // 倒影往水池中心拉近的比例：0＝落在物件腳下(常被裁掉、露出少)，1＝拉到水池
+  // 正中央。離水池越遠的物件被拉越多，正好補償「後方物件倒影跑到池外」。
+  static const double _reflPull = 0.3;
+
   bool get _standing => envType == EnvType.boulder || envType == EnvType.woods;
 
   @override
@@ -102,6 +111,7 @@ class EnvComponent extends PositionComponent
             Paint()..color = const Color(0x88BBDEFB),
           );
         }
+        _renderReflections(canvas, foot);
         break;
       case EnvType.mud:
         _flat(canvas, foot, const Color(0xCC5D4037));
@@ -133,6 +143,80 @@ class EnvComponent extends PositionComponent
       i == 0 ? path.moveTo(pt.dx, pt.dy) : path.lineTo(pt.dx, pt.dy);
     }
     return path..close();
+  }
+
+  /// 水面倒影：把水池「後方」相鄰的塔上下翻轉、藍調、淡出、隨水波輕晃，
+  /// 裁進水池橢圓後疊在水面上（參考 Cyanilux 2D water 的倒影概念，
+  /// 用 Flame 直接複製翻轉 sprite 取代 Unity 的反射攝影機 + RenderTexture）。
+  void _renderReflections(Canvas canvas, Offset foot) {
+    final sp = position; // 水池中心（世界座標 = boardToScreen(location)）
+    // 後方(螢幕較上)相鄰格上的塔。
+    final towerCells = <BoardPoint>[
+      for (final n in location.getNeighbors())
+        if (game.towers[n] != null && game.boardToScreen(n).y < sp.y) n,
+    ];
+    // 靠近且在後方、還活著的敵人（型別由 game.enemies 推得為 EnemyComponent）。
+    final range = size.x * 1.1;
+    final enemies = [
+      for (final e in game.enemies)
+        if (!e.isDead &&
+            e.position.y < sp.y &&
+            (e.position - sp).length2 < range * range)
+          e,
+    ];
+    if (towerCells.isEmpty && enemies.isEmpty) return;
+
+    // 藍色調 + 淡出一次套在整個倒影圖層上（srcATop 只染有內容處，空白處維持透明）。
+    canvas
+      ..save()
+      ..clipPath(_groundPath(foot))
+      ..saveLayer(
+        null,
+        Paint()
+          ..color = Colors.white.withOpacity(_reflAlpha)
+          ..colorFilter = const ColorFilter.mode(_reflTint, BlendMode.srcATop),
+      );
+
+    // 塔：sprite 圍繞元件中心；翻轉後往水池中心拉近(_reflPull)，讓倒影落在水面內。
+    for (final n in towerCells) {
+      final t = game.towers[n]!;
+      final sc = game.boardToScreen(n);
+      final lc = Offset(sc.x - sp.x + foot.dx, sc.y - sp.y + foot.dy);
+      final sz = t.size;
+      final sway = sin(_t * 1.3 + n.q * 1.7 + n.r * 0.9) * _reflSway;
+      final pull = (foot - lc) * _reflPull;
+      canvas
+        ..save()
+        ..translate(pull.dx + sway, pull.dy)
+        ..translate(0, lc.dy)
+        ..scale(1, -_reflScaleY)
+        ..translate(0, -lc.dy);
+      t.sprite.render(
+        canvas,
+        position: Vector2(lc.dx - sz.x / 2, lc.dy - sz.y / 2),
+        size: sz,
+      );
+      canvas.restore();
+    }
+
+    // 敵人：renderBody 圍繞 local 原點(=接地點)繪製；把原點移到牠在水池內的
+    // 位置(往中心拉 _reflPull)後直接垂直翻轉（會隨牠移動每幀更新）。
+    for (final e in enemies) {
+      final lc =
+          Offset(e.position.x - sp.x + foot.dx, e.position.y - sp.y + foot.dy);
+      final sway = sin(_t * 1.3 + (e.hashCode % 100) * 0.1) * _reflSway;
+      final o = lc + (foot - lc) * _reflPull; // 往水池中心拉近的接地點
+      canvas
+        ..save()
+        ..translate(o.dx + sway, o.dy)
+        ..scale(1, -_reflScaleY);
+      e.renderBody(canvas);
+      canvas.restore();
+    }
+
+    canvas
+      ..restore() // saveLayer
+      ..restore(); // clipPath
   }
 
   /// 用貼地橢圓填一塊顏色。

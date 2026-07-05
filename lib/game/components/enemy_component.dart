@@ -213,14 +213,18 @@ class EnemyComponent extends PositionComponent
     }
   }
 
-  // ── 繪製：圓形 + 上方血條（依 isometric 比例縮放）──────────
+  // ── 繪製：身體(billboard/色圓) + 上方血條（依 isometric 比例縮放）──────
   @override
   void render(Canvas canvas) {
+    renderBody(canvas);
+    _renderHealthBar(canvas);
+  }
+
+  /// 只畫敵人「身體」(直立 billboard 或退回色圓)，圍繞 local 原點(＝接地點)
+  /// 繪製、不含血條。水池倒影會重用它（翻轉＋染色後再畫一次）。
+  void renderBody(Canvas canvas) {
     final s = game.iso.scaleX;
     final img = game.enemySheets[kind.id];
-    double barTop;
-    double barW;
-
     if (img != null) {
       // 直立 billboard：底邊貼地(0,0)、往上豎起；素材自帶陰影落在地面。
       final size = game.board.hexagonRadius * s * 1.9 * kind.sizeMul;
@@ -241,10 +245,6 @@ class EnemyComponent extends PositionComponent
       canvas.drawImageRect(
           img, src, dst, Paint()..filterQuality = FilterQuality.medium);
       canvas.restore();
-      // 血條在頭頂上方（依 topFrac 推算頭部位置）。
-      final headY = size * (0.12 - kind.footFrac + kind.topFrac);
-      barTop = headY - size * 0.05;
-      barW = size * 0.4;
     } else {
       final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
       canvas.drawCircle(Offset.zero, r, Paint()..color = kind.color);
@@ -256,11 +256,26 @@ class EnemyComponent extends PositionComponent
           ..strokeWidth = 1.2 * s
           ..color = Colors.black.withOpacity(0.35),
       );
+    }
+  }
+
+  /// 頭頂上方的血條（依 billboard／色圓分別推算位置）。
+  void _renderHealthBar(Canvas canvas) {
+    final s = game.iso.scaleX;
+    final img = game.enemySheets[kind.id];
+    double barTop;
+    double barW;
+    if (img != null) {
+      final size = game.board.hexagonRadius * s * 1.9 * kind.sizeMul;
+      // 血條在頭頂上方（依 topFrac 推算頭部位置）。
+      final headY = size * (0.12 - kind.footFrac + kind.topFrac);
+      barTop = headY - size * 0.05;
+      barW = size * 0.4;
+    } else {
+      final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
       barW = r * 2.2;
       barTop = -r - r * 0.5 - 2;
     }
-
-    // 血條（頭頂上方）
     final barH = game.board.hexagonRadius * 0.14 * s;
     canvas.drawRect(
       Rect.fromLTWH(-barW / 2, barTop, barW, barH),
