@@ -111,6 +111,22 @@ class NormalProjectileComponent extends ProjectileComponent {
   }
 }
 
+/// 砲彈速度曲線：出膛稍快 → 拋物線頂點最慢 → 落地加速砸下（單次、可調）。
+/// 速度(斜率) = c + hang·(t-0.5)² + slam·(t-0.5)：兩端快、中段慢；[slam] 讓
+/// 落地端比出膛端更快（砸下感）。[hang] 越大頂點越慢、兩端越快。
+class _ShotCurve extends Curve {
+  const _ShotCurve({this.hang = 3.0, this.slam = 1.5});
+  final double hang;
+  final double slam;
+
+  @override
+  double transformInternal(double t) {
+    final c = 1 - hang / 12;
+    final u = t - 0.5;
+    return c * t + hang * u * u * u / 3 + slam * u * u / 2 + hang / 24 - slam / 8;
+  }
+}
+
 /// 火炮塔砲彈：拋向目標落點，命中後爆炸，對落點 [blastHex] 半徑內所有敵人造成傷害。
 class CannonProjectileComponent extends ProjectileComponent {
   CannonProjectileComponent({
@@ -129,23 +145,37 @@ class CannonProjectileComponent extends ProjectileComponent {
   final double centerPeak;
   final Vector2 _start = Vector2.zero();
 
+  /// 固定飛行時間：不論遠近，射出到落地都一樣長（可預期、弧線一致）。
+  static const double _flightMs = 420;
+
+  /// 速度曲線（juice）：出膛稍快、拋物線頂點最慢、落地加速砸下。
+  /// 水平與弧高共用同一條 → 頂點(弧最高處)也是最慢的地方。
+  static const _shotCurve = _ShotCurve(hang: 3.0, slam: 1.5);
+  double get _t {
+    final raw = (clock / _flightMs).clamp(0.0, 1.0);
+    return _shotCurve.transform(raw);
+  }
+
+  /// 出膛高度（螢幕 px）：約塔頂投石機的位置，讓砲彈從塔頂射出而非地面。
+  double get _launchPx => game.board.hexagonRadius * s * 1.1;
+
   @override
   void onMount() {
     super.onMount();
     _start.setFrom(logical);
     goalLogical = targetPos.clone();
-    lifeTime = flyingTime(_start, goalLogical!, speed).toDouble();
+    lifeTime = _flightMs;
   }
 
   @override
   void onTick(double dtMs) {
     clock += dtMs;
-    if (lifeTime <= 0 || clock >= lifeTime) {
+    if (clock >= lifeTime) {
       _explode();
       dead = true;
       return;
     }
-    lerpLogical(_start, goalLogical!, (clock / lifeTime).clamp(0.0, 1.0));
+    lerpLogical(_start, goalLogical!, _t);
   }
 
   void _explode() {
@@ -176,9 +206,9 @@ class CannonProjectileComponent extends ProjectileComponent {
 
   @override
   void render(Canvas canvas) {
-    // 拋物線：飛行中段往上抬，像砲彈飛行弧線。
-    final t = lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0);
-    final lift = sin(t * pi) * 32 * s;
+    // 拋物線：從塔頂投石機高度([_launchPx])出發，中段抬升成弧線，落到地面(0)。
+    final t = _t;
+    final lift = _launchPx * (1 - t) + sin(t * pi) * 32 * s;
     canvas.drawCircle(
       Offset(0, -lift),
       7 * s,

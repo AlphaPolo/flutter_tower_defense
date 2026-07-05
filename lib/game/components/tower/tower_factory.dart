@@ -510,7 +510,7 @@ class CannonTowerComponent extends TowerComponent {
   ProjectileComponent createProjectile(EnemyComponent enemy) {
     return CannonProjectileComponent(
       damage: damage,
-      start: muzzle(),
+      start: logicalPos.clone(), // 塔中心；出膛高度由砲彈自身抬到塔頂
       speed: 0.6,
       targetPos: enemy.logicalPos.clone(),
       blastHex: blastHex,
