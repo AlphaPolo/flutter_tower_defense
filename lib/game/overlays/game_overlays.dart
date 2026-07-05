@@ -65,6 +65,83 @@ BoxDecoration _panelBox({double radius = 12}) => BoxDecoration(
       ],
     );
 
+/// 統一彈窗外框：深木漸層 + 金邊 + 圓角 + 強陰影。
+BoxDecoration _dialogBox() => BoxDecoration(
+      gradient: _kWoodGradient,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: _kGoldDeep, width: 2),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.5),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    );
+
+/// 統一彈窗按鈕：[filled] 為主要動作（實心 [color] 底）；否則為次要動作（文字鈕）。
+Widget _dialogButton(String label, VoidCallback onTap,
+    {bool filled = true, Color color = _kGold}) {
+  if (!filled) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(foregroundColor: const Color(0xFFD8C9A6)),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+    );
+  }
+  final fg = color == _kGold ? const Color(0xFF241811) : Colors.white;
+  return ElevatedButton(
+    onPressed: onTap,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: fg,
+      elevation: 2,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      textStyle: const TextStyle(fontWeight: FontWeight.bold),
+    ),
+    child: Text(label),
+  );
+}
+
+/// 統一風格彈窗面板（勝利／失敗／確認共用）：圖示 + 標題 + 說明 + 動作列。
+Widget _themedDialog({
+  required IconData icon,
+  required Color accent,
+  required String title,
+  String? message,
+  required List<Widget> actions,
+}) {
+  return Center(
+    child: Container(
+      margin: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+      constraints: const BoxConstraints(maxWidth: 340),
+      decoration: _dialogBox(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: accent, size: 46),
+          const SizedBox(height: 12),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: accent, fontSize: 24, fontWeight: FontWeight.w900)),
+          if (message != null) ...[
+            const SizedBox(height: 12),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Color(0xFFE8DCC0), fontSize: 14, height: 1.4)),
+          ],
+          const SizedBox(height: 22),
+          Row(mainAxisSize: MainAxisSize.min, children: actions),
+        ],
+      ),
+    ),
+  );
+}
+
 /// 每種塔在選單 / 資訊面板上顯示的圖示。
 /// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
 /// BoxFit.contain 讓裁切後的塔身維持比例並置中。
@@ -429,29 +506,23 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 重新開始確認：清除進度前先跳確認對話框。
+  /// 重新開始確認：清除進度前先跳確認對話框（統一木質彈窗樣式）。
   void _confirmReset(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重新開始？'),
-        content: const Text('目前的進度（金幣、生命、已蓋的塔）會全部清除，確定要重置嗎？'),
+      barrierColor: Colors.black54,
+      builder: (ctx) => _themedDialog(
+        icon: Icons.refresh,
+        accent: _kGold,
+        title: '重新開始？',
+        message: '目前的進度（金幣、生命、已蓋的塔）會全部清除，確定要重置嗎？',
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              onRestart();
-            },
-            child: const Text('確定重置'),
-          ),
+          _dialogButton('取消', () => Navigator.pop(ctx), filled: false),
+          const SizedBox(width: 12),
+          _dialogButton('確定重置', () {
+            Navigator.pop(ctx);
+            onRestart();
+          }, filled: true, color: Colors.redAccent),
         ],
       ),
     );
@@ -1142,32 +1213,16 @@ class EndOverlay extends StatelessWidget {
         if (!won && !lost) return const SizedBox.shrink();
 
         return Stack(
-          alignment: Alignment.center,
           children: [
-            const ModalBarrier(color: Colors.black12, dismissible: false),
-            Card(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(48),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      won ? 'You Win!' : 'Game Over',
-                      style: TextStyle(
-                        color: won ? Colors.green : Colors.grey,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    ElevatedButton(
-                      onPressed: onRestart,
-                      child: const Text('Restart'),
-                    ),
-                  ],
-                ),
-              ),
+            const ModalBarrier(color: Colors.black54, dismissible: false),
+            _themedDialog(
+              icon: won ? Icons.emoji_events : Icons.sentiment_very_dissatisfied,
+              accent: won ? _kGold : Colors.redAccent,
+              title: won ? '勝利！' : '遊戲結束',
+              message: won ? '你成功守住了主堡！' : '主堡失守了……再挑戰一次！',
+              actions: [
+                _dialogButton('重新開始', onRestart),
+              ],
             ),
           ],
         );
