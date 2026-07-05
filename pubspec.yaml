@@ -34,6 +34,7 @@ flutter:
   - assets/images/fire.png
   - assets/images/ice.png
   - assets/iso/
+  - assets/ui/
   shaders:
   - assets/shaders/water.frag
 flutter_gen:

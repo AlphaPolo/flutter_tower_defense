@@ -1,11 +1,11 @@
 {
-    "name": "tower_defense",
-    "short_name": "tower_defense",
+    "name": "元素塔防",
+    "short_name": "元素塔防",
     "start_url": ".",
     "display": "fullscreen",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#071633",
+    "theme_color": "#071633",
+    "description": "布陣守護主堡的六角策略塔防。",
     "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [

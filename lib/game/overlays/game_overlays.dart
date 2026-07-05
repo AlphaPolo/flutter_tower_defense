@@ -10,9 +10,60 @@ import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 import '../../utils/fullscreen.dart';
 import '../board/hex.dart';
 import '../components/enemy_kind.dart';
-import '../components/environment.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
+
+// ── HUD 主題：奇幻木質風（暖木底 + 金銅邊 + 柔和陰影）───────────────────
+const Color _kGold = Color(0xFFE8C877); // 金銅亮色（文字/高亮）
+const Color _kGoldDeep = Color(0xFFB6832B); // 金銅暗色（描邊）
+
+const LinearGradient _kWoodGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFF4A3627), Color(0xFF241811)],
+);
+
+/// 木質膠囊/列的通用外框：木紋漸層 + 金銅細邊 + 柔和陰影。
+/// [strong] 決定陰影深淺（大面板用深、小晶片用淺）。
+BoxDecoration _woodBox({double radius = 20, bool strong = true}) =>
+    BoxDecoration(
+      gradient: _kWoodGradient,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: _kGoldDeep.withOpacity(0.85), width: 1.3),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(strong ? 0.45 : 0.3),
+          blurRadius: strong ? 8 : 5,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    );
+
+/// Tiny Swords 像素風 UI 圖示：關閉抗鋸齒 → 放大後像素邊緣仍銳利。
+Widget _uiIcon(String name, double size) => Image.asset(
+      'assets/ui/$name.png',
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.none, // 像素風：最近鄰、邊緣銳利
+    );
+
+/// 內容卡片外框：羊皮紙漸層底 + 金銅細邊 + 柔和陰影（深色文字仍清楚）。
+BoxDecoration _panelBox({double radius = 12}) => BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF8EED6), Color(0xFFEAD8AE)],
+      ),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: _kGoldDeep.withOpacity(0.7), width: 1.4),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.35),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    );
 
 /// 每種塔在選單 / 資訊面板上顯示的圖示。
 /// 統一使用較正面取景渲染的外觀圖（與蓋在地圖上的 isometric 角度不同），
@@ -21,7 +72,7 @@ Widget towerIcon(TowerType type) {
   // 陷阱類 / 支援塔沒有 3D 模型素材，用程式繪製。
   if (type == TowerType.spike) return const SpikeIcon();
   if (type == TowerType.vortex) return const VortexIcon();
-  if (type == TowerType.multishot) return const MultishotIcon();
+
   // 檔名一律小寫（airBlade → icon_airblade.png），避免 case-sensitive 部署找不到。
   return Image.asset(
     'assets/iso/icon_${type.name.toLowerCase()}.png',
@@ -201,18 +252,7 @@ class LeftColOverlay extends StatelessWidget {
                     children: [
                       _statusPill(),
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _cheatSwitch(),
-                          const SizedBox(width: 8),
-                          _flameDimSwitch(),
-                          const SizedBox(width: 8),
-                          _waterReflectionSwitch(),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _resetButton(context),
+                      _SettingsMenu(game: game, trailing: _resetButton(context)),
                     ],
                   ),
                 ),
@@ -267,33 +307,33 @@ class LeftColOverlay extends StatelessWidget {
   /// 半透明深色膠囊：波數 / 生命 / 金幣，橫向排列省空間且在棋盤上清楚可讀。
   Widget _statusPill() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: _woodBox(radius: 22),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _stat(Icons.waves, Colors.lightBlueAccent, game.wave,
+          _stat(
+              const Icon(Icons.waves, color: Colors.lightBlueAccent, size: 18),
+              game.wave,
               (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
           const SizedBox(width: 14),
-          _stat(Icons.favorite, Colors.redAccent, game.heart, (v) => '$v'),
+          _stat(const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
+              game.heart, (v) => '$v'),
           const SizedBox(width: 14),
-          _stat(Icons.monetization_on, Colors.amber, game.coin, (v) => '$v'),
+          _stat(_uiIcon('coin', 20), game.coin, (v) => '$v'),
         ],
       ),
     );
   }
 
-  Widget _stat(IconData icon, Color color, ValueListenable<int> listenable,
+  Widget _stat(Widget icon, ValueListenable<int> listenable,
       String Function(int) fmt) {
     return ValueListenableBuilder<int>(
       valueListenable: listenable,
       builder: (context, v, _) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 18),
+          icon,
           const SizedBox(width: 4),
           Text(
             fmt(v),
@@ -308,52 +348,21 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  Widget _cheatSwitch() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: game.cheat,
-      builder: (context, cheat, _) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Transform.scale(
-                scale: 0.7,
-                child: CupertinoSwitch(
-                  value: cheat,
-                  onChanged: (_) => game.toggleCheat(),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '作弊',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: cheat ? Colors.greenAccent : Colors.grey[300],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   /// 重置按鈕：詢問確認後重新開始整場遊戲。
   Widget _resetButton(BuildContext context) {
     return SizedBox(
       height: 30,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blueGrey.shade700,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          backgroundColor: const Color(0xFF3C2A1C),
+          foregroundColor: _kGold,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           visualDensity: VisualDensity.compact,
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _kGoldDeep, width: 1.2),
+          ),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         onPressed: () => _confirmReset(context),
@@ -390,81 +399,6 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 開關：噴火塔特效變淡（提高透明度）。
-  Widget _flameDimSwitch() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: game.dimFlame,
-      builder: (context, dim, _) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Transform.scale(
-                scale: 0.7,
-                child: CupertinoSwitch(
-                  value: dim,
-                  onChanged: (_) => game.dimFlame.value = !game.dimFlame.value,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '火焰變淡',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: dim ? Colors.orangeAccent : Colors.grey[300],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 開關：水面倒影（逐像素折射）。效能吃緊時可關 → 水面照舊、只省倒影運算。
-  Widget _waterReflectionSwitch() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: game.waterReflection,
-      builder: (context, on, _) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Transform.scale(
-                scale: 0.7,
-                child: CupertinoSwitch(
-                  value: on,
-                  onChanged: (_) =>
-                      game.waterReflection.value = !game.waterReflection.value,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '水面倒影',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: on ? Colors.lightBlueAccent : Colors.grey[300],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _infoPanel() {
     return ValueListenableBuilder<TowerType?>(
       valueListenable: game.selecting,
@@ -475,18 +409,7 @@ class LeftColOverlay extends StatelessWidget {
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(12),
           constraints: const BoxConstraints(maxWidth: 150),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 3,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: _panelBox(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -563,18 +486,7 @@ class LeftColOverlay extends StatelessWidget {
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(12),
           constraints: const BoxConstraints(maxWidth: 150),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 3,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: _panelBox(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -846,17 +758,7 @@ class LeftColOverlay extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(10),
           constraints: const BoxConstraints(maxWidth: 230),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 3,
-              ),
-            ],
-          ),
+          decoration: _panelBox(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -905,6 +807,118 @@ class LeftColOverlay extends StatelessWidget {
       k.speedMul < 0.8 ? '慢' : (k.speedMul <= 1.3 ? '普通' : '快');
 }
 
+/// 齒輪設定選單：把開發用開關（作弊 / 火焰變淡 / 水面倒影）收進可展開的
+/// 木質小面板，讓主畫面更乾淨。點齒輪展開/收合。
+class _SettingsMenu extends StatefulWidget {
+  const _SettingsMenu({required this.game, required this.trailing});
+  final TowerDefenseGame game;
+  final Widget trailing; // 齒輪旁固定顯示的按鈕（重置）——展開開關時不會被推擠。
+
+  @override
+  State<_SettingsMenu> createState() => _SettingsMenuState();
+}
+
+class _SettingsMenuState extends State<_SettingsMenu> {
+  bool _open = false;
+  TowerDefenseGame get game => widget.game;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 齒輪 + 重置固定在同一列；展開只會往「下方」長出開關列，不動這一列。
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _gearChip(),
+            const SizedBox(width: 8),
+            widget.trailing,
+          ],
+        ),
+        // 展開：三個開關以橫向 row 出現在下方（覆在棋盤上、不推擠上方按鈕）。
+        if (_open)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _switchChip(game.cheat, () => game.toggleCheat(), '作弊',
+                    Colors.greenAccent),
+                const SizedBox(width: 8),
+                _switchChip(
+                    game.dimFlame,
+                    () => game.dimFlame.value = !game.dimFlame.value,
+                    '火焰變淡',
+                    Colors.orangeAccent),
+                const SizedBox(width: 8),
+                _switchChip(
+                    game.waterReflection,
+                    () => game.waterReflection.value = !game.waterReflection.value,
+                    '水面倒影',
+                    Colors.lightBlueAccent),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _gearChip() {
+    return GestureDetector(
+      onTap: () => setState(() => _open = !_open),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: _woodBox(radius: 18, strong: false),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_open ? Icons.expand_less : Icons.settings,
+                color: _kGold, size: 18),
+            const SizedBox(width: 4),
+            const Text('設定',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 單一開關晶片：綁一個 bool ValueNotifier + 切換動作 + 標籤 + 開啟色。
+  Widget _switchChip(ValueListenable<bool> vn, VoidCallback onToggle,
+      String label, Color onColor) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: vn,
+      builder: (context, on, _) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: _woodBox(radius: 18, strong: false),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: 0.7,
+                child: CupertinoSwitch(value: on, onChanged: (_) => onToggle()),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: on ? onColor : Colors.grey[300],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// 用敵人 spritesheet 的第 0 幀（裁到內容、方形）當頭像，畫進圓形頭像框。
 class _EnemyAvatarPainter extends CustomPainter {
   _EnemyAvatarPainter(this.img, this.kind);
@@ -946,14 +960,14 @@ class BuildBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.5),
+      decoration: const BoxDecoration(
+        gradient: _kWoodGradient,
+        border: Border(top: BorderSide(color: _kGoldDeep, width: 2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
-            spreadRadius: 2,
-            blurRadius: 3,
-            offset: const Offset(0, -2),
+            color: Colors.black54,
+            blurRadius: 8,
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -1026,7 +1040,7 @@ class BuildBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(2),
             decoration: const BoxDecoration(
-              border: Border.fromBorderSide(BorderSide(color: Colors.brown, width: 5, strokeAlign: BorderSide.strokeAlignCenter)),
+              border: Border.fromBorderSide(BorderSide(color: _kGoldDeep, width: 4, strokeAlign: BorderSide.strokeAlignCenter)),
               shape: BoxShape.circle,
             ),
             child: ClipOval(child: towerIcon(type)),
@@ -1035,39 +1049,67 @@ class BuildBar extends StatelessWidget {
       ),
     );
 
-    if (type != TowerType.obstacle) return button;
-
-    // 障礙物顯示剩餘數量。
-    return ValueListenableBuilder<int>(
-      valueListenable: game.freeObstacle,
-      builder: (context, count, child) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            child!,
-            if (count > 0)
-              Positioned(
-                top: -4,
-                right: -4,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '$count',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+    // 障礙物在圓鈕右上角疊剩餘數量徽章。
+    final Widget circle = type == TowerType.obstacle
+        ? ValueListenableBuilder<int>(
+            valueListenable: game.freeObstacle,
+            builder: (context, count, child) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  child!,
+                  if (count > 0)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-      child: button,
+                ],
+              );
+            },
+            child: button,
+          )
+        : button;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        circle,
+        const SizedBox(height: 3),
+        _costLabel(type),
+      ],
+    );
+  }
+
+  /// 塔按鈕下方的費用標籤（障礙物顯示「免費」）。
+  Widget _costLabel(TowerType type) {
+    if (type == TowerType.obstacle) {
+      return const Text('免費',
+          style: TextStyle(
+              color: _kGold, fontSize: 11, fontWeight: FontWeight.bold));
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _uiIcon('coin', 14),
+        const SizedBox(width: 2),
+        Text('${statsOf(type).cost}',
+            style: const TextStyle(
+                color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

@@ -156,8 +156,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
           await Sprite.load('tower_poison.png', images: isoImages),
       TowerType.log: await Sprite.load('tower_log.png', images: isoImages),
       TowerType.obstacle: obstacleSprites.first,
-      // 多重箭：暫用佔位 sprite（實際外觀由元件自行繪製）。
-      TowerType.multishot: obstacleSprites.first,
+      // 多重箭：Kenney UFO-A 3D 素材（懸浮支援建築）。
+      TowerType.multishot:
+          await Sprite.load('tower_multishot.png', images: isoImages),
     };
     treeSprite = await Sprite.load('tree.png', images: isoImages);
     rockSprite = await Sprite.load('rock.png', images: isoImages);

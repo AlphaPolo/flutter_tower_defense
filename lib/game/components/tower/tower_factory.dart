@@ -522,48 +522,15 @@ class ObstacleTowerComponent extends TowerComponent {
 }
 
 /// 多重箭：支援塔，本身不攻擊；相鄰(6 格)的塔會依塔種被強化（見各塔 update
-/// 與 game.multishotAt）。外觀為程式繪製的「向外發散箭頭」佔位圖示。
+/// 與 game.multishotAt）。外觀＝Kenney UFO-A 3D 素材（懸浮支援建築），
+/// 沿用基底 render（陰影 + sprite）。
 class MultishotTowerComponent extends TowerComponent {
   MultishotTowerComponent(BoardPoint location)
       : super(TowerType.multishot, location);
 
   @override
-  void update(double dt) {} // 純支援、被動生效，不做任何攻擊
+  double get spriteScale => 0.65; // UFO 素材偏大 → 縮小，與其他塔更協調
 
   @override
-  void render(Canvas canvas) {
-    final s = game.iso.scaleX;
-    final foot = Offset(size.x / 2, size.y / 2);
-    // 貼地陰影
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: foot.translate(0, 5 * s), width: 24 * s, height: 11 * s),
-      Paint()..color = Colors.black.withOpacity(0.25),
-    );
-    // 底座
-    canvas.drawCircle(foot, 11 * s, Paint()..color = const Color(0xFF5D4037));
-    canvas.drawCircle(
-      foot,
-      11 * s,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2 * s
-        ..color = Colors.amber,
-    );
-    // 三支往上發散的箭（多重箭意象）
-    final arrow = Paint()
-      ..color = Colors.amberAccent
-      ..strokeWidth = 2.5 * s
-      ..strokeCap = StrokeCap.round;
-    for (final off in const [-0.6, 0.0, 0.6]) {
-      final a = -pi / 2 + off; // 往上為主、左右發散
-      final tip = foot + Offset(cos(a), sin(a)) * (16 * s);
-      canvas
-        ..drawLine(foot, tip, arrow)
-        ..drawLine(tip, tip + Offset(cos(a + 2.6), sin(a + 2.6)) * (5 * s),
-            arrow)
-        ..drawLine(tip, tip + Offset(cos(a - 2.6), sin(a - 2.6)) * (5 * s),
-            arrow);
-    }
-  }
+  void update(double dt) {} // 純支援、被動生效，不做任何攻擊
 }
