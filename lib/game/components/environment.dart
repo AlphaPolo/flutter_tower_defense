@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
@@ -44,6 +45,10 @@ class EnvComponent extends PositionComponent
   static ui.Image? _blankImg; // 沒有可倒映物件時綁的 1x1 透明圖
   // 水池外型不規則程度：0＝正圓，越大邊緣越有機（各池外型不同但固定）。
   static const double _pondWobble = 0.05;
+
+  // ── 泥沼俯視貼圖可調參數 ──────────────────────────────
+  static const double _mudFill = 0.95; // 相對格子的填滿程度（>1 稍微溢出、蓋滿整格）
+  static const Color _mudTint = Color(0xFFC6BA9C); // modulate 染色：提亮＋略降橘
 
   bool get _standing => envType == EnvType.boulder || envType == EnvType.woods;
 
@@ -122,7 +127,10 @@ class EnvComponent extends PositionComponent
         }
         break;
       case EnvType.mud:
-        _flat(canvas, foot, const Color(0xCC5D4037));
+        // KayKit 泥地方塊（俯視貼圖）+ 睡蓮，用地面基底向量投影到棋盤真正的
+        // 地平面上 → 角度與地板完全一致；貼地畫在單位之下、填滿整格。
+        _drawGroundTexture(canvas, foot, game.mudSprite.image, _mudTint,
+            fill: _mudFill);
         break;
       case EnvType.thorns:
         // KayKit 灌木叢 3D 素材（帶刺矮樹叢），底部對齊格子中心。
@@ -243,4 +251,36 @@ class EnvComponent extends PositionComponent
   /// 用貼地橢圓填一塊顏色。
   void _flat(Canvas canvas, Offset foot, Color col, {double wobble = 0}) =>
       canvas.drawPath(_groundPath(foot, wobble: wobble), Paint()..color = col);
+
+  /// 把一張「俯視」貼圖以 iso.axisX/axisY 為基底投影到棋盤地平面上：
+  /// 以格中心 [foot] 為中心、依 [fill] 填滿格子，平躺角度與地板完全一致。
+  /// [tint] 以 modulate 相乘（提亮/降飽和），一格內只做一次仿射繪製。
+  void _drawGroundTexture(Canvas canvas, Offset foot, ui.Image img, Color tint,
+      {double fill = 1.0}) {
+    final ax = game.iso.axisX;
+    final ay = game.iso.axisY;
+    final r = game.board.hexagonRadius * fill;
+    final w = img.width.toDouble(), h = img.height.toDouble();
+    final kx = 2 * r / w, ky = 2 * r / h;
+    // 貼圖像素(px,py) → 本元件座標：
+    //   local = foot + axisX*((px/w-.5)*2r) + axisY*((py/h-.5)*2r)
+    final m02 = foot.dx - (ax.x + ay.x) * r;
+    final m12 = foot.dy - (ax.y + ay.y) * r;
+    final m = Float64List.fromList(<double>[
+      ax.x * kx, ax.y * kx, 0, 0, // col 0：px
+      ay.x * ky, ay.y * ky, 0, 0, // col 1：py
+      0, 0, 1, 0, // col 2：z
+      m02, m12, 0, 1, // col 3：平移
+    ]);
+    final paint = Paint()
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.medium
+      ..colorFilter = ColorFilter.mode(tint, BlendMode.modulate);
+    canvas
+      ..save()
+      ..transform(m)
+      ..drawImageRect(
+          img, Rect.fromLTWH(0, 0, w, h), Rect.fromLTWH(0, 0, w, h), paint)
+      ..restore();
+  }
 }
