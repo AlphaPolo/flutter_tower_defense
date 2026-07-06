@@ -414,7 +414,41 @@ class LeftColOverlay extends StatelessWidget {
           _stat(const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
               game.heart, (v) => '$v'),
           const SizedBox(width: 14),
-          _stat(_uiIcon('coin', 20), game.coin, (v) => '$v'),
+          _coinStat(),
+        ],
+      ),
+    );
+  }
+
+  /// 金幣狀態：數字用 Tween 平滑增減(count-up)，金幣圖示每次變動彈一下(juice)。
+  Widget _coinStat() {
+    return ValueListenableBuilder<int>(
+      valueListenable: game.coin,
+      builder: (context, v, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 每次金幣變動，圖示彈一下（key 改變 → 重新播放）。
+          _uiIcon('coin', 20).animate(key: ValueKey(v)).scaleXY(
+                begin: 1.35,
+                end: 1.0,
+                duration: 260.ms,
+                curve: Curves.easeOutBack,
+              ),
+          const SizedBox(width: 4),
+          // 數字從舊值平滑跑到新值（TweenAnimationBuilder 不加 key → 保留狀態）。
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: v.toDouble()),
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeOut,
+            builder: (context, val, child) => Text(
+              '${val.round()}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );

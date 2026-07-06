@@ -44,6 +44,9 @@ void main() {
         ),
       ),
     );
+    // 讓金幣 count-up / 圖示彈跳等「有限」動畫跑完，避免殘留 timer（脈動已由
+    // waveRunning=true 關閉）。
+    await tester.pumpAndSettle();
   }
 
   testWidgets('HUD 在橫向矮螢幕不爆版（待機）', (tester) async {
@@ -90,12 +93,13 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull); // Lv1 → 兩張分支選項卡
 
     // 升到 Lv2 → 出現該分支底下兩張葉卡，面板重建後仍不爆版
     game.towers[bp]!.applyUpgrade(kTowerUpgradeTree[TowerType.freezing]!.first);
     game.towerChanged.value++;
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 }

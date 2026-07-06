@@ -6,6 +6,104 @@ import 'package:flutter/material.dart';
 
 final _rnd = Random();
 
+/// 爆金幣：擊殺時一撮金幣往上＋外呈扇形噴、受重力落下、邊旋轉(水平壓縮模擬翻面)
+/// 邊淡出。金幣以程式繪製（深金邊 + 亮金面），不依賴圖片。
+ParticleSystemComponent coinBurst(Vector2 pos, double s, {int count = 8}) {
+  final r = 3.2 * s; // 金幣半徑
+  return ParticleSystemComponent(
+    position: pos.clone(),
+    priority: 3000000,
+    particle: Particle.generate(
+      count: count,
+      lifespan: 0.75,
+      generator: (i) {
+        final ang = -pi / 2 + (_rnd.nextDouble() - 0.5) * 2.0; // 上方扇形
+        final spd = (70 + _rnd.nextDouble() * 80) * s;
+        final spin = (_rnd.nextDouble() - 0.5) * 10; // 旋轉速度(含正負)
+        final phase = _rnd.nextDouble() * 2; // 發光變色相位
+        return AcceleratedParticle(
+          speed: Vector2(cos(ang), sin(ang)) * spd,
+          acceleration: Vector2(0, 260 * s), // 重力
+          child: ComputedParticle(
+            renderer: (canvas, p) {
+              final t = p.progress;
+              final op = (1 - t * t).clamp(0.0, 1.0); // 後段才快速淡出
+              final flip = cos(spin * t * pi).abs().clamp(0.15, 1.0); // 翻面
+              // 變色發光暈：偏金色、會閃爍、每顆相位錯開、整體較弱。
+              final shimmer = 0.5 + 0.5 * sin((t * 5 + phase) * pi);
+              final flick = 0.4 + 0.6 * sin((t * 8 + phase * 3) * pi).abs();
+              final glow = Color.lerp(
+                  const Color(0xFFF7B21E), const Color(0xFFFFE79A), shimmer)!;
+              canvas.drawCircle(
+                Offset.zero,
+                r * 1.7,
+                Paint()
+                  ..color = glow.withOpacity(0.12 * op * flick)
+                  ..blendMode = BlendMode.plus
+                  ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.7),
+              );
+              // 細金邊（外框，淺金）
+              canvas.drawOval(
+                Rect.fromCenter(
+                    center: Offset.zero, width: r * 2 * flip, height: r * 2),
+                Paint()..color = const Color(0xFFF9CE5A).withOpacity(op),
+              );
+              // 亮金面（外框細 → 面更大）
+              canvas.drawOval(
+                Rect.fromCenter(
+                    center: Offset.zero,
+                    width: r * 1.72 * flip,
+                    height: r * 1.72),
+                Paint()..color = const Color(0xFFFFE96B).withOpacity(op),
+              );
+            },
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// 亮十字閃光：獨立於金幣、往上緩緩飄、淡入淡出的白色十字（比金幣略小）。
+ParticleSystemComponent coinSparkle(Vector2 pos, double s, {int count = 2}) {
+  final r = 4.0 * s;
+  return ParticleSystemComponent(
+    position: pos.clone(),
+    priority: 3000001,
+    particle: Particle.generate(
+      count: count,
+      lifespan: 0.6,
+      generator: (i) {
+        final ox = (_rnd.nextDouble() - 0.5) * r * 9; // 左右分散
+        final oy = (_rnd.nextDouble() - 0.5) * r * 2;
+        return AcceleratedParticle(
+          position: Vector2(ox, oy),
+          speed: Vector2((_rnd.nextDouble() - 0.5) * 16 * s, -40 * s), // 緩慢上升
+          child: ComputedParticle(
+            renderer: (canvas, p) {
+              final op = sin(pi * p.progress).clamp(0.0, 1.0); // 淡入淡出
+              if (op <= 0.01) return;
+              final gp = Paint()..color = const Color(0xFFFFE8A6).withOpacity(op);
+              final half = r * 0.8; // 比金幣(半徑 r=直徑2r) 略小
+              final thick = r * 0.26;
+              canvas
+                ..drawOval(
+                    Rect.fromCenter(
+                        center: Offset.zero, width: thick, height: half * 2),
+                    gp)
+                ..drawOval(
+                    Rect.fromCenter(
+                        center: Offset.zero, width: half * 2, height: thick),
+                    gp)
+                ..drawCircle(Offset.zero, r * 0.3, gp);
+            },
+          ),
+        );
+      },
+    ),
+  );
+}
+
 /// 一團往外噴、邊飛邊淡出的圓點粒子，自動在結束時移除。
 ParticleSystemComponent _burst(
   Vector2 pos, {

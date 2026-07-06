@@ -21,6 +21,7 @@ import 'components/trap/trap_component.dart';
 import 'components/wave_spawner.dart';
 import 'demo/auto_player.dart';
 import 'effects/camera_shake.dart';
+import 'effects/particles.dart';
 import 'iso/iso_projection.dart';
 import 'tower_type.dart';
 
@@ -592,7 +593,15 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       logicalDiff.length <= board.hexagonRadius * rangeInHex;
 
   // ── 經濟 / 勝負 ──────────────────────────────────────────
-  void onEnemyKilled(EnemyComponent e) => coin.value += e.kind.reward;
+  void onEnemyKilled(EnemyComponent e) {
+    coin.value += e.kind.reward;
+    // 死亡處爆金幣特效（賞金越高噴越多）+ 上升的亮十字閃光。
+    final pos = e.position + Vector2(0, -board.hexagonRadius * iso.scaleX * 0.5);
+    final n = (4 + e.kind.reward ~/ 4).clamp(4, 14);
+    world
+      ..add(coinBurst(pos, iso.scaleX, count: n))
+      ..add(coinSparkle(pos, iso.scaleX));
+  }
 
   void onEnemyLeaked(EnemyComponent e) {
     heart.value -= e.kind.leakDamage;
