@@ -23,6 +23,14 @@ const LinearGradient _kWoodGradient = LinearGradient(
   colors: [Color(0xFF4A3627), Color(0xFF241811)],
 );
 
+/// 選中分頁的漸層：底部收在「bar 頂端的顏色」(#4A3627) → 分頁底＝bar 頂、同色
+/// 相接，連接處不會有顏色斷層；頂部再稍亮做立體感。
+const LinearGradient _kSelTabGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFF574029), Color(0xFF4A3627)],
+);
+
 /// 木質膠囊/列的通用外框：木紋漸層 + 金銅細邊 + 柔和陰影。
 /// [strong] 決定陰影深淺（大面板用深、小晶片用淺）。
 BoxDecoration _woodBox({double radius = 20, bool strong = true}) =>
@@ -1086,56 +1094,152 @@ class _EnemyAvatarPainter extends CustomPainter {
 }
 
 /// 底部：防禦塔選單。點擊選取要蓋的塔。
-class BuildBar extends StatelessWidget {
+class BuildBar extends StatefulWidget {
   const BuildBar({super.key, required this.game});
   final TowerDefenseGame game;
 
   @override
+  State<BuildBar> createState() => _BuildBarState();
+}
+
+class _BuildBarState extends State<BuildBar> {
+  TowerDefenseGame get game => widget.game;
+  int _tab = 0;
+
+  /// 建造分類頁籤（涵蓋全部塔種）。
+  static const List<(String, List<TowerType>)> _cats = [
+    ('元素', [
+      TowerType.flame,
+      TowerType.freezing,
+      TowerType.thunder,
+      TowerType.poison,
+    ]),
+    ('物理', [TowerType.log, TowerType.cannon, TowerType.airBlade]),
+    ('陷阱', [TowerType.spike, TowerType.vortex]),
+    ('支援', [TowerType.multishot, TowerType.obstacle]),
+  ];
+
+  static const double _tabH = 34; // 分頁列高度
+
+  @override
   Widget build(BuildContext context) {
+    // Chrome 分頁感：頁籤嵌在底部 bar 上方；用 Stack 讓分頁畫在 bar 之上，選中頁籤
+    // 往下凸並蓋住 bar 頂邊 → 與內容連成一體。
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: _tabH),
+          child: _barBody(),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: SizedBox(height: _tabH, child: _tabStrip()),
+        ),
+      ],
+    );
+  }
+
+  /// 分頁列（水平；超出可左右捲）。
+  Widget _tabStrip() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none, // 讓選中頁籤往下凸出不被裁掉
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end, // 底部對齊到 bar 頂
+          children: [for (var i = 0; i < _cats.length; i++) _chromeTab(i)],
+        ),
+      ),
+    );
+  }
+
+  /// 單一分頁（頂部圓角）：選中＝漸層（底色收在 bar 頂色→無斷層）+ 金框，往下凸
+  /// 3px 與 bar 連成一體；未選＝暗底、較矮（凹陷感）。
+  Widget _chromeTab(int i) {
+    final sel = i == _tab;
+    final tab = Container(
+      margin: const EdgeInsets.only(right: 3),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: sel ? 7 : 5),
+      decoration: BoxDecoration(
+        gradient: sel ? _kSelTabGradient : null,
+        color: sel ? null : const Color(0xFF241811),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+        border: Border(
+          top: BorderSide(
+              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              width: sel ? 2 : 1),
+          left: BorderSide(
+              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              width: sel ? 2 : 1),
+          right: BorderSide(
+              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              width: sel ? 2 : 1),
+        ),
+      ),
+      child: Text(
+        _cats[i].$1,
+        style: TextStyle(
+          color: sel ? _kGold : const Color(0xFFB0A088),
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+        ),
+      ),
+    );
+    return GestureDetector(
+      onTap: () => setState(() => _tab = i),
+      child: sel
+          ? Transform.translate(offset: const Offset(0, 2), child: tab)
+          : tab,
+    );
+  }
+
+  /// 底部 bar 本體：木紋底 + 頂部金邊 + 該分類的塔列。
+  Widget _barBody() {
     return Container(
       decoration: const BoxDecoration(
         gradient: _kWoodGradient,
         border: Border(top: BorderSide(color: _kGoldDeep, width: 2)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 8,
-            offset: Offset(0, -2),
-          ),
+          BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, -2)),
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.center,
+        child: SizedBox(width: double.infinity, height: 82, child: _towerRow()),
+      ),
+    );
+  }
+
+  /// 目前分類的塔按鈕列（右側保留全螢幕鈕）。
+  Widget _towerRow() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          // 預留右側空間給全螢幕鈕，避免最右邊的塔被蓋住點不到。
+          padding: EdgeInsets.only(right: kIsWeb ? 48 : 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 12,
             children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                // 預留右側空間給全螢幕鈕，避免最右邊的塔被蓋住點不到。
-                padding: EdgeInsets.only(right: kIsWeb ? 48 : 0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: 12,
-                  children: [
-                    for (final type in TowerType.values) _icon(type),
-                  ],
-                ),
-              ),
-              // 右側全螢幕鈕（僅 web），垂直置中、不與塔重疊。
-              if (kIsWeb)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: _fullscreenButton(),
-                ),
+              for (final type in _cats[_tab].$2) _icon(type),
             ],
           ),
         ),
-      ),
+        if (kIsWeb)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: _fullscreenButton(),
+          ),
+      ],
     );
   }
 
