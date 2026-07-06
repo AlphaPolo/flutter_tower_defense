@@ -710,8 +710,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   }
 
   EnemyStatus enemyStatusForWave(int wave) {
-    final hp = (100.0 + (wave - 1) * 40) * 0.9; // 全怪血量 -10%
-    final speed = (1.5 + (wave - 1) * 0.05) * 0.9; // 全怪移速 -10%
+    final hp = (100.0 + (wave - 1) * 40);
+    final speed = (1.5 + (wave - 1) * 0.05) * 0.85; // 全怪移速 -15%
     return EnemyStatus(totalHp: hp, currentHp: hp, speed: speed);
   }
 

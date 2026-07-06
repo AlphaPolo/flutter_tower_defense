@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame_noise/flame_noise.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../tower_defense_game.dart';
 
@@ -40,6 +41,7 @@ class CameraShakeController extends Component
           duration: duration,
           // 不同 seed → X/Y 兩軸雜訊曲線不同 → 有機 2D 抖動，而非單一直線。
           noise: PerlinNoise(seed: _rnd.nextInt(1 << 30), frequency: _frequency),
+        taperingCurve: Curves.easeOutBack,
         );
 
     _fxX = MoveByEffect(Vector2(amp(), 0), ctrl());
