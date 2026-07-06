@@ -30,7 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
+      // 不透明深色底（原本 Colors.black87 是 87% 半透明 → 分頁列/邊緣會透出半透明感）。
+      backgroundColor: Colors.black,
       // 設定抽屜：由左上「設定」鈕開啟；關閉邊緣滑動手勢，避免與棋盤拖曳衝突。
       drawer: SettingsDrawer(game: game),
       drawerEnableOpenDragGesture: false,
