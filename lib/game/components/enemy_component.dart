@@ -9,6 +9,7 @@ import '../effects/particles.dart';
 import '../effects/pop_in.dart';
 import '../tower_defense_game.dart';
 import 'enemy_kind.dart';
+import 'leak_ghost.dart';
 import 'enemy_status.dart';
 
 export 'enemy_status.dart';
@@ -170,8 +171,19 @@ class EnemyComponent extends PositionComponent
     _settled = true;
     _dead = true;
     game.onEnemyLeaked(this);
+    // 抵達主堡後留下一個純視覺替身淡出（不進 game.enemies → 塔不會鎖定/命中）。
+    game.world.add(LeakGhostComponent(
+      kind: kind,
+      screenPos: position.clone(),
+      faceLeft: _faceLeft(),
+      animT: _animT,
+    ));
     removeFromParent();
   }
+
+  /// 依螢幕水平移動方向判斷是否朝左（素材預設朝右）。
+  bool _faceLeft() =>
+      game.logicalToScreen(_segTo).x - game.logicalToScreen(_segFrom).x < 0;
 
   // ── 治療（薩滿等支援型）─────────────────────────────────────
   void _tickHeal(double dt, double dtMs) {
@@ -321,9 +333,7 @@ class EnemyComponent extends PositionComponent
       final dst =
           Rect.fromCenter(center: Offset(0, centerY), width: size, height: size);
       // 依螢幕水平移動方向翻轉（素材預設朝右）。
-      final faceLeft = (game.logicalToScreen(_segTo).x -
-              game.logicalToScreen(_segFrom).x) <
-          0;
+      final faceLeft = _faceLeft();
       final fq = kind.pixel ? FilterQuality.none : FilterQuality.medium;
       canvas.save();
       if (faceLeft) canvas.scale(-1, 1);
