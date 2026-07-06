@@ -1030,13 +1030,19 @@ class _EnemyAvatarPainter extends CustomPainter {
       return;
     }
     final fs = kind.frameSize;
-    final side = (kind.footFrac - kind.topFrac) * fs; // 內容高度當方形邊長
-    final src = Rect.fromLTWH((fs - side) / 2, kind.topFrac * fs, side, side);
+    // 以「內容高度」為基準方形邊長，再依 avatarZoom 縮小裁切框(放大)、以內容中心
+    // (可用 avatarDx/Dy 微調)為中心裁切。zoom=1 時與舊行為一致。
+    final side = (kind.footFrac - kind.topFrac) * fs / kind.avatarZoom;
+    final cx = fs / 2 + kind.avatarDx * fs;
+    final cy = (kind.topFrac + kind.footFrac) / 2 * fs + kind.avatarDy * fs;
+    final src = Rect.fromLTWH(cx - side / 2, cy - side / 2, side, side);
     canvas.drawImageRect(
       image,
       src,
       Offset.zero & s,
-      Paint()..filterQuality = FilterQuality.medium,
+      Paint()
+        ..filterQuality =
+            kind.pixel ? FilterQuality.none : FilterQuality.medium,
     );
   }
 

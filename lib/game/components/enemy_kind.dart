@@ -23,6 +23,13 @@ class EnemyKind {
     this.frameSize = 0,
     this.footFrac = 0.70,
     this.topFrac = 0.28,
+    this.healRange = 0,
+    this.healFrac = 0,
+    this.healIntervalMs = 1200,
+    this.pixel = false,
+    this.avatarZoom = 1.0,
+    this.avatarDx = 0,
+    this.avatarDy = 0,
   });
 
   final String id;
@@ -43,6 +50,20 @@ class EnemyKind {
   final double frameSize; // 每幀像素（正方形）
   final double footFrac; // 內容「底部(腳/影)」在幀中的比例 → 用來對齊地面線
   final double topFrac; // 內容「頂部(頭)」在幀中的比例 → 血條定位
+
+  // 治療型敵人（如薩滿）：[healRange]>0 時，每 [healIntervalMs] 毫秒治療範圍內
+  // 其他敵人，每次回復對方「最大血量 × [healFrac]」。healRange 以格為單位；0＝非治療型。
+  final double healRange;
+  final double healFrac;
+  final int healIntervalMs;
+
+  final bool pixel; // true＝像素風素材（Tiny Swords）→ 繪製用最近鄰、不模糊
+
+  // 圖鑑預覽裁切微調（只影響 UI 預覽，不影響場上繪製）：
+  // [avatarZoom]>1 裁更緊(放大)；[avatarDx]/[avatarDy] 以幀比例平移裁切中心。
+  final double avatarZoom;
+  final double avatarDx;
+  final double avatarDy;
 
   static const grunt = EnemyKind(
     id: 'grunt',
@@ -80,6 +101,8 @@ class EnemyKind {
     frameSize: 256,
     footFrac: 0.648,
     topFrac: 0.117,
+    avatarZoom: 1.35, // 預覽放大聚焦騎士+坐騎，長槍裁掉
+    avatarDy: 0.05, // 裁切中心往上，聚焦騎士
   );
 
   static const swarm = EnemyKind(
@@ -140,8 +163,35 @@ class EnemyKind {
     frameSize: 384,
     footFrac: 0.773,
     topFrac: 0.234,
+    avatarZoom: 1.2,
+    avatarDy: -0.1,
+  );
+
+  /// 薩滿（Tiny Swords「Hex Shaman」像素素材）：治療型支援敵人。定期回復周圍
+  /// 其他敵人血量 → 逼玩家優先集火它，否則整群會被奶回來。血量中上、移速略慢。
+  static const shaman = EnemyKind(
+    id: 'shaman',
+    name: '薩滿',
+    hpMul: 1.5,
+    speedMul: 0.85,
+    reward: 15,
+    leakDamage: 1,
+    color: Color(0xFF26C6A0),
+    sizeMul: 1.2,
+    unlockWave: 8,
+    weight: 1.5,
+    desc: '會定期治療周圍的敵人（腳下有綠色治療光環）。優先集火解決它，否則整群會被奶回來。',
+    sheet: 'enemy_shaman_run.png',
+    frames: 4,
+    frameSize: 192,
+    footFrac: 0.71,
+    topFrac: 0.24,
+    pixel: true,
+    healRange: 2.5,
+    healFrac: 0.06,
+    healIntervalMs: 1100,
   );
 
   /// 會參與波次「權重填充」的一般種類（依解鎖順序）。
-  static const all = [grunt, scout, swarm, brute];
+  static const all = [grunt, scout, swarm, brute, shaman];
 }

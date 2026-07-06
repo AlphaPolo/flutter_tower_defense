@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -42,6 +44,10 @@ class EnemyComponent extends PositionComponent
 
   double _progress = 0;
   double _animT = 0; // 動畫計時（秒）
+  double _healTimer = 0; // 治療型：距離下次治療的計時（ms）
+  double _healPulse = 0; // 治療瞬間光環閃亮(0..1)，之後衰減
+  double _hitFlash = 0; // 命中閃白(0..1)，之後衰減
+  double _shake = 0; // 命中震動強度(0..1)，之後衰減（只影響繪製、不動實際位置）
   final Vector2 _segFrom = Vector2.zero();
   final Vector2 _segTo = Vector2.zero();
 
@@ -68,8 +74,11 @@ class EnemyComponent extends PositionComponent
   void update(double dt) {
     if (isDead) return;
     _animT += dt;
+    if (_hitFlash > 0) _hitFlash = (_hitFlash - dt / 0.10).clamp(0.0, 1.0);
+    if (_shake > 0) _shake = (_shake - dt / 0.18).clamp(0.0, 1.0);
 
     final dtMs = dt * 1000;
+    if (kind.healRange > 0) _tickHeal(dt, dtMs); // 薩滿等治療型
     afterEffects = _tickEffects(dtMs.round());
     var speed = (afterEffects ?? status).speed;
 
@@ -114,7 +123,7 @@ class EnemyComponent extends PositionComponent
     // 荊棘等天然環境：站在上面持續受少量傷害。
     final envDps = game.envDpsAt(currentLocation);
     if (envDps > 0) {
-      dealDamage(envDps * dt, physical: false);
+      dealDamage(envDps * dt, physical: false, feedback: false);
       if (isDead) return;
     }
 
@@ -128,8 +137,13 @@ class EnemyComponent extends PositionComponent
 
   /// 對敵人造成傷害。[physical]=true（滾木/火炮/風刃/地刺等直擊）會被「脆弱化」
   /// (VulnerableEffect) 放大；元素/持續傷害（火焰、毒、雷電）傳 false，不受放大。
-  void dealDamage(double damage, {bool physical = true}) {
+  void dealDamage(double damage, {bool physical = true, bool feedback = true}) {
     if (isDead) return;
+    // 命中回饋：閃白 + 震動（連續傷害如毒/火/荊棘傳 feedback:false，避免持續閃爍）。
+    if (feedback) {
+      _hitFlash = 1;
+      _shake = 1;
+    }
     var dmg = damage;
     if (physical) {
       var amp = 0.0;
@@ -159,6 +173,35 @@ class EnemyComponent extends PositionComponent
     removeFromParent();
   }
 
+  // ── 治療（薩滿等支援型）─────────────────────────────────────
+  void _tickHeal(double dt, double dtMs) {
+    _healPulse = (_healPulse - dt * 2).clamp(0.0, 1.0);
+    _healTimer += dtMs;
+    if (_healTimer >= kind.healIntervalMs) {
+      _healTimer = 0;
+      if (_healNearby()) _healPulse = 1.0; // 有奶到人才閃光環
+    }
+  }
+
+  /// 治療範圍內「其他」未滿血的敵人：每隻回復其最大血量 × [EnemyKind.healFrac]。
+  /// 回傳是否至少治療到一隻。
+  bool _healNearby() {
+    final range = game.board.hexagonRadius * kind.healRange;
+    var any = false;
+    for (final e in game.enemies) {
+      if (identical(e, this) || e.isDead) continue;
+      final st = e.status;
+      if (st.currentHp >= st.totalHp) continue;
+      if (logicalPos.distanceTo(e.logicalPos) > range) continue;
+      final hp = (st.currentHp + st.totalHp * kind.healFrac)
+          .clamp(0.0, st.totalHp)
+          .toDouble();
+      e.status = st.copyWith(currentHp: hp);
+      any = true;
+    }
+    return any;
+  }
+
   // ── 效果 ─────────────────────────────────────────────────
   EnemyStatus _tickEffects(int dtMs) {
     var dirty = false;
@@ -170,7 +213,9 @@ class EnemyComponent extends PositionComponent
       dot += effect.takeDamage();
       if (effect.dead) dirty = true;
     }
-    if (dot > 0) dealDamage(dot, physical: false); // 持續傷害（毒/火）：非物理
+    if (dot > 0) {
+      dealDamage(dot, physical: false, feedback: false); // 持續傷害(毒/火)：非物理、不閃白
+    }
     if (dirty) {
       effects.removeWhere((e) {
         if (e.dead) e.onEnd();
@@ -220,8 +265,43 @@ class EnemyComponent extends PositionComponent
   // ── 繪製：身體(billboard/色圓) + 上方血條（依 isometric 比例縮放）──────
   @override
   void render(Canvas canvas) {
-    renderBody(canvas);
+    if (kind.healRange > 0) _renderHealAura(canvas); // 治療型腳下光環
+    final sh = _shakeOffset();
+    if (sh == Offset.zero) {
+      renderBody(canvas);
+    } else {
+      canvas
+        ..save()
+        ..translate(sh.dx, sh.dy);
+      renderBody(canvas);
+      canvas.restore();
+    }
     _renderHealthBar(canvas);
+  }
+
+  /// 命中震動位移（原理同相機震動：暫時偏移、隨強度衰減回 0）。只影響繪製，
+  /// 不動 [logicalPos]/[position]，所以不影響實際位置與尋路。
+  Offset _shakeOffset() {
+    if (_shake <= 0) return Offset.zero;
+    final s = game.iso.scaleX;
+    final k = _shake * _shake; // 平方 → 收尾更快、更像撞擊
+    return Offset(
+      sin(_animT * 90) * 3.5 * s * k,
+      cos(_animT * 75) * 2.2 * s * k,
+    );
+  }
+
+  /// 治療型敵人腳下的綠色貼地光環（顯示治療範圍，治療瞬間變亮）。
+  void _renderHealAura(Canvas canvas) {
+    final s = game.iso.scaleX;
+    final r = game.board.hexagonRadius * kind.healRange * s;
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset.zero, width: r * 2, height: r),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (1.5 + 2 * _healPulse) * s
+        ..color = const Color(0xFF3DE08A).withOpacity(0.20 + 0.5 * _healPulse),
+    );
   }
 
   /// 只畫敵人「身體」(直立 billboard 或退回色圓)，圍繞 local 原點(＝接地點)
@@ -244,10 +324,22 @@ class EnemyComponent extends PositionComponent
       final faceLeft = (game.logicalToScreen(_segTo).x -
               game.logicalToScreen(_segFrom).x) <
           0;
+      final fq = kind.pixel ? FilterQuality.none : FilterQuality.medium;
       canvas.save();
       if (faceLeft) canvas.scale(-1, 1);
-      canvas.drawImageRect(
-          img, src, dst, Paint()..filterQuality = FilterQuality.medium);
+      canvas.drawImageRect(img, src, dst, Paint()..filterQuality = fq);
+      if (_hitFlash > 0) {
+        // 命中閃白：以 srcATop 在不透明像素上疊白，alpha＝閃白強度。
+        canvas.drawImageRect(
+          img,
+          src,
+          dst,
+          Paint()
+            ..filterQuality = fq
+            ..colorFilter = ColorFilter.mode(
+                Colors.white.withOpacity(_hitFlash), BlendMode.srcATop),
+        );
+      }
       canvas.restore();
     } else {
       final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
@@ -260,6 +352,10 @@ class EnemyComponent extends PositionComponent
           ..strokeWidth = 1.2 * s
           ..color = Colors.black.withOpacity(0.35),
       );
+      if (_hitFlash > 0) {
+        canvas.drawCircle(
+            Offset.zero, r, Paint()..color = Colors.white.withOpacity(_hitFlash * 0.9));
+      }
     }
   }
 

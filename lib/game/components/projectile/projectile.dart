@@ -326,7 +326,7 @@ class FlameProjectileComponent extends ProjectileComponent {
     for (final e in game.enemies) {
       if (e.isDead) continue;
       if (e.logicalPos.distanceTo(logical) <= 40) {
-        e.dealDamage(burn, physical: false); // 火焰＝元素傷害
+        e.dealDamage(burn, physical: false, feedback: false); // 火焰＝持續元素傷害、不閃白
         // 熾流：命中即附加/刷新持續燃燒（離開火焰後仍延燒 _burnMs）。
         if (burnDps > 0) {
           e.addEffect(PoisonEffect(kBurnEffectType, _burnMs, burnDps));
