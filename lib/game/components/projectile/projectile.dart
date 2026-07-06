@@ -159,6 +159,11 @@ class CannonProjectileComponent extends ProjectileComponent {
   /// 出膛高度（螢幕 px）：約塔頂投石機的位置，讓砲彈從塔頂射出而非地面。
   double get _launchPx => game.board.hexagonRadius * s * 1.1;
 
+  /// 目前砲彈相對地面的抬升（螢幕 px）：出膛高度漸收 + 拋物線弧。繪製與尾跡共用。
+  double get _lift => _launchPx * (1 - _t) + sin(_t * pi) * 32 * s;
+
+  double _smokeT = 0; // 硝煙尾跡計時（ms）
+
   @override
   void onMount() {
     super.onMount();
@@ -176,6 +181,13 @@ class CannonProjectileComponent extends ProjectileComponent {
       return;
     }
     lerpLogical(_start, goalLogical!, _t);
+    // 硝煙尾跡：沿飛行路徑（含抬升）定期生成一小團灰煙。
+    _smokeT += dtMs;
+    if (_smokeT >= 18) {
+      _smokeT = 0;
+      game.world
+          .add(smokePuff(game.logicalToScreen(logical) + Vector2(0, -_lift), s));
+    }
   }
 
   void _explode() {
@@ -207,8 +219,7 @@ class CannonProjectileComponent extends ProjectileComponent {
   @override
   void render(Canvas canvas) {
     // 拋物線：從塔頂投石機高度([_launchPx])出發，中段抬升成弧線，落到地面(0)。
-    final t = _t;
-    final lift = _launchPx * (1 - t) + sin(t * pi) * 32 * s;
+    final lift = _lift;
     canvas.drawCircle(
       Offset(0, -lift),
       7 * s,

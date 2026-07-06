@@ -104,6 +104,40 @@ ParticleSystemComponent coinSparkle(Vector2 pos, double s, {int count = 2}) {
   );
 }
 
+/// 硝煙一小團：擴散、微微上飄、淡出的柔邊灰煙（砲彈飛行尾跡用，每幀沿路生成）。
+ParticleSystemComponent smokePuff(Vector2 pos, double s) {
+  return ParticleSystemComponent(
+    position: pos.clone(),
+    priority: 1990000, // 在砲彈之下、敵人之上
+    particle: Particle.generate(
+      count: 1,
+      lifespan: 0.5,
+      generator: (i) {
+        final r0 = 3.0 * s;
+        final col = Color.lerp(const Color(0xFFBDBDBD), const Color(0xFF757575),
+            _rnd.nextDouble())!;
+        return AcceleratedParticle(
+          speed: Vector2((_rnd.nextDouble() - 0.5) * 12 * s, -14 * s), // 微微上飄
+          child: ComputedParticle(
+            renderer: (canvas, p) {
+              final t = p.progress;
+              final op = (0.62 * (1 - t)).clamp(0.0, 1.0);
+              final rad = r0 * (1 + 1.7 * t); // 擴散
+              canvas.drawCircle(
+                Offset.zero,
+                rad,
+                Paint()
+                  ..color = col.withOpacity(op)
+                  ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.5 * s),
+              );
+            },
+          ),
+        );
+      },
+    ),
+  );
+}
+
 /// 一團往外噴、邊飛邊淡出的圓點粒子，自動在結束時移除。
 ParticleSystemComponent _burst(
   Vector2 pos, {
