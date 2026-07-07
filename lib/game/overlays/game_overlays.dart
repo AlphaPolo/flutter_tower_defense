@@ -364,11 +364,13 @@ class LeftColOverlay extends StatelessWidget {
                       children: [
                         _enemyInfoCard(),
                         const SizedBox(height: 8),
+                        _wavePreview(),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          spacing: 6,
                           children: [
                             _startButton(),
-                            const SizedBox(width: 10),
+                            _speedButton(),
                             Flexible(child: _enemyBestiary()),
                           ],
                         ),
@@ -871,6 +873,70 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
+  /// 遊戲速度切換鈕：點擊循環 1×→2×→3×→1×。非 1× 時金色高亮提醒。
+  Widget _speedButton() {
+    return ValueListenableBuilder<int>(
+      valueListenable: game.gameSpeed,
+      builder: (context, sp, _) {
+        final active = sp > 1;
+        return GestureDetector(
+          onTap: () {
+            GameAudio.ui('click', volume: 0.5);
+            game.gameSpeed.value = sp >= 3 ? 1 : sp + 1;
+          },
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.only(left: 6, right: 6),
+            decoration: ShapeDecoration(
+              gradient: _kWoodGradient,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: active ? _kGold : _kGoldDeep.withOpacity(0.85),
+                  width: active ? 2 : 1.3,
+                ),
+              ),
+              shadows: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            // 速度圖示：1/2/3 個重疊的 ▶（Material 沒有內建三箭頭，
+            // 用 play_arrow 疊排組出經典的倍速標示）。
+            child: Row(
+              spacing: 8,
+              children: [
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      for (var i = 0; i < sp; i++)
+                        Transform.translate(
+                          offset: Offset((i - (sp - 1) / 2) * 8.0, 0),
+                          child: Icon(
+                            Icons.play_arrow,
+                            size: 19,
+                            color: active ? _kGold : const Color(0xFFD8C9A6),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                Text('x $sp', style: TextStyle(color: _kGold, fontWeight: FontWeight.w900)),
+
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _startButton() {
     return AnimatedBuilder(
       animation: Listenable.merge(
@@ -893,35 +959,111 @@ class LeftColOverlay extends StatelessWidget {
           label = '下一波 (${game.waveNumber + 1}/${TowerDefenseGame.totalWaves})';
         }
 
-        final button = ElevatedButton.icon(
-          onPressed: canStart ? game.startGame : null,
-          icon: const Icon(Icons.play_circle),
-          label: Text(label),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey.shade600,
-            disabledForegroundColor: Colors.white70,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        final disableForegroundColor = Colors.white70;
+
+        final button = InkWell(
+          borderRadius: const BorderRadius.all(Radius.circular(80)),
+          onTap: canStart ? game.startGame : null,
+          child: Container(
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              color: canStart ? Colors.green : Colors.grey.shade600,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            child: Row(
+              spacing: 4,
+              children: [
+                Icon(Icons.play_circle, color: canStart ? Colors.white : disableForegroundColor),
+                Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: canStart ? Colors.white : disableForegroundColor)),
+              ],
+            ),
           ),
         );
 
-        return Padding(
-          padding: const EdgeInsets.all(8),
-          // 可按時用輕微脈動提示玩家「現在可以開下一波了」。
-          child: canStart
-              ? button
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(
-                    begin: 1.0,
-                    end: 1.06,
-                    duration: const Duration(milliseconds: 700),
-                    curve: Curves.easeInOut,
-                  )
-              : button,
+        return button;
+      },
+    );
+  }
+
+  /// 下一波預告：頭像 ×數量 的橫列（與實際生成共用同一份快取組成，所見即所得）。
+  /// 波次進行中 / 遊戲結束 / 已打完全部波次時隱藏。
+  Widget _wavePreview() {
+    return AnimatedBuilder(
+      animation: Listenable.merge(
+          [game.wave, game.waveRunning, game.gameOver, game.gameWon]),
+      builder: (context, _) {
+        if (game.waveRunning.value ||
+            game.gameOver.value ||
+            game.gameWon.value) {
+          return const SizedBox.shrink();
+        }
+        final next = game.waveNumber + 1;
+        if (next > TowerDefenseGame.totalWaves) return const SizedBox.shrink();
+        // 依「首次出現順序」聚合數量。
+        final counts = <EnemyKind, int>{};
+        for (final k in game.waveLineup(next)) {
+          counts[k] = (counts[k] ?? 0) + 1;
+        }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: _woodBox(radius: 14, strong: false),
+          // 後期敵種多時可橫向捲動，窄螢幕不爆版。
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('下一波',
+                    style: TextStyle(
+                        color: _kGold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                for (final e in counts.entries) ...[
+                  _previewChip(e.key, e.value),
+                  const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
         );
       },
+    );
+  }
+
+  /// 預告用小徽章：敵人頭像 + ×數量；Boss 用紅框強調。
+  Widget _previewChip(EnemyKind kind, int count) {
+    final boss = kind == EnemyKind.juggernaut;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: boss ? Colors.redAccent : Colors.white24,
+              width: boss ? 2 : 1.2,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: CustomPaint(
+            painter: _EnemyAvatarPainter(game.enemySheets[kind.id], kind),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '×$count',
+          style: TextStyle(
+            color: boss ? Colors.redAccent : Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -937,11 +1079,10 @@ class LeftColOverlay extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              spacing: 6,
               children: [
-                for (final k in kinds) ...[
+                for (final k in kinds)
                   _enemyAvatarButton(k, sel == k),
-                  const SizedBox(width: 6),
-                ],
               ],
             ),
           ),

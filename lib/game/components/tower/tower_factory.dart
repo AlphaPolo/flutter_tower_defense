@@ -248,6 +248,15 @@ class FlameTowerComponent extends TowerComponent {
   double get damage => mod(TowerMod.dmg,8);
   double get burnDps => mod(TowerMod.burn,0);
 
+  /// 兩角度的「最短差」，正規化到 [-π, π]：跨越 ±π 邊界時（例如 172° → -172°）
+  /// 取近路的 ±16°，而不是繞遠路的 344°。
+  static double _angleDelta(double to, double from) {
+    var d = (to - from) % (2 * pi);
+    if (d > pi) d -= 2 * pi;
+    if (d < -pi) d += 2 * pi;
+    return d;
+  }
+
   @override
   void update(double dt) {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
@@ -258,9 +267,12 @@ class FlameTowerComponent extends TowerComponent {
         final diff = t.logicalPos - logicalPos;
         if (game.isInsideRange(diff, range)) {
           final targetAngle = atan2(diff.y, diff.x);
-          final delta = targetAngle - direction;
+          // 最短差 → 永遠往離目前砲口最近的方向轉。
+          final delta = _angleDelta(targetAngle, direction);
           final amount = min(rotateSpeed, delta.abs());
           direction += delta.sign * amount;
+          // 累積後拉回 [-π, π]，避免之後的比較再跨界。
+          direction = _angleDelta(direction, 0);
           attemptShoot(t);
           return;
         }
@@ -272,7 +284,7 @@ class FlameTowerComponent extends TowerComponent {
     var bestDiff = double.infinity;
     for (final e in game.enemiesInRange(logicalPos, range)) {
       final a = atan2(e.logicalPos.y - logicalPos.y, e.logicalPos.x - logicalPos.x);
-      final d = (a - direction).abs();
+      final d = _angleDelta(a, direction).abs(); // 同樣用最短差挑「轉最少」的目標
       if (d < bestDiff) {
         bestDiff = d;
         best = e;

@@ -103,11 +103,7 @@ def main():
     n = int(SR * 0.12)
     write('shot', sweep(1400, 320, 0.12, saw) * env(n, 0.002, curve=5), 0.5)
 
-    # 火炮出膛：低頻 boom + 噪音
-    n = int(SR * 0.32)
-    boom = sweep(130, 45, 0.32) * env(n, 0.004, curve=4)
-    boom += lowpass(noise(0.32), 0.12) * env(n, 0.002, curve=5) * 0.7
-    write('cannon', boom)
+    # （cannon 已改用 rubberduck「25 CC0 bang SFX」的 cannon_04）
 
     # 爆炸：更大更長的 boom（低通噪音為主）
     n = int(SR * 0.5)
@@ -120,9 +116,6 @@ def main():
     zap = sweep(2200, 150, 0.2, square) * env(n, 0.001, curve=6)
     crack = noise(0.2) * env(n, 0.001, curve=8)
     write('thunder', zap * 0.7 + crack * 0.5, 0.6)
-
-    # 冰凍：清脆下行琶音（冰晶感）
-    write('freeze', note_seq([1760, 1320, 988], 0.08, curve=3), 0.45)
 
     # 滾木：低頻滾動隆隆（低通噪音 + 低頻抖動）
     n = int(SR * 0.25)

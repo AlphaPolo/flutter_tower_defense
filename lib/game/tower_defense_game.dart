@@ -135,6 +135,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   // 序號每波遞增 → 金額相同也會觸發通知重播。
   final ValueNotifier<(int, int)?> woodsIncome = ValueNotifier(null);
 
+  /// 玩家遊戲速度（1/2/3×）：與 demoSpeed 相乘決定每幀模擬子步數。
+  final ValueNotifier<int> gameSpeed = ValueNotifier(1);
+
   // ── 自動演示 ──────────────────────────────────────────────
   final ValueNotifier<bool> demoRunning = ValueNotifier(false);
   AutoPlayerComponent? _autoPlayer;
@@ -857,12 +860,28 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     ],
   };
 
+  /// 各波「隨機組成」快取：波次預告與實際生成共用同一份（只骰一次，
+  /// 否則預告顯示的跟實際開波的會是兩次不同的隨機結果）。
+  final Map<int, List<EnemyKind>> _compCache = {};
+
+  List<EnemyKind> _cachedComposition(int wave) =>
+      _compCache.putIfAbsent(wave, () => buildWaveComposition(wave));
+
+  /// 第 [wave] 波玩家實際會遇到的完整敵人清單（含招牌小隊 / Boss 波的 Boss），
+  /// 給「下一波預告」UI 用；與 buildWaveSchedule 用同一份快取組成。
+  List<EnemyKind> waveLineup(int wave) {
+    if (bossWaves.contains(wave)) {
+      return [..._cachedComposition(wave).take(10), EnemyKind.juggernaut];
+    }
+    return [..._cachedComposition(wave), ...?_squads[wave]];
+  }
+
   /// 該波完整生成序列：Boss 波 → 護衛+Boss；一般波 → 權重填充（可能插入招牌小隊）。
   List<SpawnTick> buildWaveSchedule(int wave) {
     if (bossWaves.contains(wave)) return _bossSchedule(wave);
 
     final ticks = <SpawnTick>[
-      for (final k in buildWaveComposition(wave)) SpawnTick(k, 1.0),
+      for (final k in _cachedComposition(wave)) SpawnTick(k, 1.0),
     ];
     if (ticks.isNotEmpty) ticks[0] = SpawnTick(ticks.first.kind, 0.5);
 
@@ -889,7 +908,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// Boss 波序列：幾隻護衛 → Boss 登場 → 其餘護衛。
   List<SpawnTick> _bossSchedule(int wave) {
-    final escort = buildWaveComposition(wave).take(10).toList();
+    final escort = _cachedComposition(wave).take(10).toList();
     final ticks = <SpawnTick>[];
     for (var i = 0; i < escort.length; i++) {
       ticks.add(SpawnTick(escort[i], i == 0 ? 0.5 : 0.8));
@@ -909,8 +928,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     _advanceFling(dt); // 甩動慣性滑行（UI 手感，用真實 dt、每幀一次）
     // 3D 音訊 listener 跟著相機（拉遠變小聲、偏左的音源偏左耳）。
     GameAudio.updateListener(camera.viewfinder.position, camera.viewfinder.zoom);
-    // demoSpeed 個子步，每步都用正常 dt（保留細粒度、只是播放變快）。
-    for (var step = 0; step < demoSpeed; step++) {
+    // demoSpeed×gameSpeed 個子步，每步都用正常 dt（保留細粒度、只是播放變快）。
+    final steps = demoSpeed * gameSpeed.value;
+    for (var step = 0; step < steps; step++) {
       super.update(dt);
       final spawner = _spawner;
       if (spawner != null && spawner.isDone && enemies.isEmpty) {
@@ -962,6 +982,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     freeObstacle.value = 3;
     waveNumber = 0;
     completedWaves = 0;
+    _compCache.clear(); // 波次組成快取（預告用）重骰
     wave.value = 0;
     waveRunning.value = false;
     gameOver.value = false;
@@ -1040,6 +1061,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     gameOver.dispose();
     gameWon.dispose();
     woodsIncome.dispose();
+    gameSpeed.dispose();
     towerShadowImage.dispose();
     super.onRemove();
   }

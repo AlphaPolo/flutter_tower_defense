@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tower_type.dart';
 
@@ -25,6 +26,26 @@ class GameAudio {
 
   static bool _ready = false;
   static bool _starting = false;
+  static bool _prefsLoaded = false;
+
+  /// 讀取音訊設定（開關/音量），之後任何變更自動寫回。app 啟動時呼叫一次。
+  static Future<void> loadPrefs() async {
+    if (_prefsLoaded) return;
+    _prefsLoaded = true;
+    try {
+      final p = await SharedPreferences.getInstance();
+      sfxOn.value = p.getBool('sfxOn') ?? sfxOn.value;
+      bgmOn.value = p.getBool('bgmOn') ?? bgmOn.value;
+      sfxVol.value = p.getDouble('sfxVol') ?? sfxVol.value;
+      bgmVol.value = p.getDouble('bgmVol') ?? bgmVol.value;
+      sfxOn.addListener(() => p.setBool('sfxOn', sfxOn.value));
+      bgmOn.addListener(() => p.setBool('bgmOn', bgmOn.value));
+      sfxVol.addListener(() => p.setDouble('sfxVol', sfxVol.value));
+      bgmVol.addListener(() => p.setDouble('bgmVol', bgmVol.value));
+    } catch (e) {
+      debugPrint('GameAudio loadPrefs failed: $e'); // 存取失敗照預設值走
+    }
+  }
   static final Map<String, AudioSource> _srcs = {};
   static SoundHandle? _bgmHandle;
   static final Map<String, int> _lastMs = {}; // 每音效上次播放時間 → 節流
@@ -43,10 +64,9 @@ class GameAudio {
     // ── 世界/戰鬥（合成）──
     'demolish': 'demolish.wav',
     'shot': 'shot.wav',
-    'cannon': 'cannon.wav',
+    'cannon': 'cannon.ogg', // rubberduck「25 CC0 bang SFX」cannon_04（CC0）
     'explosion': 'explosion.wav',
     'thunder': 'thunder.wav',
-    'freeze': 'freeze.wav',
     'log': 'log.wav',
     'death': 'death.wav',
     'coin': 'coin.wav', // artisticdude「Inventory SFX」sell/buy（CC-BY 3.0）
@@ -170,7 +190,7 @@ class GameAudio {
       case TowerType.thunder:
         world('thunder', pos, volume: 0.55, throttleMs: 90);
       case TowerType.freezing:
-        world('freeze', pos, volume: 0.6, throttleMs: 140);
+        break; // 冰環施放頻繁、疊起來吵，不配音
       case TowerType.log:
         world('log', pos, volume: 0.9, throttleMs: 140);
       case TowerType.flame:

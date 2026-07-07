@@ -21,6 +21,7 @@ dependencies:
   flame: ^1.35.1
   flame_noise: ^0.3.2+20
   flutter_soloud: ^3.5.4
+  shared_preferences: ^2.5.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
