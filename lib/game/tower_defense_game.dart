@@ -6,6 +6,8 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart'
+    show FrictionSimulation, Simulation, SpringDescription, SpringSimulation;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../screens/my_app.dart' show showTopMessage;
@@ -236,9 +238,28 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   // ── 觸控：雙指縮放、單指平移 ──────────────────────────────
   double _startZoom = 1;
 
+  // 甩動慣性 + 邊界回彈：放開手指後相機以摩擦力滑行；滑出邊界（棋盤圖範圍）時該軸
+  // 帶著當下速度切換成「錨在邊界上」的彈簧 → 衝出一小段被拉回、停在邊界上
+  // （iOS rubber band）。x/y 兩軸獨立模擬 → 保留甩動方向、可只有一軸撞牆。
+  _CameraFling? _flingX, _flingY;
+
+  /// 邊界回彈彈簧（與 Flutter BouncingScrollSimulation 同款參數；ratio>1 略過阻尼
+  /// → 平滑拉回、不來回震盪）。
+  static final SpringDescription _bounceSpring =
+      SpringDescription.withDampingRatio(mass: 0.5, stiffness: 100, ratio: 1.1);
+
+  /// 相機中心的允許範圍：x 取棋盤圖全寬；y 上下各內縮 15%（棋盤圖上下留白較多，
+  /// 全幅會滑出太多黑邊）。拖曳阻力、放手回彈、甩動撞界都用同一組邊界。
+  Rect get _cameraBounds {
+    final s = iso.imageSize;
+    return Rect.fromLTRB(0, s.y * 0.15, s.x, s.y * 0.85);
+  }
+
   @override
   void onScaleStart(ScaleStartInfo info) {
     _startZoom = camera.viewfinder.zoom;
+    _flingX = null; // 一碰螢幕就停止慣性滑行（和原生捲動一致）
+    _flingY = null;
   }
 
   @override
@@ -247,10 +268,96 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       // 雙指 → 縮放（用整體 pinch 距離，往外張放大、捏合縮小，與方向無關）
       camera.viewfinder.zoom = (_startZoom * info.raw.scale).clamp(0.1, 3.0);
     } else {
-      // 單指 → 平移（螢幕位移換算成世界位移）
-      camera.viewfinder.position +=
-          -info.delta.global / camera.viewfinder.zoom;
+      // 單指 → 平移（螢幕位移換算成世界位移）；拖出邊界時套 rubber band 阻力。
+      final zoom = camera.viewfinder.zoom;
+      final d = -info.delta.global / zoom;
+      final pos = camera.viewfinder.position;
+      final b = _cameraBounds;
+      camera.viewfinder.position = Vector2(
+        _dragAxis(pos.x, d.x, b.left, b.right, size.x / zoom),
+        _dragAxis(pos.y, d.y, b.top, b.bottom, size.y / zoom),
+      );
     }
+  }
+
+  /// 單軸拖曳（帶界外阻力）：界內 1:1；跨出邊界的那段開始「越拖越重」——阻力係數
+  /// 同 Flutter BouncingScrollPhysics.frictionFactor＝0.52·(1−越界量/視口)²（視口
+  /// 取該軸可見世界寬度）；往界內拉回則不阻，內容快速跟回（同原生手感）。
+  double _dragAxis(
+      double pos, double delta, double lo, double hi, double viewport) {
+    var x = pos;
+    var d = delta;
+    if (d == 0) return x;
+    // 界外往回拉：先 1:1 自由移動到邊界（拉回不阻）。
+    if ((x < lo && d > 0) || (x > hi && d < 0)) {
+      final free = (x < lo ? lo : hi) - x; // 與 d 同號
+      if (d.abs() <= free.abs()) return x + d;
+      x += free;
+      d -= free;
+    }
+    // 界內：自由移動；這一步若會跨出邊界，只把「越界的那段」留給下面的阻力。
+    if (x >= lo && x <= hi) {
+      final target = x + d;
+      if (target >= lo && target <= hi) return target;
+      final edge = target < lo ? lo : hi;
+      d = target - edge;
+      x = edge;
+    }
+    // 剩餘位移全在界外 → 套阻力（越界越多、係數越小、拖起來越重）。
+    final over = x < lo ? lo - x : (x > hi ? x - hi : 0.0);
+    final t = 1 - (over / viewport).clamp(0.0, 1.0);
+    return x + d * 0.52 * t * t;
+  }
+
+  @override
+  void onScaleEnd(ScaleEndInfo info) {
+    // 放開瞬間的速度（螢幕 px/s）→ 換算成世界速度，方向同 onScaleUpdate 的平移。
+    final v = info.raw.velocity.pixelsPerSecond;
+    final zoom = camera.viewfinder.zoom;
+    final vx = -v.dx / zoom, vy = -v.dy / zoom;
+    final pos = camera.viewfinder.position;
+    final b = _cameraBounds;
+    final outside = pos.x < b.left ||
+        pos.x > b.right ||
+        pos.y < b.top ||
+        pos.y > b.bottom;
+    // 太慢（近似輕點/慢放）且在邊界內 → 不需要慣性也不需要回彈。
+    // 被拖出邊界時即使速度為 0 也要點火 → 第一幀就切彈簧拉回（同原生放手回彈）。
+    if (vx * vx + vy * vy < 60 * 60 && !outside) return;
+    const drag = 0.04; // 抗力係數：越小阻力越大、滑越近（0.135＝Flutter 捲動預設）
+    _flingX = _CameraFling(FrictionSimulation(drag, pos.x, vx));
+    _flingY = _CameraFling(FrictionSimulation(drag, pos.y, vy));
+  }
+
+  /// 甩動慣性：每幀推進兩軸模擬、更新相機位置；兩軸都停穩才結束。
+  /// 用真實 dt（與 demoSpeed 無關，慣性是 UI 手感、不隨演示加速）。
+  void _advanceFling(double dt) {
+    final fx = _flingX, fy = _flingY;
+    if (fx == null || fy == null) return;
+    final b = _cameraBounds;
+    camera.viewfinder.position = Vector2(
+      _advanceAxis(fx, dt, b.left, b.right),
+      _advanceAxis(fy, dt, b.top, b.bottom),
+    );
+    if (fx.sim.isDone(fx.t) && fy.sim.isDone(fy.t)) {
+      _flingX = null;
+      _flingY = null;
+    }
+  }
+
+  /// 推進單軸：摩擦滑行中越過 [lo,hi] 邊界 → 帶著當下速度切換成「錨在邊界上」的
+  /// 彈簧（衝出一小段被拉回、停在邊界）。回傳該軸目前位置。
+  double _advanceAxis(_CameraFling f, double dt, double lo, double hi) {
+    f.t += dt;
+    var x = f.sim.x(f.t);
+    if (!f.bouncing && (x < lo || x > hi)) {
+      final edge = x < lo ? lo : hi;
+      f.sim = SpringSimulation(_bounceSpring, x, edge, f.sim.dx(f.t));
+      f.t = 0;
+      f.bouncing = true;
+      x = f.sim.x(0);
+    }
+    return x;
   }
 
   // ── 座標換算 ──────────────────────────────────────────────
@@ -772,6 +879,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   @override
   void update(double dt) {
+    _advanceFling(dt); // 甩動慣性滑行（UI 手感，用真實 dt、每幀一次）
     // demoSpeed 個子步，每步都用正常 dt（保留細粒度、只是播放變快）。
     for (var step = 0; step < demoSpeed; step++) {
       super.update(dt);
@@ -892,4 +1000,14 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     towerShadowImage.dispose();
     super.onRemove();
   }
+}
+
+/// 相機單軸滑行狀態：[sim] 起初是摩擦（FrictionSimulation），撞到邊界後換成
+/// 「錨在邊界上」的彈簧（SpringSimulation）回彈；[t] 是目前 sim 自身的經過秒數
+/// （換 sim 時歸零）。[bouncing]＝已切換成彈簧（每軸只回彈一次、不反覆）。
+class _CameraFling {
+  _CameraFling(this.sim);
+  Simulation sim;
+  double t = 0;
+  bool bouncing = false;
 }
