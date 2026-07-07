@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../audio/game_audio.dart';
 import '../../board/hex.dart';
 import '../../effects/pop_in.dart';
 import '../../tower_defense_game.dart';
@@ -100,7 +101,10 @@ class TowerComponent extends PositionComponent
   void attemptShoot(EnemyComponent enemy) {
     if (prepareShoot > 0) return;
     final projectile = createProjectile(enemy);
-    if (projectile != null) game.world.add(projectile);
+    if (projectile != null) {
+      game.world.add(projectile);
+      GameAudio.fire(type, position); // 3D 定位開火音（依塔種）
+    }
     prepareShoot = fireCD.toDouble();
   }
 
@@ -110,12 +114,17 @@ class TowerComponent extends PositionComponent
     final targets = game.enemiesInRange(logicalPos, range)
         .sortedBy<num>((e) => logicalPos.distanceToSquared(e.logicalPos));
     if (targets.isEmpty) return false;
+    var fired = false;
     for (final e in targets.take(n)) {
       final diff = e.logicalPos - logicalPos;
       direction = atan2(diff.y, diff.x);
       final p = createProjectile(e);
-      if (p != null) game.world.add(p);
+      if (p != null) {
+        game.world.add(p);
+        fired = true;
+      }
     }
+    if (fired) GameAudio.fire(type, position);
     return true;
   }
 

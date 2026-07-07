@@ -1,6 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import '../../game/audio/game_audio.dart';
 import '../../game/overlays/game_overlays.dart';
 import '../../game/tower_defense_game.dart';
 
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 重新開始：建立全新的遊戲實例（GameWidget 會自動釋放舊的）。
   void _restart() {
+    GameAudio.restart(); // 停掉勝/敗 jingle、恢復 BGM
     setState(() {
       game = TowerDefenseGame();
     });
@@ -37,29 +39,38 @@ class _HomeScreenState extends State<HomeScreen> {
       drawerEnableOpenDragGesture: false,
       // 用 Stack 讓「結束彈窗」蓋住整個畫面（含底部 BuildBar），否則遊戲勝/敗時
       // 底部的建造列仍可點擊。EndOverlay 未結束時回傳 SizedBox.shrink，不擋操作。
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(
-                child: GameWidget<TowerDefenseGame>(
-                  key: ValueKey(game),
-                  game: game,
-                  overlayBuilderMap: {
-                    'leftCol': (context, g) =>
-                        LeftColOverlay(game: g, onRestart: _restart),
-                  },
-                  initialActiveOverlays: const ['leftCol'],
-                ),
-              ),
-              BuildBar(game: game),
-            ],
-          ),
-          Positioned.fill(
-            child: EndOverlay(game: game, onRestart: _restart),
-          ),
-        ],
+      // Listener：網頁的聲音需要「首次使用者互動」後才能出聲 → 第一次按下任何
+      // 位置就初始化音訊引擎並開始 BGM（冪等，之後呼叫無作用）。
+      body: Listener(
+        onPointerDown: (_) => GameAudio.ensureStarted(),
+        child: _body(),
       ),
+    );
+  }
+
+  Widget _body() {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            Expanded(
+              child: GameWidget<TowerDefenseGame>(
+                key: ValueKey(game),
+                game: game,
+                overlayBuilderMap: {
+                  'leftCol': (context, g) =>
+                      LeftColOverlay(game: g, onRestart: _restart),
+                },
+                initialActiveOverlays: const ['leftCol'],
+              ),
+            ),
+            BuildBar(game: game),
+          ],
+        ),
+        Positioned.fill(
+          child: EndOverlay(game: game, onRestart: _restart),
+        ),
+      ],
     );
   }
 }

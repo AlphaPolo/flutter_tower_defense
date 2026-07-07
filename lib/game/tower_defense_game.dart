@@ -11,6 +11,7 @@ import 'package:flutter/physics.dart'
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../screens/my_app.dart' show showTopMessage;
+import 'audio/game_audio.dart';
 import 'board/hex.dart';
 import 'board/pathfinding.dart';
 import 'components/board_component.dart';
@@ -542,6 +543,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     if (type == null) return false;
 
     if (!cheat.value && !isAffordable(type)) {
+      GameAudio.ui('error', volume: 0.6);
       showMessage('We need more gold!');
       return false;
     }
@@ -553,6 +555,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       traps[point] = trap;
       world.add(trap);
       coin.value -= statsOf(type).cost;
+      GameAudio.ui('drop', volume: 0.8);
       return true;
     }
 
@@ -569,6 +572,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     } else {
       coin.value -= statsOf(type).cost;
     }
+    GameAudio.ui('drop', volume: 0.8);
     return true;
   }
 
@@ -581,6 +585,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       if (inspecting.value == point) inspecting.value = null;
       final refund = (statsOf(trap.type).cost * 0.75).floor();
       coin.value += refund;
+      GameAudio.ui('demolish', volume: 0.7);
       showMessage('已拆除陷阱，退回 $refund 金幣');
       return true;
     }
@@ -592,6 +597,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     refreshMultishotBuffs(); // 拆掉多重箭/鄰塔可能改變增益
     if (inspecting.value == point) inspecting.value = null;
 
+    GameAudio.ui('demolish', volume: 0.7);
     if (tower.type == TowerType.obstacle) {
       // 障礙物拆除不退回額度。
       showMessage('已拆除障礙物');
@@ -620,6 +626,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   bool clearEnvironmentAt(BoardPoint point) {
     if (!environment.containsKey(point)) return false;
     if (!cheat.value && coin.value < envClearCost) {
+      GameAudio.ui('error', volume: 0.6);
       showMessage('金幣不足');
       return false;
     }
@@ -691,12 +698,14 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     if (t == null) return false;
     if (!upgradeOptions(point).contains(node)) return false; // 只能選當前可選項
     if (!cheat.value && coin.value < node.cost) {
+      GameAudio.ui('error', volume: 0.6);
       showMessage('金幣不足');
       return false;
     }
     if (!cheat.value) coin.value -= node.cost;
     t.applyUpgrade(node);
     t.spentOnUpgrades += node.cost;
+    GameAudio.ui('confirm', volume: 0.7);
     towerChanged.value++; // 讓資訊面板更新
     return true;
   }
@@ -768,9 +777,12 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     world
       ..add(coinBurst(pos, iso.scaleX, count: n))
       ..add(coinSparkle(pos, iso.scaleX));
+    GameAudio.world('death', e.position, volume: 0.5, throttleMs: 60);
+    GameAudio.ui('coin', volume: 0.45, throttleMs: 110);
   }
 
   void onEnemyLeaked(EnemyComponent e) {
+    GameAudio.ui('leak', volume: 0.8, throttleMs: 250);
     heart.value -= e.kind.leakDamage;
     if (heart.value <= 0) triggerGameOver();
   }
@@ -783,6 +795,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     waveNumber++;
     wave.value = waveNumber;
     waveRunning.value = true;
+    GameAudio.bgmBattle(); // 開打 → crossfade 到戰鬥曲（冪等，之後波次無動作）
     _spawner = WaveSpawnerComponent(
       schedule: buildWaveSchedule(waveNumber),
       base: enemyStatusForWave(waveNumber),
@@ -894,6 +907,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   @override
   void update(double dt) {
     _advanceFling(dt); // 甩動慣性滑行（UI 手感，用真實 dt、每幀一次）
+    // 3D 音訊 listener 跟著相機（拉遠變小聲、偏左的音源偏左耳）。
+    GameAudio.updateListener(camera.viewfinder.position, camera.viewfinder.zoom);
     // demoSpeed 個子步，每步都用正常 dt（保留細粒度、只是播放變快）。
     for (var step = 0; step < demoSpeed; step++) {
       super.update(dt);
@@ -967,6 +982,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     _grantWoodsIncome(); // 風刃塔 × 密林：每波產小量金幣
     if (completedWaves >= totalWaves) {
       gameWon.value = true;
+      GameAudio.gameEnd(won: true);
       pauseEngine();
     }
   }
@@ -1003,6 +1019,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void triggerGameOver() {
     if (gameOver.value) return;
     gameOver.value = true;
+    GameAudio.gameEnd(won: false);
     pauseEngine();
   }
 

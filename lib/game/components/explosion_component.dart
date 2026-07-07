@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../audio/game_audio.dart';
 import '../tower_defense_game.dart';
 
 /// 一次性播放的爆炸動畫（Tiny Swords 素材 explosion.png，10 幀）。
@@ -27,6 +28,12 @@ class ExplosionComponent extends PositionComponent
   static const double _cell = 192;
   static const double _frameDur = 0.045; // 每幀秒數（總長約 0.45s）
   double _t = 0;
+
+  @override
+  void onMount() {
+    super.onMount();
+    GameAudio.world('explosion', position, volume: 0.85, throttleMs: 90);
+  }
 
   @override
   void update(double dt) {

@@ -20,6 +20,7 @@ dependencies:
   flutter_animate: ^4.5.0
   flame: ^1.35.1
   flame_noise: ^0.3.2+20
+  flutter_soloud: ^3.5.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -36,6 +37,7 @@ flutter:
   - assets/iso/
   - assets/ui/
   - assets/fx/
+  - assets/audio/
   shaders:
   - assets/shaders/water.frag
 flutter_gen:

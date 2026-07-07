@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 
 import '../../utils/fullscreen.dart';
+import '../audio/game_audio.dart';
 import '../board/hex.dart';
 import '../components/enemy_kind.dart';
 import '../tower_defense_game.dart';
@@ -1061,7 +1062,7 @@ class SettingsDrawer extends StatelessWidget {
               ),
             ),
             const Divider(color: _kGoldDeep, height: 1),
-            // 一般設定
+            _sectionHeader('特效'),
             _switchTile(game.dimFlame,
                 () => game.dimFlame.value = !game.dimFlame.value,
                 Icons.local_fire_department, '火焰特效變淡', Colors.orangeAccent),
@@ -1071,8 +1072,55 @@ class SettingsDrawer extends StatelessWidget {
                 Icons.water,
                 '水面倒影',
                 Colors.lightBlueAccent),
-            const SizedBox(height: 8),
+            _sectionHeader('音訊'),
+            _switchTile(
+                GameAudio.sfxOn,
+                () => GameAudio.sfxOn.value = !GameAudio.sfxOn.value,
+                Icons.volume_up,
+                '音效',
+                _kGold),
+            _volumeTile(
+              GameAudio.sfxOn,
+              GameAudio.sfxVol,
+              // 放開滑條時播一聲金幣試聽，立刻感受音量。
+              onChangeEnd: () =>
+                  GameAudio.ui('coin', volume: 0.45, throttleMs: 0),
+            ),
+            _switchTile(
+                GameAudio.bgmOn,
+                () => GameAudio.bgmOn.value = !GameAudio.bgmOn.value,
+                Icons.music_note,
+                '音樂',
+                _kGold),
+            _volumeTile(GameAudio.bgmOn, GameAudio.bgmVol),
+            const Spacer(),
+            // 音樂授權標註（xDeviruchi 授權條款要求）。
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'Music: Alexandr Zhelanov (CC-BY 3.0)\n'
+                'Victory theme by Marllon Silva (xDeviruchi)\n'
+                'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)',
+                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 分區標題（特效 / 音訊…）：小字灰金、與上方拉開間距。
+  Widget _sectionHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 2),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: _kGoldDeep.withOpacity(0.9),
+          fontSize: 12.5,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 2,
         ),
       ),
     );
@@ -1084,13 +1132,65 @@ class SettingsDrawer extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: vn,
       builder: (context, on, _) => ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -2),
         leading: Icon(icon, color: on ? onColor : Colors.grey[500]),
         title: Text(label,
             style: TextStyle(
                 color: on ? onColor : Colors.grey[300],
                 fontWeight: FontWeight.bold)),
-        trailing: CupertinoSwitch(value: on, onChanged: (_) => onToggle()),
-        onTap: onToggle,
+        trailing: CupertinoSwitch(
+            value: on,
+            onChanged: (_) {
+              GameAudio.ui('switch', volume: 0.6);
+              onToggle();
+            }),
+        onTap: () {
+          GameAudio.ui('switch', volume: 0.6);
+          onToggle();
+        },
+      ),
+    );
+  }
+
+  /// 音量滑條列（縮排在開關列之下）：對應開關關閉時變暗、不可拖。
+  /// [onChangeEnd] 放開滑條時呼叫（試聽用）。
+  Widget _volumeTile(ValueListenable<bool> onVn, ValueNotifier<double> vol,
+      {VoidCallback? onChangeEnd}) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: onVn,
+      builder: (context, on, _) => ValueListenableBuilder<double>(
+        valueListenable: vol,
+        builder: (context, v, _) => Padding(
+          padding: const EdgeInsets.only(left: 40, right: 16),
+          // SizedBox + noOverlay：去掉 Slider 預設的 48px 保留高度與外圈光暈，
+          // 讓滑條貼近上方的開關列。
+          child: SizedBox(
+            height: 26,
+            child: SliderTheme(
+              data: SliderThemeData(
+                // 開啟：金色已填段 + 淡白底軌。
+                activeTrackColor: _kGold,
+                inactiveTrackColor: Colors.white24,
+                thumbColor: _kGold,
+                // 關閉（onChanged=null → disabled 狀態吃這組）：整體轉灰但
+                // 「已填段(灰) vs 底軌(淡白)」仍有層次，深木底上看得到。
+                disabledActiveTrackColor: Colors.grey[600],
+                disabledInactiveTrackColor: Colors.white12,
+                disabledThumbColor: Colors.grey[600],
+                overlayShape: SliderComponentShape.noOverlay,
+                trackHeight: 3,
+                thumbShape:
+                    const RoundSliderThumbShape(enabledThumbRadius: 7),
+              ),
+              child: Slider(
+                value: v,
+                onChanged: on ? (nv) => vol.value = nv : null,
+                onChangeEnd: on ? (_) => onChangeEnd?.call() : null,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1231,11 +1331,18 @@ class _BuildBarState extends State<BuildBar> {
         ),
       ),
     );
-    return GestureDetector(
-      onTap: () => setState(() => _tab = i),
-      child: sel
-          ? Transform.translate(offset: const Offset(0, 2), child: tab)
-          : tab,
+    return MouseRegion(
+      // 桌面滑鼠懸停的輕微音（觸控裝置無 hover、不觸發）。
+      onEnter: (_) => GameAudio.ui('hover', volume: 0.3, throttleMs: 90),
+      child: GestureDetector(
+        onTap: () {
+          GameAudio.ui('click', volume: 0.5);
+          setState(() => _tab = i);
+        },
+        child: sel
+            ? Transform.translate(offset: const Offset(0, 2), child: tab)
+            : tab,
+      ),
     );
   }
 
@@ -1315,7 +1422,14 @@ class _BuildBarState extends State<BuildBar> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           customBorder: const CircleBorder(),
-          onTap: () => game.selectTower(type),
+          // 桌面滑鼠懸停的輕微音（觸控裝置無 hover、不觸發）。
+          onHover: (h) {
+            if (h) GameAudio.ui('hover', volume: 0.3, throttleMs: 90);
+          },
+          onTap: () {
+            GameAudio.ui('select', volume: 0.6);
+            game.selectTower(type);
+          },
           child: Container(
             padding: const EdgeInsets.all(2),
             decoration: const BoxDecoration(
