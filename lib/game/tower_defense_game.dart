@@ -189,7 +189,11 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     } catch (_) {
       waterProgram = null; // shader 不可用時退回平面水池
     }
-    for (final k in [...EnemyKind.all, EnemyKind.juggernaut]) {
+    for (final k in [
+      ...EnemyKind.all,
+      EnemyKind.juggernaut,
+      EnemyKind.spiderling, // 分裂產生、不在 all，但需載入貼圖
+    ]) {
       final sheet = k.sheet;
       if (sheet != null) enemySheets[k.id] = await isoImages.load(sheet);
     }

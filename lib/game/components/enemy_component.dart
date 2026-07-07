@@ -163,7 +163,30 @@ class EnemyComponent extends PositionComponent
     _dead = true;
     game.world.add(deathBurst(position.clone(), game.iso.scaleX));
     game.onEnemyKilled(this);
+    _spawnSplit(); // 分裂兵：死亡裂出小怪
     removeFromParent();
+  }
+
+  /// 分裂兵死亡 → 在同格生出 [EnemyKind.splitCount] 隻小怪。子代血量/速度由「還原
+  /// 本波基準 × 子種倍率」推得；速度略作差異讓牠們散開、不會完全重疊。
+  void _spawnSplit() {
+    final child = kind.splitInto;
+    if (child == null || kind.splitCount <= 0) return;
+    final baseHp = status.totalHp / kind.hpMul;
+    final baseSpeed = status.speed / kind.speedMul;
+    for (var i = 0; i < kind.splitCount; i++) {
+      final hp = baseHp * child.hpMul;
+      final spread = 0.85 + 0.15 * i; // 0.85 / 1.0 / 1.15… → 沿路拉開距離
+      game.world.add(EnemyComponent(
+        kind: child,
+        currentLocation: currentLocation,
+        status: EnemyStatus(
+          totalHp: hp,
+          currentHp: hp,
+          speed: baseSpeed * child.speedMul * spread,
+        ),
+      ));
+    }
   }
 
   void _reachGoal() {

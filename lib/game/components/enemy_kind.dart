@@ -30,6 +30,8 @@ class EnemyKind {
     this.avatarZoom = 1.0,
     this.avatarDx = 0,
     this.avatarDy = 0,
+    this.splitInto,
+    this.splitCount = 0,
   });
 
   final String id;
@@ -64,6 +66,10 @@ class EnemyKind {
   final double avatarZoom;
   final double avatarDx;
   final double avatarDy;
+
+  // 分裂兵：死亡時生成 [splitCount] 隻 [splitInto] 種類的小怪（null＝不分裂）。
+  final EnemyKind? splitInto;
+  final int splitCount;
 
   static const grunt = EnemyKind(
     id: 'grunt',
@@ -192,6 +198,49 @@ class EnemyKind {
     healIntervalMs: 1100,
   );
 
+  /// 小蜘蛛：巨蛛死亡後裂出的小怪，血少、移速快、不再分裂（不進波次，只由分裂產生）。
+  /// 沿用蟲群的蜘蛛素材（同一張幀條），只是尺寸不同。
+  static const spiderling = EnemyKind(
+    id: 'spiderling',
+    name: '小蜘蛛',
+    hpMul: 0.4,
+    speedMul: 1.25,
+    reward: 2,
+    leakDamage: 1,
+    color: Color(0xFF9CCC65),
+    sizeMul: 0.75,
+    unlockWave: 999,
+    weight: 0,
+    desc: '巨蛛死亡後裂出的小蜘蛛，血少但跑得快。',
+    sheet: 'enemy_spider_run.png',
+    frames: 5,
+    frameSize: 192,
+    footFrac: 0.708,
+    topFrac: 0.281,
+  );
+
+  /// 分裂兵（巨蛛）：放大的蜘蛛，死亡時裂成數隻小蜘蛛 → 剋單體、獎勵範圍攻擊。
+  static const splitter = EnemyKind(
+    id: 'splitter',
+    name: '巨蛛',
+    hpMul: 1.7,
+    speedMul: 0.9,
+    reward: 10,
+    leakDamage: 1,
+    color: Color(0xFF33691E),
+    sizeMul: 1.6,
+    unlockWave: 7,
+    weight: 2,
+    desc: '死亡時裂成 3 隻小蜘蛛。用範圍攻擊（火炮/滾木/地刺）一次清最有效。',
+    sheet: 'enemy_spider_run.png',
+    frames: 5,
+    frameSize: 192,
+    footFrac: 0.708,
+    topFrac: 0.281,
+    splitInto: spiderling,
+    splitCount: 3,
+  );
+
   /// 會參與波次「權重填充」的一般種類（依解鎖順序）。
-  static const all = [grunt, scout, swarm, brute, shaman];
+  static const all = [grunt, scout, swarm, brute, shaman, splitter];
 }

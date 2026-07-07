@@ -35,21 +35,29 @@ class _HomeScreenState extends State<HomeScreen> {
       // 設定抽屜：由左上「設定」鈕開啟；關閉邊緣滑動手勢，避免與棋盤拖曳衝突。
       drawer: SettingsDrawer(game: game),
       drawerEnableOpenDragGesture: false,
-      body: Column(
+      // 用 Stack 讓「結束彈窗」蓋住整個畫面（含底部 BuildBar），否則遊戲勝/敗時
+      // 底部的建造列仍可點擊。EndOverlay 未結束時回傳 SizedBox.shrink，不擋操作。
+      body: Stack(
         children: [
-          Expanded(
-            child: GameWidget<TowerDefenseGame>(
-              key: ValueKey(game),
-              game: game,
-              overlayBuilderMap: {
-                'leftCol': (context, g) =>
-                    LeftColOverlay(game: g, onRestart: _restart),
-                'end': (context, g) => EndOverlay(game: g, onRestart: _restart),
-              },
-              initialActiveOverlays: const ['leftCol', 'end'],
-            ),
+          Column(
+            children: [
+              Expanded(
+                child: GameWidget<TowerDefenseGame>(
+                  key: ValueKey(game),
+                  game: game,
+                  overlayBuilderMap: {
+                    'leftCol': (context, g) =>
+                        LeftColOverlay(game: g, onRestart: _restart),
+                  },
+                  initialActiveOverlays: const ['leftCol'],
+                ),
+              ),
+              BuildBar(game: game),
+            ],
           ),
-          BuildBar(game: game),
+          Positioned.fill(
+            child: EndOverlay(game: game, onRestart: _restart),
+          ),
         ],
       ),
     );
