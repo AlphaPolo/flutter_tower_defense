@@ -402,29 +402,66 @@ class LeftColOverlay extends StatelessWidget {
 
   /// 半透明深色膠囊：波數 / 生命 / 金幣，橫向排列省空間且在棋盤上清楚可讀。
   Widget _statusPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: _woodBox(radius: 22),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _stat(
-              // 波次：game-icons.net「crossed-sabres」(lorc, CC BY 3.0)，
-              // 白色 alpha 形狀以 srcIn 染成藍色。
-              Image.asset('assets/ui/crossed_sabres.png',
-                  width: 18,
-                  height: 18,
-                  color: Colors.lightBlueAccent,
-                  colorBlendMode: BlendMode.srcIn),
-              game.wave,
-              (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
-          const SizedBox(width: 14),
-          _stat(const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
-              game.heart, (v) => '$v'),
-          const SizedBox(width: 14),
-          _coinStat(),
-        ],
-      ),
+    return Stack(
+      clipBehavior: Clip.none, // 讓密林收入浮動字能飄出膠囊範圍
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: _woodBox(radius: 22),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _stat(
+                  // 波次：game-icons.net「crossed-sabres」(lorc, CC BY 3.0)，
+                  // 白色 alpha 形狀以 srcIn 染成藍色。
+                  Image.asset('assets/ui/crossed_sabres.png',
+                      width: 18,
+                      height: 18,
+                      color: Colors.lightBlueAccent,
+                      colorBlendMode: BlendMode.srcIn),
+                  game.wave,
+                  (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
+              const SizedBox(width: 14),
+              _stat(
+                  const Icon(Icons.favorite,
+                      color: Colors.redAccent, size: 18),
+                  game.heart,
+                  (v) => '$v'),
+              const SizedBox(width: 14),
+              _coinStat(),
+            ],
+          ),
+        ),
+        // 密林收入：金幣旁「+xx 從密林」淡入 → 上飄 → 淡出（取代頂部 banner）。
+        Positioned(
+          right: 2,
+          top: 34,
+          child: IgnorePointer(child: _woodsIncomeFloat()),
+        ),
+      ],
+    );
+  }
+
+  /// 密林收入浮動提示：每次事件（序號改變 → key 改變）重播一次動畫。
+  Widget _woodsIncomeFloat() {
+    return ValueListenableBuilder<(int, int)?>(
+      valueListenable: game.woodsIncome,
+      builder: (context, e, _) {
+        if (e == null) return const SizedBox.shrink();
+        return Text(
+          '+${e.$2} 從密林',
+          style: const TextStyle(
+            color: _kGold,
+            fontSize: 12.5,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: Colors.black87, blurRadius: 3)],
+          ),
+        )
+            .animate(key: ValueKey(e.$1))
+            .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+            .moveY(begin: 8, end: -16, duration: 4000.ms, curve: Curves.easeOut)
+            .fadeOut(delay: 3000.ms, duration: 1000.ms);
+      },
     );
   }
 

@@ -130,6 +130,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   final ValueNotifier<bool> waveRunning = ValueNotifier(false);
   final ValueNotifier<bool> gameOver = ValueNotifier(false);
   final ValueNotifier<bool> gameWon = ValueNotifier(false);
+  // 密林收入事件（序號, 金額）：HUD 據此在金幣旁播「+xx 從密林」浮動提示；
+  // 序號每波遞增 → 金額相同也會觸發通知重播。
+  final ValueNotifier<(int, int)?> woodsIncome = ValueNotifier(null);
 
   // ── 自動演示 ──────────────────────────────────────────────
   final ValueNotifier<bool> demoRunning = ValueNotifier(false);
@@ -222,21 +225,29 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     if (isLoaded) _fitCamera();
   }
 
+  /// 全棋盤剛好入鏡的 zoom（_fitCamera 算出、隨視窗尺寸更新）＝拉遠下限。
+  double _fitZoom = 0.1;
+
   void _fitCamera() {
     final s = iso.imageSize;
     camera.viewfinder.position = Vector2(s.x / 2, s.y / 2);
-    camera.viewfinder.zoom = min(size.x / s.x, size.y / s.y) * 0.95;
+    _fitZoom = min(size.x / s.x, size.y / s.y) * 0.95;
+    camera.viewfinder.zoom = _fitZoom;
   }
 
   @override
   void onScroll(PointerScrollInfo info) {
     final delta = info.scrollDelta.global.y;
     final next = camera.viewfinder.zoom * (delta > 0 ? 0.9 : 1.1);
-    camera.viewfinder.zoom = next.clamp(0.1, 3.0);
+    camera.viewfinder.zoom = next.clamp(_fitZoom, 3.0);
   }
 
   // ── 觸控：雙指縮放、單指平移 ──────────────────────────────
   double _startZoom = 1;
+
+  /// 相機物理總開關：甩動慣性 / 邊界回彈 / 拖曳出界阻力。
+  /// 想整套拿掉（回到純 1:1 無界拖曳）只要改成 false。
+  static const bool kCameraPhysics = true;
 
   // 甩動慣性 + 邊界回彈：放開手指後相機以摩擦力滑行；滑出邊界（棋盤圖範圍）時該軸
   // 帶著當下速度切換成「錨在邊界上」的彈簧 → 衝出一小段被拉回、停在邊界上
@@ -266,7 +277,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void onScaleUpdate(ScaleUpdateInfo info) {
     if (info.pointerCount > 1) {
       // 雙指 → 縮放（用整體 pinch 距離，往外張放大、捏合縮小，與方向無關）
-      camera.viewfinder.zoom = (_startZoom * info.raw.scale).clamp(0.1, 3.0);
+      camera.viewfinder.zoom =
+          (_startZoom * info.raw.scale).clamp(_fitZoom, 3.0);
     } else {
       // 單指 → 平移（螢幕位移換算成世界位移）；拖出邊界時套 rubber band 阻力。
       final zoom = camera.viewfinder.zoom;
@@ -285,6 +297,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 取該軸可見世界寬度）；往界內拉回則不阻，內容快速跟回（同原生手感）。
   double _dragAxis(
       double pos, double delta, double lo, double hi, double viewport) {
+    if (!kCameraPhysics) return pos + delta; // 開關關閉 → 純 1:1 無界拖曳
     var x = pos;
     var d = delta;
     if (d == 0) return x;
@@ -311,6 +324,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   @override
   void onScaleEnd(ScaleEndInfo info) {
+    if (!kCameraPhysics) return; // 開關關閉 → 無慣性、無回彈
     // 放開瞬間的速度（螢幕 px/s）→ 換算成世界速度，方向同 onScaleUpdate 的平移。
     final v = info.raw.velocity.pixelsPerSecond;
     final zoom = camera.viewfinder.zoom;
@@ -963,15 +977,26 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     var gold = 0;
     for (final entry in towers.entries) {
       if (entry.value is! AirBladeTowerComponent) continue;
+      var g = 0;
       for (final n in entry.key.getNeighbors()) {
         if (environment[n] == EnvType.woods) {
-          gold += kWoodsIncome; // 每片相鄰密林各算一次
+          g += kWoodsIncome; // 每片相鄰密林各算一次
         }
       }
+      if (g == 0) continue;
+      gold += g;
+      // 有收穫的風刃塔頂爆金幣（與擊殺同款特效，收穫越多噴越多）。
+      final pos = entry.value.position +
+          Vector2(0, -board.hexagonRadius * iso.scaleX * 0.5);
+      final cnt = (4 + g ~/ 4).clamp(4, 14);
+      world
+        ..add(coinBurst(pos, iso.scaleX, count: cnt))
+        ..add(coinSparkle(pos, iso.scaleX));
     }
     if (gold > 0) {
       coin.value += gold;
-      showMessage('密林資源 +$gold');
+      // 通知 HUD 顯示「+xx 從密林」浮動提示（序號遞增 → 金額相同也會重播）。
+      woodsIncome.value = ((woodsIncome.value?.$1 ?? 0) + 1, gold);
     }
   }
 
@@ -997,6 +1022,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     waveRunning.dispose();
     gameOver.dispose();
     gameWon.dispose();
+    woodsIncome.dispose();
     towerShadowImage.dispose();
     super.onRemove();
   }
