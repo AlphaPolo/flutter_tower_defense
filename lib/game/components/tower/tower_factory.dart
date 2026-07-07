@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
 import 'package:flame/components.dart';
@@ -356,34 +357,76 @@ class AirBladeTowerComponent extends TowerComponent {
 
   static const double slashSpan = 0.95; // 斬擊新月的角度跨度(rad)
 
+  // 一片刀刃（3 道殘影 + 亮刃）在 flat 座標烘成的共用圖：幾何與 SweepGradient 在本地
+  // 座標是固定的、只有旋轉每幀變，故烘一次、之後每片只 drawImageRect + 旋轉貼上。
+  // → 免掉每幀每塔的 SweepGradient 配置與逐像素填色（拉近時最貴的部分）。
+  static ui.Image? _bladeImage;
+  static double _bladeR = -1; // 烘圖時的 rOut；換棋盤尺寸時重烘
+  static double _bladeHalf = 0; // 貼圖時的邏輯半尺寸（弧心到影像邊）
+  static final Paint _bladePaint = Paint()..filterQuality = FilterQuality.low;
+
+  /// 取得（必要時烘出）共用刀刃圖。以弧心為影像中心，前緣在 0、殘影在 -0.17/-0.34
+  /// （與舊繪製的相對關係一致），貼圖時整片再旋轉 direction+k*step。
+  ui.Image _bakedBlade() {
+    final rOut = game.board.hexagonRadius * 1.4;
+    final cached = _bladeImage;
+    if (cached != null && _bladeR == rOut) return cached;
+    _bladeImage?.dispose();
+    const pad = 6.0; // 亮刃 stroke + AA 外擴（邏輯單位）
+    _bladeHalf = rOut + pad;
+    // 以 iso 基向量長度當超取樣倍率 → 影像像素貼近螢幕像素，不因 iso 放大而糊。
+    final double res =
+        max(game.iso.axisX.length, game.iso.axisY.length).clamp(1.0, 3.0);
+    final side = (_bladeHalf * 2 * res).ceil();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..translate(side / 2, side / 2) // 原點＝弧心
+      ..scale(res); // 之後 _slash 直接用邏輯座標繪製（放大到影像解析度）
+    _slash(canvas, rOut, -0.34, fill: 0.06, edge: 0.0);
+    _slash(canvas, rOut, -0.17, fill: 0.13, edge: 0.25);
+    _slash(canvas, rOut, 0.0, fill: 0.26, edge: 0.8);
+    _bladeR = rOut;
+    return _bladeImage = recorder.endRecording().toImageSync(side, side);
+  }
+
   @override
   void render(Canvas canvas) {
-    // 斬擊刀光：尖端收尖、中間飽滿的新月刀光(貼地)，外緣有一道亮刀刃，
-    // 後方兩道較淡殘影做出揮砍的動態模糊。
+    // 斬擊刀光：把烘好的一片刀刃圖，依 iso 貼地角度 + 旋轉，每片各貼一次。
+    final img = _bakedBlade();
     final foot = Offset(size.x / 2, size.y / 2);
-    final rOut = game.board.hexagonRadius * 1.4; // 邏輯半徑
-    // 每片刀刃各畫一組刀光（前緣最亮、後方兩道漸淡殘影）。
+    final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+    // dst 用「邏輯」尺寸（影像在螢幕的大小交給下面的 iso 變換縮放）。
+    final dst = Rect.fromCenter(
+        center: Offset.zero, width: _bladeHalf * 2, height: _bladeHalf * 2);
+    final ax = game.iso.axisX;
+    final ay = game.iso.axisY;
     final step = 2 * pi / bladeCount;
     for (var k = 0; k < bladeCount; k++) {
-      final a = direction + k * step;
-      _slash(canvas, foot, rOut, a - 0.34, fill: 0.06, edge: 0.0);
-      _slash(canvas, foot, rOut, a - 0.17, fill: 0.13, edge: 0.25);
-      _slash(canvas, foot, rOut, a, fill: 0.26, edge: 0.8);
+      canvas
+        ..save()
+        ..translate(foot.dx, foot.dy)
+        ..transform(Float64List.fromList([
+          ax.x, ax.y, 0, 0, //
+          ay.x, ay.y, 0, 0, //
+          0, 0, 1, 0, //
+          0, 0, 0, 1, //
+        ]))
+        ..rotate(direction + k * step)
+        ..drawImageRect(img, src, dst, _bladePaint)
+        ..restore();
     }
     super.render(canvas);
   }
 
-  /// 在地面平面畫一道新月刀光：前緣(旋轉前端)最亮，沿弧線往後越來越淡。
+  /// 烘圖用：在 flat 座標畫一道新月刀光（前緣最亮，沿弧線往後漸淡）。旋轉 [a0] 為
+  /// 相對角（貼地 iso 與整片旋轉由 render() 統一處理）。SweepGradient 只在烘圖時配置。
   void _slash(
     Canvas canvas,
-    Offset foot,
     double rOut,
     double a0, {
     required double fill,
     required double edge,
   }) {
-    final ax = game.iso.axisX;
-    final ay = game.iso.axisY;
     final thickness = rOut * 0.5;
     const seg = 18;
     final outer = <Offset>[];
@@ -417,14 +460,7 @@ class AirBladeTowerComponent extends TowerComponent {
 
     canvas
       ..save()
-      ..translate(foot.dx, foot.dy)
-      ..transform(Float64List.fromList([
-        ax.x, ax.y, 0, 0, //
-        ay.x, ay.y, 0, 0, //
-        0, 0, 1, 0, //
-        0, 0, 0, 1, //
-      ]))
-      ..rotate(a0); // 旋轉由此處理，刀光幾何/漸層永遠用固定角度
+      ..rotate(a0); // 相對旋轉；貼地 iso 與整片旋轉由 render() 統一處理
     if (fill > 0) {
       canvas.drawPath(
         crescent,

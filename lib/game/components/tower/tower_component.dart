@@ -159,27 +159,22 @@ class TowerComponent extends PositionComponent
     }
   }
 
-  /// 在塔腳底畫一個貼地的橢圓陰影（用 iso 地面基向量，讓它躺在地面角度上）。
+  // 貼地陰影用的共用 paint（已烘好模糊、不再每幀 MaskFilter）；low 讓縮放平順。
+  static final Paint _shadowPaint = Paint()..filterQuality = FilterQuality.low;
+
+  /// 在塔腳底貼一張「起動時烘好的模糊陰影圖」（game.towerShadowImage）。
+  /// 影像已含高斯柔邊與 iso 貼地角度，故這裡只做一次便宜的 drawImageRect，
+  /// 免掉每幀每塔的 MaskFilter.blur（saveLayer + 高斯）成本。
   void _renderShadow(Canvas canvas) {
-    final ax = game.iso.axisX; // 地面 x 基向量（螢幕位移／邏輯單位）
-    final ay = game.iso.axisY; // 地面 y 基向量
+    final img = game.towerShadowImage;
+    final anchor = game.towerShadowAnchor; // 影像內的塔腳像素座標
     final foot = Offset(size.x / 2, size.y / 2); // 塔腳＝sprite 中心
-    final r = game.board.hexagonRadius * 0.52; // 陰影地面半徑（邏輯）
-
-    final path = Path();
-    for (var i = 0; i <= 24; i++) {
-      final a = i / 24 * 2 * pi;
-      final d = ax * (r * cos(a)) + ay * (r * sin(a));
-      final p = Offset(foot.dx + d.x, foot.dy + d.y);
-      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
-    }
-    path.close();
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.black.withOpacity(0.25)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    final w = img.width.toDouble(), h = img.height.toDouble();
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, w, h),
+      Rect.fromLTWH(foot.dx - anchor.dx, foot.dy - anchor.dy, w, h),
+      _shadowPaint,
     );
   }
 }

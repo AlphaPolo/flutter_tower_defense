@@ -78,6 +78,11 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Sprite mudSprite; // 泥沼(mud)天然環境用
   late final Sprite spikeTrapSprite; // 地刺陷阱(spike)用
 
+  // 塔陰影：塔不會動、所有塔陰影同形，故起動時把「模糊好的貼地橢圓」烘成一張圖，
+  // 之後每座塔每幀只用便宜的 drawImageRect 貼上 → 免掉每幀 50+ 個 MaskFilter.blur。
+  late final ui.Image towerShadowImage;
+  late final Offset towerShadowAnchor; // 影像內對應「塔腳」的像素座標
+
   // ── 粒子特效素材 ─────────────────────────────────────────
   final Images fxImages = Images(prefix: 'assets/fx/');
   late final SpriteAnimation dustAnim; // 敵人出場的塵土特效（一次性）
@@ -197,6 +202,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       final sheet = k.sheet;
       if (sheet != null) enemySheets[k.id] = await isoImages.load(sheet);
     }
+    _bakeTowerShadow();
 
     world.add(BackgroundTapCatcher());
     boardComponent = BoardComponent();
@@ -264,6 +270,42 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       board.pointToBoardPoint(_toOffset(iso.screenToLogical(screen)));
 
   Offset _toOffset(Vector2 v) => Offset(v.x, v.y);
+
+  /// 起動時把塔的貼地模糊陰影烘成一張共用小圖（做一次）。形狀＝用 iso 地面基向量
+  /// 掃出的橢圓（與舊 _renderShadow 同參數），高斯只在此模糊一次；之後各塔以
+  /// drawImageRect 貼此圖（見 TowerComponent._renderShadow）。
+  void _bakeTowerShadow() {
+    final ax = iso.axisX;
+    final ay = iso.axisY;
+    final r = board.hexagonRadius * 0.52;
+    const sigma = 3.0;
+    final pad = (sigma * 3).ceil() + 2; // 模糊外擴留白，避免邊緣被裁
+    // 橢圓在螢幕上相對塔腳的半寬/半高（對稱 → 塔腳＝影像中心）。
+    final halfX = (ax.x.abs() + ay.x.abs()) * r;
+    final halfY = (ax.y.abs() + ay.y.abs()) * r;
+    final w = (halfX * 2).ceil() + pad * 2;
+    final h = (halfY * 2).ceil() + pad * 2;
+    final anchor = Offset(w / 2, h / 2);
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final path = Path();
+    for (var i = 0; i <= 24; i++) {
+      final a = i / 24 * 2 * pi;
+      final d = ax * (r * cos(a)) + ay * (r * sin(a));
+      final p = Offset(anchor.dx + d.x, anchor.dy + d.y);
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    path.close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = const Color(0x40000000) // 黑 25%
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, sigma),
+    );
+    towerShadowImage = recorder.endRecording().toImageSync(w, h);
+    towerShadowAnchor = anchor;
+  }
 
   // ── 尋路 / 放置 ──────────────────────────────────────────
   bool isPointCanMove(BoardPoint point) =>
@@ -847,6 +889,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     waveRunning.dispose();
     gameOver.dispose();
     gameWon.dispose();
+    towerShadowImage.dispose();
     super.onRemove();
   }
 }
