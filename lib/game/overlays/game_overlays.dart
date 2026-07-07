@@ -690,13 +690,18 @@ class LeftColOverlay extends StatelessWidget {
           if (type == null) return const SizedBox.shrink();
           tower = true;
           final stats = statsOf(type);
+          // 已蓋的塔用「有效數值」getter（含升級加成，與實際判定/射程圈一致）；
+          // 陷阱不在 towers 裡 → 退回基礎值。
+          final t = game.towers[bp];
+          final range = t?.range ?? stats.range;
+          final damage = t?.damage ?? stats.damage;
           icon = SizedBox.square(dimension: 48, child: ClipOval(child: towerIcon(type)));
           title = stats.title;
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
               : [
-                  '範圍: ${stats.range}',
-                  if (stats.damage > 0) '傷害: ${stats.damage}',
+                  '範圍: $range',
+                  if (damage > 0) '傷害: $damage',
                 ];
         }
 

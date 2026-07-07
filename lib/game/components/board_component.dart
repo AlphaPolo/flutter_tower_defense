@@ -6,6 +6,7 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
+import '../tower_type.dart';
 
 /// 畫出 isometric 棋盤背景圖 + 出生點 / 終點 / hover 高亮，並處理輸入。
 class BoardComponent extends PositionComponent
@@ -31,9 +32,10 @@ class BoardComponent extends PositionComponent
     _highlight(canvas, game.targetLocation, Colors.greenAccent);
     _highlight(canvas, game.spawnLocation, Colors.redAccent);
 
-    // 目前點選查看中的建築：青色框選，與 hover 區分。
+    // 目前點選查看中的建築：青色框選，與 hover 區分；是塔就再畫貼地射程圈。
     final inspecting = game.inspecting.value;
     if (inspecting != null) {
+      _rangeCircle(canvas, inspecting);
       _cornerFrame(canvas, inspecting, Colors.cyanAccent);
     }
 
@@ -47,6 +49,42 @@ class BoardComponent extends PositionComponent
         removable ? Colors.redAccent : Colors.orangeAccent,
       );
     }
+  }
+
+  /// 點選查看的塔：畫出貼地的射程圓——邏輯半徑 = hexagonRadius × range，
+  /// 與 enemiesInRange 的命中判定完全一致；逐點經 logicalToScreen 投影成
+  /// 躺在地面角度上的橢圓。range<=0（障礙物）或該格非塔則不畫。
+  void _rangeCircle(Canvas canvas, BoardPoint bp) {
+    final tower = game.towers[bp];
+    if (tower == null) return;
+    // 滾木塔沿方向直線滾出、非圓形範圍（方向已有箭頭表示）→ 不畫圈。
+    if (tower.type == TowerType.log) return;
+    final range = tower.range; // 用塔的有效射程（含升級加成）
+    if (range <= 0) return;
+    final s = game.iso.scaleX;
+    final center = game.boardToLogical(bp);
+    final r = game.board.hexagonRadius * range;
+    const steps = 48;
+    final path = Path();
+    for (var i = 0; i <= steps; i++) {
+      final a = i / steps * 2 * pi;
+      final p = game.logicalToScreen(
+        Vector2(center.x + r * cos(a), center.y + r * sin(a)),
+      );
+      i == 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y);
+    }
+    path.close();
+    canvas.drawPath(
+      path,
+      Paint()..color = Colors.cyanAccent.withOpacity(0.07),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 * s
+        ..color = Colors.cyanAccent.withOpacity(0.55),
+    );
   }
 
   /// 四角括號選取框：在六個頂點各畫一個 L 形角，邊中間留空（像對焦框）。
