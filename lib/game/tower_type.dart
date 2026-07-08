@@ -179,45 +179,32 @@ class TowerUpgradeNode {
 }
 
 /// 各塔的升級樹（Model B 分支）：root = 2 個 Lv2 分支，各帶 2 個 Lv3 子節點。
-/// 玩家 Lv2 二擇一（選了就鎖），Lv3 再從所選分支底下二擇一 → 每塔 4 種 build。
-/// 沒列出的塔不可升級。數字皆為起始值、可再調。
+/// 升級樹：Lv2 選分支（雷電/火炮/毒有兩條 → 二擇一並鎖定；冰凍/火焰/風刃
+/// 單線），Lv3 再從所選分支底下二擇一。沒列出的塔不可升級。
+/// 「滿升總價=原費」指 base 費 + 單一 build 路徑升級費的總投資。
 const Map<TowerType, List<TowerUpgradeNode>> kTowerUpgradeTree = {
-  // 冰凍：A 減速強度 / B 範圍。base slow .6, range 2.5, fdur 2000。滿升總價=原費 60
+  // 冰凍：A 減速強度、範圍。base slow .6, range 2.5, fdur 2000。滿升總價=原費 60
   TowerType.freezing: [
-    TowerUpgradeNode(key: 'A', name: '深寒', cost: 15, desc: '減速更強', mods: {
-      TowerMod.slow: 0.4
+    TowerUpgradeNode(key: 'A', name: '霜域', cost: 15, desc: '冰環範圍加大', mods: {
+      TowerMod.range: 3.5,
+      TowerMod.slow: 0.5,
     }, children: [
       TowerUpgradeNode(
-          key: 'A1', name: '絕對零度', cost: 20, desc: '減速極強，幾乎凍住', mods: {TowerMod.slow: 0.1}),
+          key: 'A1', name: '暴風雪', cost: 20, desc: '範圍再大幅擴張', mods: {TowerMod.range: 4.6}),
       TowerUpgradeNode(
-          key: 'A2', name: '冰封', cost: 20, desc: '冰環維持更久', mods: {TowerMod.fdur: 3600}),
-    ]),
-    TowerUpgradeNode(key: 'B', name: '霜域', cost: 15, desc: '冰環範圍加大', mods: {
-      TowerMod.range: 3.5
-    }, children: [
-      TowerUpgradeNode(
-          key: 'B1', name: '暴風雪', cost: 20, desc: '範圍再大幅擴張', mods: {TowerMod.range: 4.6}),
-      TowerUpgradeNode(
-          key: 'B2', name: '霜牢', cost: 20, desc: '冰環使敵人脆弱化：受滾木/火炮/風刃等物理攻擊傷害 +20%（持續 5 秒）', mods: {TowerMod.vuln: 0.2}),
+          key: 'A2', name: '霜牢', cost: 20, desc: '冰環使敵人脆弱化：受滾木/火炮/風刃等物理攻擊傷害 +20%（持續 5 秒）', mods: {TowerMod.vuln: 0.2}),
     ]),
   ],
-  // 火焰：A 傷害 / B 射程。base dmg 8, range 4。滿升總價=原費 60
+  // 火焰：A 傷害、射程。base dmg 8, range 4。滿升總價=原費 60
   TowerType.flame: [
-    TowerUpgradeNode(key: 'A', name: '烈焰', cost: 15, desc: '灼燒 DPS 提升', mods: {
-      TowerMod.dmg: 12
+    TowerUpgradeNode(key: 'A', name: '長焰', cost: 15, desc: '火焰射程稍微加長、灼燒 DPS 稍微提升', mods: {
+      TowerMod.range: 5,
+      TowerMod.dmg: 10,
     }, children: [
       TowerUpgradeNode(
-          key: 'A1', name: '熔核', cost: 20, desc: '灼燒 DPS 大幅提升', mods: {TowerMod.dmg: 20}),
+          key: 'A1', name: '火龍吐息', cost: 20, desc: '傷害大幅增加', mods: {TowerMod.dmg: 26}),
       TowerUpgradeNode(
-          key: 'A2', name: '爆燃', cost: 20, desc: '射程加長', mods: {TowerMod.range: 6}),
-    ]),
-    TowerUpgradeNode(key: 'B', name: '長焰', cost: 15, desc: '火焰射程加長', mods: {
-      TowerMod.range: 6
-    }, children: [
-      TowerUpgradeNode(
-          key: 'B1', name: '火龍吐息', cost: 20, desc: '射程再大幅加長', mods: {TowerMod.range: 8}),
-      TowerUpgradeNode(
-          key: 'B2', name: '熾流', cost: 20, desc: '命中後留下持續燃燒，燃燒中所受治療減半（剋薩滿）', mods: {TowerMod.burn: 12}),
+          key: 'A2', name: '熾流', cost: 20, desc: '命中後留下持續燃燒，燃燒中所受治療減半（剋薩滿）', mods: {TowerMod.burn: 12}),
     ]),
   ],
   // 風刃：A 轉速。base spin 4π, range 2.5。滿升總價=原費 60

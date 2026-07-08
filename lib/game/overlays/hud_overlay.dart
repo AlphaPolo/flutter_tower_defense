@@ -496,7 +496,10 @@ class LeftColOverlay extends StatelessWidget {
         if (options.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            lv == 1 ? '選擇升級方向（二擇一，選了就鎖）' : '選擇強化（二擇一）',
+            // 單一選項的塔（冰凍/火焰/風刃）不說「二擇一」。
+            options.length > 1
+                ? (lv == 1 ? '選擇升級方向（二擇一，選了就鎖）' : '選擇強化（二擇一）')
+                : (lv == 1 ? '升級方向' : '強化'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 11, color: Colors.grey),
           ),
