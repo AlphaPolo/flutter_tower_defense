@@ -1206,7 +1206,6 @@ class SettingsDrawer extends StatelessWidget {
       backgroundColor: const Color(0xFF241811), // 深木底
       child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // 標題
             const Padding(
@@ -1215,70 +1214,97 @@ class SettingsDrawer extends StatelessWidget {
                 children: [
                   Icon(Icons.settings, color: _kGold, size: 24),
                   SizedBox(width: 10),
-                  Text('設定',
-                      style: TextStyle(
-                          color: _kGold,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    '設定',
+                    style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
             const Divider(color: _kGoldDeep, height: 1),
-            _sectionHeader('特效'),
-            _switchTile(game.dimFlame,
-                () => game.dimFlame.value = !game.dimFlame.value,
-                Icons.local_fire_department, '火焰特效變淡', Colors.orangeAccent),
-            _switchTile(
-                game.waterReflection,
-                () => game.waterReflection.value = !game.waterReflection.value,
-                Icons.water,
-                '水面倒影',
-                Colors.lightBlueAccent),
-            _sectionHeader('音訊'),
-            _switchTile(
-                GameAudio.sfxOn,
-                () => GameAudio.sfxOn.value = !GameAudio.sfxOn.value,
-                Icons.volume_up,
-                '音效',
-                _kGold),
-            _volumeTile(
-              GameAudio.sfxOn,
-              GameAudio.sfxVol,
-              // 放開滑條時播一聲金幣試聽，立刻感受音量。
-              onChangeEnd: () =>
-                  GameAudio.ui('coin', volume: 0.45, throttleMs: 0),
-            ),
-            _switchTile(
-                GameAudio.bgmOn,
-                () => GameAudio.bgmOn.value = !GameAudio.bgmOn.value,
-                Icons.music_note,
-                '音樂',
-                _kGold),
-            _volumeTile(GameAudio.bgmOn, GameAudio.bgmVol),
-            const Spacer(),
-            // 返回主選單（清進度，需確認）。
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: OutlinedButton.icon(
-                onPressed: () => _confirmBackToMenu(context),
-                icon: const Icon(Icons.home, size: 18),
-                label: const Text('返回主選單',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _kGold,
-                  side: const BorderSide(color: _kGoldDeep, width: 1.3),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-            ),
-            // 音樂授權標註（xDeviruchi 授權條款要求）。
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
-                'Music: Alexandr Zhelanov (CC-BY 3.0)\n'
-                'Victory theme by Marllon Silva (xDeviruchi)\n'
-                'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)',
-                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+
+                  SliverToBoxAdapter(child: _sectionHeader('特效')),
+                  SliverToBoxAdapter(
+                    child: _switchTile(game.dimFlame,
+                            () => game.dimFlame.value = !game.dimFlame.value,
+                        Icons.local_fire_department, '火焰特效變淡', Colors.orangeAccent),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _switchTile(
+                        game.waterReflection,
+                            () => game.waterReflection.value = !game.waterReflection.value,
+                        Icons.water,
+                        '水面倒影',
+                        Colors.lightBlueAccent),
+                  ),
+                  SliverToBoxAdapter(child: _sectionHeader('音訊')),
+                  SliverToBoxAdapter(
+                    child: _switchTile(
+                        GameAudio.sfxOn,
+                            () => GameAudio.sfxOn.value = !GameAudio.sfxOn.value,
+                        Icons.volume_up,
+                        '音效',
+                        _kGold),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _volumeTile(
+                      GameAudio.sfxOn,
+                      GameAudio.sfxVol,
+                      // 放開滑條時播一聲金幣試聽，立刻感受音量。
+                      onChangeEnd: () =>
+                          GameAudio.ui('coin', volume: 0.45, throttleMs: 0),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _switchTile(
+                        GameAudio.bgmOn,
+                            () => GameAudio.bgmOn.value = !GameAudio.bgmOn.value,
+                        Icons.music_note,
+                        '音樂',
+                        _kGold),
+                  ),
+                  SliverToBoxAdapter(child: _volumeTile(GameAudio.bgmOn, GameAudio.bgmVol)),
+                  // 返回主選單（清進度，需確認）。
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Align(
+                      alignment: AlignmentGeometry.bottomCenter,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                            child: OutlinedButton.icon(
+                              onPressed: () => _confirmBackToMenu(context),
+                              icon: const Icon(Icons.home, size: 18),
+                              label: const Text('返回主選單',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _kGold,
+                                side: const BorderSide(color: _kGoldDeep, width: 1.3),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                          // 音樂授權標註（xDeviruchi 授權條款要求）。
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                            child: Text(
+                              'Music: Alexandr Zhelanov (CC-BY 3.0)\n'
+                                  'Victory theme by Marllon Silva (xDeviruchi)\n'
+                                  'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
