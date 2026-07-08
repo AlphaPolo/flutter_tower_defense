@@ -19,15 +19,19 @@ void main() {
     expect(g.isBossWave(5), isFalse); // 未達 10 波不出 Boss
   });
 
-  test('25 波後血量複利成長、移速封頂', () {
+  test('25 波後血量複利+移速轉化成長、移速凍結', () {
     final g = TowerDefenseGame(withEnvironment: false);
     final w25 = g.enemyStatusForWave(25);
     final w26 = g.enemyStatusForWave(26);
     final w40 = g.enemyStatusForWave(40);
-    // 26 波起除了線性 +40 還乘 1.08 複利。
+    // 26 波起除了線性 +40 還乘 1.08 複利與移速轉化。
     expect(w26.totalHp, greaterThan(w25.totalHp + 40));
     expect(w40.totalHp, greaterThan(g.enemyStatusForWave(39).totalHp * 1.05));
-    // 移速封頂 2.8。
-    expect(g.enemyStatusForWave(100).speed, lessThanOrEqualTo(2.8));
+    // 移速 25 波後凍結：任何後續波次都等於第 25 波的值。
+    expect(g.enemyStatusForWave(26).speed, equals(w25.speed));
+    expect(g.enemyStatusForWave(100).speed, equals(w25.speed));
+    // 轉化驗證：26 波血量 = 線性×複利×(原速/凍結速)。
+    final raw26 = (100.0 + 25 * 40) * 1.08;
+    expect(w26.totalHp, greaterThan(raw26)); // 多了移速轉化的份
   });
 }

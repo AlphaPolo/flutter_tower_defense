@@ -950,10 +950,18 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   EnemyStatus enemyStatusForWave(int wave) {
     var hp = (100.0 + (wave - 1) * 40);
-    // 無盡模式 25 波後：血量每波再 ×1.08 複利 → 難度持續攀升、終有一倒。
-    if (wave > totalWaves) hp *= pow(1.08, wave - totalWaves);
-    // 移速線性成長但封頂（約第 37 波達上限），避免後期快到不合理。
-    final speed = ((1.5 + (wave - 1) * 0.05) * 0.85).clamp(0.0, 2.8);
+    // 原始移速公式（線性成長；全怪移速 -15%）。
+    var speed = (1.5 + (wave - 1) * 0.05) * 0.85;
+    if (wave > totalWaves) {
+      // 無盡 25 波後：血量每波 ×1.08 複利 → 難度持續攀升、終有一倒。
+      hp *= pow(1.08, wave - totalWaves);
+      // 移速凍結在第 25 波的值（後期不再變快），原本要加的移速以
+      // 「威力等價」1:1 轉成血量：強度 ≈ 血量×移速（越快輸出窗口越短），
+      // 故 hp ×= 原速度/凍結速度。
+      final speedCap = (1.5 + (totalWaves - 1) * 0.05) * 0.85;
+      hp *= speed / speedCap;
+      speed = speedCap;
+    }
     return EnemyStatus(totalHp: hp, currentHp: hp, speed: speed);
   }
 
