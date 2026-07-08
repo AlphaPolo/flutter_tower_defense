@@ -84,6 +84,33 @@ void main() {
       expect(r.length, 4);
     });
 
+    test('邊結構：遠敵的 parent 必須是中繼節點、不是起點', () {
+      // 0—1—2 一直線間距 1：1 要經過 0、2 要經過 1 接力連上。
+      final pos = [v(1, 0), v(2, 0), v(3, 0)];
+      final edges = chainEdges(
+        origin: v(0, 0),
+        positions: pos,
+        maxDistance: 1.0,
+        limit: 99,
+      );
+      expect(edges, [
+        (parent: -1, index: 0), // 起點直連最近的
+        (parent: 0, index: 1), // 經 0 中繼
+        (parent: 1, index: 2), // 經 1 中繼
+      ]);
+    });
+
+    test('邊結構：起點周圍多個近敵都直連起點（同一跳）', () {
+      final pos = [v(-1, 0), v(1, 0)];
+      final edges = chainEdges(
+        origin: v(0, 0),
+        positions: pos,
+        maxDistance: 1.0,
+        limit: 99,
+      );
+      expect({for (final e in edges) e.index: e.parent}, {0: -1, 1: -1});
+    });
+
     test('邊界：空清單 / limit<=0 → 回空', () {
       expect(
         chainTargets(origin: v(0, 0), positions: [], maxDistance: 5, limit: 5),

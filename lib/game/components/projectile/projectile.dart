@@ -490,10 +490,13 @@ class ThunderProjectileComponent extends ProjectileComponent {
   double chainDistance;
   final double paralyzeChance;
   final int paralyzeMs;
-  List<Vector2>? bindLogical;
+
+  /// 連鎖確定後的「邊」快照（from→to 邏輯座標）——依實際 BFS 接力路徑繪製，
+  /// 而不是全部畫回落點的星形（視覺要跟演算法一致）。
+  List<(Vector2, Vector2)>? bindEdges;
   final Vector2 _start = Vector2.zero();
 
-  bool get isChainState => bindLogical != null && bindLogical!.isNotEmpty;
+  bool get isChainState => bindEdges != null && bindEdges!.isNotEmpty;
 
   @override
   void onMount() {
@@ -526,40 +529,40 @@ class ThunderProjectileComponent extends ProjectileComponent {
         ? target.logicalPos
         : goalLogical!);
 
-    final chained = _chainEnemies();
-    final list = <Vector2>[];
-    for (final e in chained) {
+    final live = game.enemies.where((e) => !e.isDead).toList();
+    final edges = chainEdges(
+      origin: logical,
+      positions: [for (final e in live) e.logicalPos],
+      maxDistance: game.board.hexagonRadius * chainDistance,
+      limit: chainLimit,
+    );
+    final list = <(Vector2, Vector2)>[];
+    for (final edge in edges) {
+      final e = live[edge.index];
       // 命中必定麻痺（速度設為 0），時間依塔等級。
       if (_rnd.nextDouble() < paralyzeChance) {
         e.addEffect(
             SlowMovementEffect.flat(kThunderEffectType, paralyzeMs, 0.0, 300));
       }
       e.dealDamage(damage, physical: false); // 雷電＝元素傷害
-      list.add(e.logicalPos.clone());
+      // 邊快照：from＝parent（-1＝落點，否則為中繼敵人當下位置）。
+      final from = edge.parent == -1
+          ? logical.clone()
+          : live[edge.parent].logicalPos.clone();
+      list.add((from, e.logicalPos.clone()));
       game.world.add(sparkBurst(game.logicalToScreen(e.logicalPos), s));
     }
     if (list.isEmpty) {
       dead = true;
       return;
     }
-    bindLogical = list;
+    bindEdges = list;
     lifeTime = 1000;
     clock = 0;
   }
 
   /// 從落點 [logical] 起，沿存活敵群連鎖（最近優先、上限 [chainLimit]、
   /// 每跳間距上限 [chainDistance] 格）。實際演算法見 [chainTargets]（純函式、有測試）。
-  List<EnemyComponent> _chainEnemies() {
-    final live = game.enemies.where((e) => !e.isDead).toList();
-    final picked = chainTargets(
-      origin: logical,
-      positions: [for (final e in live) e.logicalPos],
-      maxDistance: game.board.hexagonRadius * chainDistance,
-      limit: chainLimit,
-    );
-    return [for (final i in picked) live[i]];
-  }
-
   void _bolt(Canvas canvas, Offset a, Offset b, Paint paint) {
     const segs = 6;
     final dir = b - a;
@@ -595,14 +598,18 @@ class ThunderProjectileComponent extends ProjectileComponent {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4 * s;
 
+    // 沿「連鎖邊」逐段繪製（BFS 順序 → 電流一段段竄出去的感覺），
+    // 反映實際接力路徑，而不是全部連回落點。
     final center = game.logicalToScreen(logical);
-    final nodes = bindLogical!;
-    for (var i = 0; i < nodes.length; i++) {
+    final edges = bindEdges!;
+    for (var i = 0; i < edges.length; i++) {
       if (clock < i * 20) continue;
-      final scr = game.logicalToScreen(nodes[i]) - center;
-      final off = Offset(scr.x, scr.y);
-      _bolt(canvas, Offset.zero, off, glow);
-      _bolt(canvas, Offset.zero, off, core);
+      final aScr = game.logicalToScreen(edges[i].$1) - center;
+      final bScr = game.logicalToScreen(edges[i].$2) - center;
+      final a = Offset(aScr.x, aScr.y);
+      final b = Offset(bScr.x, bScr.y);
+      _bolt(canvas, a, b, glow);
+      _bolt(canvas, a, b, core);
     }
   }
 }
