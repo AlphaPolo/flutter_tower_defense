@@ -56,27 +56,25 @@ class ExplosionComponent extends PositionComponent
       i == 0 ? ring.moveTo(v.x, v.y) : ring.lineTo(v.x, v.y);
     }
     ring.close();
-    canvas.drawPath(ring, Paint()..color = Colors.orange.withOpacity(0.15 * fade));
+    _ringFillPaint.color = Colors.orange.withValues(alpha: 0.15 * fade);
+    canvas.drawPath(ring, _ringFillPaint);
 
     // 爆炸圖
     final frame = (_t / _frameDur).floor().clamp(0, _frames - 1);
     final src = Rect.fromLTWH(frame * _cell, 0, _cell, _cell);
     final dst =
         Rect.fromCenter(center: Offset.zero, width: diameter, height: diameter);
-    canvas.drawImageRect(
-      game.explosionSheet,
-      src,
-      dst,
-      Paint()..filterQuality = FilterQuality.medium,
-    );
+    canvas.drawImageRect(game.explosionSheet, src, dst, _imgPaint);
 
     // 範圍環外框畫在爆炸圖上方，看得清楚邊界。
-    canvas.drawPath(
-      ring,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5 * s
-        ..color = Colors.orangeAccent.withOpacity(0.75 * fade),
-    );
+    _ringStrokePaint
+      ..strokeWidth = 2.5 * s
+      ..color = Colors.orangeAccent.withValues(alpha: 0.75 * fade);
+    canvas.drawPath(ring, _ringStrokePaint);
   }
+
+  // 每幀重用的 paint（alpha 隨 fade 改設定、不重新配置）。
+  static final Paint _ringFillPaint = Paint();
+  static final Paint _ringStrokePaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _imgPaint = Paint()..filterQuality = FilterQuality.medium;
 }

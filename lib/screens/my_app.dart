@@ -25,7 +25,7 @@ void showTopMessage(String message,
         // elevation != 0 → Scaffold 不把 body 往下推，banner 改成「浮」在遊戲上方
         // （像 floating SnackBar），因此不會 resize 遊戲 → 不觸發相機重置。
         elevation: 3,
-        backgroundColor: const Color(0xFFD64541).withOpacity(0.96),
+        backgroundColor: const Color(0xFFD64541).withValues(alpha: 0.96),
         content: Text(message),
         contentTextStyle: const TextStyle(color: Colors.white, fontSize: 15),
         actions: [

@@ -523,7 +523,7 @@ class LeftColOverlay extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.12),
+        color: Colors.amber.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.amber.shade700),
       ),
@@ -577,13 +577,13 @@ class LeftColOverlay extends StatelessWidget {
               gradient: _kWoodGradient,
               shape: StadiumBorder(
                 side: BorderSide(
-                  color: active ? _kGold : _kGoldDeep.withOpacity(0.85),
+                  color: active ? _kGold : _kGoldDeep.withValues(alpha: 0.85),
                   width: active ? 2 : 1.3,
                 ),
               ),
               shadows: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 ),
@@ -734,7 +734,7 @@ class LeftColOverlay extends StatelessWidget {
           width: 26,
           height: 26,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             shape: BoxShape.circle,
             border: Border.all(
               color: boss ? Colors.redAccent : Colors.white24,
@@ -791,7 +791,7 @@ class LeftColOverlay extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
           border: Border.all(
             color: selected ? Colors.orangeAccent : Colors.white24,

@@ -110,7 +110,7 @@ class ModeSelectOverlay extends StatelessWidget {
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 14.h, vertical: 12.h),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.16),
+          color: color.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: color, width: 1.6),
         ),

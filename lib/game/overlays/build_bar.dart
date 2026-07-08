@@ -79,13 +79,13 @@ class _BuildBarState extends State<BuildBar> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
         border: Border(
           top: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
               width: sel ? 2 : 1),
           left: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
               width: sel ? 2 : 1),
           right: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withOpacity(0.4),
+              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
               width: sel ? 2 : 1),
         ),
       ),
@@ -176,7 +176,7 @@ class _BuildBarState extends State<BuildBar> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
+            color: Colors.grey.withValues(alpha: 0.5),
             spreadRadius: 2,
             blurRadius: 3,
           ),

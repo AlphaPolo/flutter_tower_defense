@@ -326,16 +326,19 @@ class EnemyComponent extends PositionComponent
     );
   }
 
+  // 每幀重用的 paint（顏色/寬度每幀改設定，不重新配置物件 → 免 GC 壓力）。
+  static final Paint _auraPaint = Paint()..style = PaintingStyle.stroke;
+
   /// 治療型敵人腳下的綠色貼地光環（顯示治療範圍，治療瞬間變亮）。
   void _renderHealAura(Canvas canvas) {
     final s = game.iso.scaleX;
     final r = game.board.hexagonRadius * kind.healRange * s;
+    _auraPaint
+      ..strokeWidth = (1.5 + 2 * _healPulse) * s
+      ..color = const Color(0xFF3DE08A).withValues(alpha: 0.20 + 0.5 * _healPulse);
     canvas.drawOval(
       Rect.fromCenter(center: Offset.zero, width: r * 2, height: r),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (1.5 + 2 * _healPulse) * s
-        ..color = const Color(0xFF3DE08A).withOpacity(0.20 + 0.5 * _healPulse),
+      _auraPaint,
     );
   }
 
@@ -360,37 +363,40 @@ class EnemyComponent extends PositionComponent
       final fq = kind.pixel ? FilterQuality.none : FilterQuality.medium;
       canvas.save();
       if (faceLeft) canvas.scale(-1, 1);
-      canvas.drawImageRect(img, src, dst, Paint()..filterQuality = fq);
+      _bodyPaint.filterQuality = fq;
+      canvas.drawImageRect(img, src, dst, _bodyPaint);
       if (_hitFlash > 0) {
         // 命中閃白：以 srcATop 在不透明像素上疊白，alpha＝閃白強度。
-        canvas.drawImageRect(
-          img,
-          src,
-          dst,
-          Paint()
-            ..filterQuality = fq
-            ..colorFilter = ColorFilter.mode(
-                Colors.white.withOpacity(_hitFlash), BlendMode.srcATop),
-        );
+        _flashPaint
+          ..filterQuality = fq
+          ..colorFilter = ColorFilter.mode(
+              Colors.white.withValues(alpha: _hitFlash), BlendMode.srcATop);
+        canvas.drawImageRect(img, src, dst, _flashPaint);
       }
       canvas.restore();
     } else {
       final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
-      canvas.drawCircle(Offset.zero, r, Paint()..color = kind.color);
-      canvas.drawCircle(
-        Offset.zero,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2 * s
-          ..color = Colors.black.withOpacity(0.35),
-      );
+      _circlePaint.color = kind.color;
+      canvas.drawCircle(Offset.zero, r, _circlePaint);
+      _circleEdgePaint.strokeWidth = 1.2 * s;
+      canvas.drawCircle(Offset.zero, r, _circleEdgePaint);
       if (_hitFlash > 0) {
-        canvas.drawCircle(
-            Offset.zero, r, Paint()..color = Colors.white.withOpacity(_hitFlash * 0.9));
+        _circleFlashPaint.color =
+            Colors.white.withValues(alpha: _hitFlash * 0.9);
+        canvas.drawCircle(Offset.zero, r, _circleFlashPaint);
       }
     }
   }
+
+  static final Paint _bodyPaint = Paint();
+  static final Paint _flashPaint = Paint();
+  static final Paint _circlePaint = Paint();
+  static final Paint _circleEdgePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..color = Colors.black.withValues(alpha: 0.35);
+  static final Paint _circleFlashPaint = Paint();
+  static final Paint _hpBackPaint = Paint()..color = Colors.grey;
+  static final Paint _hpFillPaint = Paint()..color = Colors.red;
 
   /// 頭頂上方的血條（依 billboard／色圓分別推算位置）。
   void _renderHealthBar(Canvas canvas) {
@@ -412,12 +418,12 @@ class EnemyComponent extends PositionComponent
     final barH = game.board.hexagonRadius * 0.14 * s;
     canvas.drawRect(
       Rect.fromLTWH(-barW / 2, barTop, barW, barH),
-      Paint()..color = Colors.grey,
+      _hpBackPaint,
     );
     final ratio = (status.currentHp / status.totalHp).clamp(0.0, 1.0);
     canvas.drawRect(
       Rect.fromLTWH(-barW / 2, barTop, barW * ratio, barH),
-      Paint()..color = Colors.red,
+      _hpFillPaint,
     );
   }
 }

@@ -38,7 +38,7 @@ ParticleSystemComponent coinBurst(Vector2 pos, double s, {int count = 8}) {
                 Offset.zero,
                 r * 1.7,
                 Paint()
-                  ..color = glow.withOpacity(0.12 * op * flick)
+                  ..color = glow.withValues(alpha: 0.12 * op * flick)
                   ..blendMode = BlendMode.plus
                   ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.7),
               );
@@ -46,7 +46,7 @@ ParticleSystemComponent coinBurst(Vector2 pos, double s, {int count = 8}) {
               canvas.drawOval(
                 Rect.fromCenter(
                     center: Offset.zero, width: r * 2 * flip, height: r * 2),
-                Paint()..color = const Color(0xFFF9CE5A).withOpacity(op),
+                Paint()..color = const Color(0xFFF9CE5A).withValues(alpha: op),
               );
               // 亮金面（外框細 → 面更大）
               canvas.drawOval(
@@ -54,7 +54,7 @@ ParticleSystemComponent coinBurst(Vector2 pos, double s, {int count = 8}) {
                     center: Offset.zero,
                     width: r * 1.72 * flip,
                     height: r * 1.72),
-                Paint()..color = const Color(0xFFFFE96B).withOpacity(op),
+                Paint()..color = const Color(0xFFFFE96B).withValues(alpha: op),
               );
             },
           ),
@@ -83,7 +83,7 @@ ParticleSystemComponent coinSparkle(Vector2 pos, double s, {int count = 2}) {
             renderer: (canvas, p) {
               final op = sin(pi * p.progress).clamp(0.0, 1.0); // 淡入淡出
               if (op <= 0.01) return;
-              final gp = Paint()..color = const Color(0xFFFFE8A6).withOpacity(op);
+              final gp = Paint()..color = const Color(0xFFFFE8A6).withValues(alpha: op);
               final half = r * 0.8; // 比金幣(半徑 r=直徑2r) 略小
               final thick = r * 0.26;
               canvas
@@ -127,7 +127,7 @@ ParticleSystemComponent smokePuff(Vector2 pos, double s) {
                 Offset.zero,
                 rad,
                 Paint()
-                  ..color = col.withOpacity(op)
+                  ..color = col.withValues(alpha: op)
                   ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.5 * s),
               );
             },
@@ -167,7 +167,7 @@ ParticleSystemComponent _burst(
           child: ComputedParticle(
             renderer: (canvas, p) {
               final op = (1 - p.progress).clamp(0.0, 1.0) * opacity;
-              final paint = Paint()..color = col.withOpacity(op);
+              final paint = Paint()..color = col.withValues(alpha: op);
               if (additive) paint.blendMode = BlendMode.plus;
               canvas.drawCircle(Offset.zero, rad * (1 - 0.4 * p.progress), paint);
             },

@@ -26,10 +26,10 @@ BoxDecoration _woodBox({double radius = 20, bool strong = true}) =>
     BoxDecoration(
       gradient: _kWoodGradient,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: _kGoldDeep.withOpacity(0.85), width: 1.3),
+      border: Border.all(color: _kGoldDeep.withValues(alpha: 0.85), width: 1.3),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(strong ? 0.45 : 0.3),
+          color: Colors.black.withValues(alpha: strong ? 0.45 : 0.3),
           blurRadius: strong ? 8 : 5,
           offset: const Offset(0, 3),
         ),
@@ -52,10 +52,10 @@ BoxDecoration _panelBox({double radius = 12}) => BoxDecoration(
         colors: [Color(0xFFF8EED6), Color(0xFFEAD8AE)],
       ),
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: _kGoldDeep.withOpacity(0.7), width: 1.4),
+      border: Border.all(color: _kGoldDeep.withValues(alpha: 0.7), width: 1.4),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.35),
+          color: Colors.black.withValues(alpha: 0.35),
           blurRadius: 8,
           offset: const Offset(0, 3),
         ),
@@ -69,7 +69,7 @@ BoxDecoration _dialogBox() => BoxDecoration(
       border: Border.all(color: _kGoldDeep, width: 2),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           blurRadius: 18,
           offset: const Offset(0, 6),
         ),

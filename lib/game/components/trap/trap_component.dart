@@ -204,7 +204,7 @@ class VortexTrapComponent extends TrapComponent {
     // 貼地凹陷（吸引時更深）
     canvas.drawOval(
       Rect.fromCenter(center: Offset.zero, width: r * 1.7, height: r * 0.95),
-      Paint()..color = Colors.black.withOpacity(0.14 + 0.18 * _intensity),
+      Paint()..color = Colors.black.withValues(alpha: 0.14 + 0.18 * _intensity),
     );
 
     // 旋臂（螺旋弧，y 壓扁成貼地）
@@ -226,7 +226,7 @@ class VortexTrapComponent extends TrapComponent {
           ..style = PaintingStyle.stroke
           ..strokeWidth = (2.2 + 0.8 * _intensity) * s
           ..strokeCap = StrokeCap.round
-          ..color = color.withOpacity(glow),
+          ..color = color.withValues(alpha: glow),
       );
     }
 
@@ -234,7 +234,7 @@ class VortexTrapComponent extends TrapComponent {
     canvas.drawCircle(
       Offset.zero,
       (3 + 1.8 * _intensity) * s,
-      Paint()..color = color.withOpacity(0.6 + 0.4 * _intensity),
+      Paint()..color = color.withValues(alpha: 0.6 + 0.4 * _intensity),
     );
   }
 }

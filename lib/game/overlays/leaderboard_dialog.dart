@@ -97,7 +97,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
                             horizontal: 10, vertical: 5),
                         decoration: mine
                             ? BoxDecoration(
-                                color: _kGold.withOpacity(0.14),
+                                color: _kGold.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: _kGoldDeep),
                               )

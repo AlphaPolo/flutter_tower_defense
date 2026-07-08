@@ -109,7 +109,7 @@ class _SpikeIconPainter extends CustomPainter {
           ..lineTo(cx, by - sh)
           ..lineTo(cx, by)
           ..close(),
-        Paint()..color = highlight.withOpacity(0.9),
+        Paint()..color = highlight.withValues(alpha: 0.9),
       );
     }
   }

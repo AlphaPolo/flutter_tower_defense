@@ -90,7 +90,7 @@ class AnimatedFlipCounter extends StatelessWidget {
 
     // Find the text color (or red as warning). This is so we can avoid using
     // `Opacity` and `AnimatedOpacity` widget, for better performance.
-    final Color color = style.color ?? Color(0xffff0000);
+    final Color color = style.color ?? const Color(0xffff0000);
 
     // Convert the decimal value to int. For example, if we want 2 decimal
     // places, we will convert 5.21 into 521.
@@ -239,7 +239,7 @@ class _SingleDigitFlipCounter extends StatelessWidget {
       child = Text(
         '$digit',
         textAlign: TextAlign.center,
-        style: TextStyle(color: color.withOpacity(opacity.clamp(0, 1))),
+        style: TextStyle(color: color.withValues(alpha: opacity.clamp(0, 1))),
       );
     } else {
       // Otherwise, we have to use the `Opacity` widget (less performant).

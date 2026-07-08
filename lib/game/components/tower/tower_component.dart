@@ -162,11 +162,15 @@ class TowerComponent extends PositionComponent
       canvas.drawCircle(
         Offset(startX + gap * i, cy),
         r,
-        Paint()
-          ..color = i < level ? Colors.amber : Colors.black.withOpacity(0.35),
+        i < level ? _pipOnPaint : _pipOffPaint,
       );
     }
   }
+
+  // 每幀重用的等級點 paint（顏色固定 → 完全靜態）。
+  static final Paint _pipOnPaint = Paint()..color = Colors.amber;
+  static final Paint _pipOffPaint = Paint()
+    ..color = Colors.black.withValues(alpha: 0.35);
 
   // 貼地陰影用的共用 paint（已烘好模糊、不再每幀 MaskFilter）；low 讓縮放平順。
   static final Paint _shadowPaint = Paint()..filterQuality = FilterQuality.low;

@@ -231,7 +231,7 @@ class CannonProjectileComponent extends ProjectileComponent {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.6
-        ..color = Colors.orange.withOpacity(0.85),
+        ..color = Colors.orange.withValues(alpha: 0.85),
     );
   }
 }
@@ -360,10 +360,10 @@ class FlameProjectileComponent extends ProjectileComponent {
     final a = game.dimFlame.value ? 0.5 : 1.0; // 開關：變淡時整體透明度減半
     void blob(double r, Color c) => canvas.drawCircle(
         Offset.zero, r, Paint()..color = c..blendMode = BlendMode.plus);
-    blob(base * 1.4 * flick, Colors.red.withOpacity(0.22 * a));
-    blob(base * flick, Colors.deepOrange.withOpacity(0.5 * a));
-    blob(base * 0.6 * flick, Colors.orange.withOpacity(0.85 * a));
-    blob(base * 0.3 * flick, Colors.yellow.withOpacity(a));
+    blob(base * 1.4 * flick, Colors.red.withValues(alpha: 0.22 * a));
+    blob(base * flick, Colors.deepOrange.withValues(alpha: 0.5 * a));
+    blob(base * 0.6 * flick, Colors.orange.withValues(alpha: 0.85 * a));
+    blob(base * 0.3 * flick, Colors.yellow.withValues(alpha: a));
   }
 }
 
@@ -444,7 +444,7 @@ class FreezeProjectileComponent extends ProjectileComponent {
       r,
       Paint()
         ..shader = RadialGradient(
-          colors: [Colors.transparent, Colors.lightBlueAccent.withOpacity(0.35)],
+          colors: [Colors.transparent, Colors.lightBlueAccent.withValues(alpha: 0.35)],
           stops: const [0.6, 1],
         ).createShader(rect),
     );
@@ -455,7 +455,7 @@ class FreezeProjectileComponent extends ProjectileComponent {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.6
-        ..color = Colors.lightBlueAccent.withOpacity(0.9 * fade),
+        ..color = Colors.lightBlueAccent.withValues(alpha: 0.9 * fade),
     );
     // 環上雪花
     const n = 10;
@@ -465,7 +465,7 @@ class FreezeProjectileComponent extends ProjectileComponent {
       canvas.drawCircle(
         Offset(cos(a) * r, sin(a) * r),
         1.0,
-        Paint()..color = Colors.white.withOpacity(fade),
+        Paint()..color = Colors.white.withValues(alpha: fade),
       );
     }
     canvas.restore();
@@ -586,7 +586,7 @@ class ThunderProjectileComponent extends ProjectileComponent {
     }
 
     final glow = Paint()
-      ..color = Colors.yellow.withOpacity(0.8)
+      ..color = Colors.yellow.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3 * s
       ..blendMode = BlendMode.plus;
@@ -706,7 +706,7 @@ class RollingLogProjectileComponent extends ProjectileComponent {
         height: size * 0.13 * shScale,
       ),
       Paint()
-        ..color = Colors.black.withOpacity(0.14 * (1 - norm * 0.5))
+        ..color = Colors.black.withValues(alpha: 0.14 * (1 - norm * 0.5))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
     canvas.restore();

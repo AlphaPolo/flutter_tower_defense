@@ -168,13 +168,13 @@ class LogTowerComponent extends TowerComponent {
 
     // saveLayer 套群組透明度 → 內部畫不透明、疊層不接縫。
     canvas.saveLayer(
-        bounds, Paint()..color = Colors.white.withOpacity(groupAlpha));
+        bounds, Paint()..color = Colors.white.withValues(alpha: groupAlpha));
 
     // 柔和貼地陰影
     canvas.drawPath(
       path.shift(Offset(0, 1.5 * s)),
       Paint()
-        ..color = Colors.black.withOpacity(0.18)
+        ..color = Colors.black.withValues(alpha: 0.18)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 * s),
     );
 
@@ -465,7 +465,7 @@ class AirBladeTowerComponent extends TowerComponent {
       return SweepGradient(
         startAngle: 0,
         endAngle: slashSpan,
-        colors: [for (final o in ops) c.withOpacity(o * a)],
+        colors: [for (final o in ops) c.withValues(alpha: o * a)],
         stops: stops,
       ).createShader(rect);
     }

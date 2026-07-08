@@ -76,14 +76,14 @@ class BoardComponent extends PositionComponent
     path.close();
     canvas.drawPath(
       path,
-      Paint()..color = Colors.cyanAccent.withOpacity(0.07),
+      Paint()..color = Colors.cyanAccent.withValues(alpha: 0.07),
     );
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2 * s
-        ..color = Colors.cyanAccent.withOpacity(0.55),
+        ..color = Colors.cyanAccent.withValues(alpha: 0.55),
     );
   }
 
@@ -93,7 +93,7 @@ class BoardComponent extends PositionComponent
     final s = game.iso.scaleX;
     final path = Path()..addPolygon(pts, true);
     // 很淡的填色強調選取格
-    canvas.drawPath(path, Paint()..color = color.withOpacity(0.12));
+    canvas.drawPath(path, Paint()..color = color.withValues(alpha: 0.12));
 
     final bracket = Paint()
       ..style = PaintingStyle.stroke
@@ -148,23 +148,14 @@ class BoardComponent extends PositionComponent
         }()
     ];
 
-    final ribbon = Paint()
-      ..color = Colors.amber.withOpacity(0.45)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14 * s
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
+    final ribbon = _ribbonPaint..strokeWidth = 14 * s;
     final path = Path()..moveTo(pts.first.dx, pts.first.dy);
     for (var i = 1; i < pts.length; i++) {
       path.lineTo(pts[i].dx, pts[i].dy);
     }
     canvas.drawPath(path, ribbon);
 
-    final arrow = Paint()
-      ..color = Colors.white.withOpacity(0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5 * s
-      ..strokeCap = StrokeCap.round;
+    final arrow = _arrowPaint..strokeWidth = 2.5 * s;
     for (var i = 0; i < pts.length - 1; i++) {
       final a = pts[i], b = pts[i + 1];
       final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
@@ -182,23 +173,32 @@ class BoardComponent extends PositionComponent
     }
   }
 
+  // 每幀重用的 paint（顏色/線寬每次呼叫改設定，不重新配置物件）。
+  static final Paint _ribbonPaint = Paint()
+    ..color = Colors.amber.withValues(alpha: 0.45)
+    ..style = PaintingStyle.stroke
+    ..strokeJoin = StrokeJoin.round
+    ..strokeCap = StrokeCap.round;
+  static final Paint _arrowPaint = Paint()
+    ..color = Colors.white.withValues(alpha: 0.85)
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  static final Paint _hlFillPaint = Paint();
+  static final Paint _hlStrokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeJoin = StrokeJoin.round;
+
   /// 框選樣式：淡填色 + 外框線。[frame] 為 true 時框更亮更粗（hover 用）。
   void _highlight(Canvas canvas, BoardPoint bp, Color color,
       {bool frame = false}) {
     final s = game.iso.scaleX;
     final path = Path()..addPolygon(_hexPolygon(bp), true);
-    canvas.drawPath(
-      path,
-      Paint()..color = color.withOpacity(frame ? 0.12 : 0.22),
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (frame ? 3.5 : 2.2) * s
-        ..strokeJoin = StrokeJoin.round
-        ..color = color.withOpacity(frame ? 1.0 : 0.85),
-    );
+    _hlFillPaint.color = color.withValues(alpha: frame ? 0.12 : 0.22);
+    canvas.drawPath(path, _hlFillPaint);
+    _hlStrokePaint
+      ..strokeWidth = (frame ? 3.5 : 2.2) * s
+      ..color = color.withValues(alpha: frame ? 1.0 : 0.85);
+    canvas.drawPath(path, _hlStrokePaint);
   }
 
   // ── 輸入 ─────────────────────────────────────────────────

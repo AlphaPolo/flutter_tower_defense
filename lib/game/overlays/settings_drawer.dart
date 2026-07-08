@@ -156,7 +156,7 @@ class SettingsDrawer extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: _kGoldDeep.withOpacity(0.9),
+          color: _kGoldDeep.withValues(alpha: 0.9),
           fontSize: 12.5,
           fontWeight: FontWeight.bold,
           letterSpacing: 2,

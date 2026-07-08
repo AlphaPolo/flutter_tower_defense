@@ -60,13 +60,13 @@ class LeakGhostComponent extends PositionComponent
           ..filterQuality =
               kind.pixel ? FilterQuality.none : FilterQuality.medium
           ..colorFilter =
-              ColorFilter.mode(Colors.white.withOpacity(fade), BlendMode.modulate),
+              ColorFilter.mode(Colors.white.withValues(alpha: fade), BlendMode.modulate),
       );
       canvas.restore();
     } else {
       final r = game.board.hexagonRadius * 0.3 * kind.sizeMul * s;
       canvas.drawCircle(
-          Offset.zero, r, Paint()..color = kind.color.withOpacity(fade));
+          Offset.zero, r, Paint()..color = kind.color.withValues(alpha: fade));
     }
   }
 }
