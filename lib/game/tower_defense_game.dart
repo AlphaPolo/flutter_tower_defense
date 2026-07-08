@@ -755,7 +755,23 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void toggleCheat() => cheat.value = !cheat.value;
 
   // ── 敵人登記 ─────────────────────────────────────────────
-  void registerEnemy(EnemyComponent e) => enemies.add(e);
+  /// 已排進 world 但尚未 mount 的敵人數。敵人 world.add 後要下一幀才 mount 進
+  /// [enemies]，若「最後一隻在場敵人死亡」與「佇列還有敵人」同幀發生，完成判定
+  /// 只看 enemies.isEmpty 會提前成立 → 波次被誤判完成、之後 startGame 又因
+  /// enemies 非空永遠拒開 → 卡死。所有敵人生成一律走 [spawnEnemy] 維護此計數。
+  int _pendingEnemyMounts = 0;
+
+  /// 生成敵人的唯一入口：計數 + 排進 world（mount 時歸帳）。
+  void spawnEnemy(EnemyComponent e) {
+    _pendingEnemyMounts++;
+    world.add(e);
+  }
+
+  void registerEnemy(EnemyComponent e) {
+    enemies.add(e);
+    if (_pendingEnemyMounts > 0) _pendingEnemyMounts--;
+  }
+
   void unregisterEnemy(EnemyComponent e) => enemies.remove(e);
 
   // ── 範圍查詢（全部用邏輯座標）─────────────────────────────
@@ -975,7 +991,10 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     for (var step = 0; step < steps; step++) {
       super.update(dt);
       final spawner = _spawner;
-      if (spawner != null && spawner.isDone && enemies.isEmpty) {
+      if (spawner != null &&
+          spawner.isDone &&
+          enemies.isEmpty &&
+          _pendingEnemyMounts == 0) {
         spawner.removeFromParent();
         _spawner = null;
         _onWaveCompleted();
@@ -1025,6 +1044,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     freeObstacle.value = 3;
     waveNumber = 0;
     completedWaves = 0;
+    _pendingEnemyMounts = 0;
     _compCache.clear(); // 波次組成快取（預告用）重骰
     wave.value = 0;
     waveRunning.value = false;

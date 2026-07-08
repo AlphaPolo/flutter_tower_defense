@@ -1,0 +1,3 @@
+tags:
+  balance:
+    skip: "耗時的平衡量測工具，手動跑：flutter test --run-skipped -t balance test/sim/balance_rate_test.dart"

@@ -100,7 +100,7 @@ class EnemyKind {
     color: Color(0xFFFFC107),
     sizeMul: 1.05,
     unlockWave: 3,
-    weight: 3,
+    weight: 2.5, // 1.8× 速對早期稀疏塔防懲罰極大，權重略降避免開局斥候狂潮
     desc: '騎豬的長槍哥布林，血少但移動很快。用減速（冰/雷）或渦流聚集後清除較有效。',
     sheet: 'enemy_pigrider_run.png',
     frames: 4,
@@ -203,7 +203,7 @@ class EnemyKind {
   static const spiderling = EnemyKind(
     id: 'spiderling',
     name: '小蜘蛛',
-    hpMul: 0.4,
+    hpMul: 0.3,
     speedMul: 1.25,
     reward: 2,
     leakDamage: 1,
@@ -230,7 +230,7 @@ class EnemyKind {
     color: Color(0xFF33691E),
     sizeMul: 1.6,
     unlockWave: 7,
-    weight: 2,
+    weight: 1.2, // 有效血量 2.6×（本體1.7+3×0.3小蛛），權重低於坦克避免壞骰疊爆
     desc: '死亡時裂成 3 隻小蜘蛛。用範圍攻擊（火炮/滾木/地刺）一次清最有效。',
     sheet: 'enemy_spider_run.png',
     frames: 5,

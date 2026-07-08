@@ -177,7 +177,7 @@ class EnemyComponent extends PositionComponent
     for (var i = 0; i < kind.splitCount; i++) {
       final hp = baseHp * child.hpMul;
       final spread = 0.85 + 0.15 * i; // 0.85 / 1.0 / 1.15… → 沿路拉開距離
-      game.world.add(EnemyComponent(
+      game.spawnEnemy(EnemyComponent(
         kind: child,
         currentLocation: currentLocation,
         status: EnemyStatus(

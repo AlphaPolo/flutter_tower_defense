@@ -44,7 +44,7 @@ class WaveSpawnerComponent extends Component
     final hp = base.totalHp * kind.hpMul;
     // 出場塵土特效（敵人像從塵土中冒出）。
     game.spawnDust(game.boardToScreen(game.spawnLocation));
-    game.world.add(
+    game.spawnEnemy(
       EnemyComponent(
         kind: kind,
         currentLocation: game.spawnLocation,
