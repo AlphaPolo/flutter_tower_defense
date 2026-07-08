@@ -30,7 +30,9 @@ class Leaderboard {
   Leaderboard._();
 
   /// 平衡季號：關卡難度有變才 +1。
-  static const int kSeason = 1;
+  /// 約定：< 1（如 -1）＝測試季——上線前的紀錄都進測試桶（s-1），
+  /// UI 顯示「測試季」；正式發佈時改成 1 從乾淨的第 1 季開始。
+  static const int kSeason = -1;
 
   static bool _inited = false;
 

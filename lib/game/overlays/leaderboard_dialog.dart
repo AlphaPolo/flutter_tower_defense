@@ -40,6 +40,8 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
   @override
   Widget build(BuildContext context) {
     final envTag = Leaderboard.env == 'staging' ? '（staging）' : '';
+    final seasonLabel =
+        Leaderboard.kSeason < 1 ? '測試季' : '第 ${Leaderboard.kSeason} 季';
     return Center(
       child: Container(
         margin: const EdgeInsets.all(24),
@@ -53,7 +55,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
               children: [
                 const Icon(Icons.emoji_events, color: _kGold, size: 22),
                 const SizedBox(width: 8),
-                Text('無盡排行榜 · 第 ${Leaderboard.kSeason} 季$envTag',
+                Text('無盡排行榜 · $seasonLabel$envTag',
                     style: const TextStyle(
                         color: _kGold,
                         fontSize: 16,

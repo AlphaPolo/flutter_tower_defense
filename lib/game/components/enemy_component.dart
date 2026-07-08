@@ -7,6 +7,7 @@ import '../board/hex.dart';
 import '../effects/effect.dart';
 import '../effects/particles.dart';
 import '../effects/pop_in.dart';
+import '../../constant/game_constant.dart';
 import '../tower_defense_game.dart';
 import 'enemy_kind.dart';
 import 'leak_ghost.dart';
@@ -225,16 +226,30 @@ class EnemyComponent extends PositionComponent
     var any = false;
     for (final e in game.enemies) {
       if (identical(e, this) || e.isDead) continue;
-      final st = e.status;
-      if (st.currentHp >= st.totalHp) continue;
       if (logicalPos.distanceTo(e.logicalPos) > range) continue;
-      final hp = (st.currentHp + st.totalHp * kind.healFrac)
-          .clamp(0.0, st.totalHp)
-          .toDouble();
-      e.status = st.copyWith(currentHp: hp);
-      any = true;
+      if (e.receiveHeal(kind.healFrac)) any = true;
     }
     return any;
+  }
+
+  /// 燃燒（熾流）狀態下所受治療的倍率——火焰燒灼傷口，治療效果減半。
+  static const double kBurnHealPenalty = 0.5;
+
+  /// 是否處於「燃燒」DoT（噴火塔熾流附加）。
+  bool get isBurning => effects.any(
+      (e) => !e.dead && e.idWithType.sameTypeId == kBurnEffectType.sameTypeId);
+
+  /// 接受治療：回復 [frac] × 最大血量（封頂）。燃燒中治療打 [kBurnHealPenalty]
+  /// 折——讓熾流成為對付薩滿治療群的戰略答案。回傳是否實際回了血。
+  bool receiveHeal(double frac) {
+    final st = status;
+    if (st.currentHp >= st.totalHp) return false;
+    final mul = isBurning ? kBurnHealPenalty : 1.0;
+    final hp = (st.currentHp + st.totalHp * frac * mul)
+        .clamp(0.0, st.totalHp)
+        .toDouble();
+    status = st.copyWith(currentHp: hp);
+    return true;
   }
 
   // ── 效果 ─────────────────────────────────────────────────

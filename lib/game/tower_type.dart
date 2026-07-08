@@ -217,7 +217,7 @@ const Map<TowerType, List<TowerUpgradeNode>> kTowerUpgradeTree = {
       TowerUpgradeNode(
           key: 'B1', name: '火龍吐息', cost: 20, desc: '射程再大幅加長', mods: {TowerMod.range: 8}),
       TowerUpgradeNode(
-          key: 'B2', name: '熾流', cost: 20, desc: '命中後留下持續燃燒', mods: {TowerMod.burn: 12}),
+          key: 'B2', name: '熾流', cost: 20, desc: '命中後留下持續燃燒，燃燒中所受治療減半（剋薩滿）', mods: {TowerMod.burn: 12}),
     ]),
   ],
   // 風刃：A 轉速。base spin 4π, range 2.5。滿升總價=原費 60
