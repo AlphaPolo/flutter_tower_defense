@@ -35,6 +35,7 @@ flutter:
   - assets/images/electricity.png
   - assets/images/fire.png
   - assets/images/ice.png
+  - assets/images/logo_256.png
   - assets/iso/
   - assets/ui/
   - assets/fx/

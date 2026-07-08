@@ -423,7 +423,11 @@ class LeftColOverlay extends StatelessWidget {
                       color: Colors.lightBlueAccent,
                       colorBlendMode: BlendMode.srcIn),
                   game.wave,
-                  (w) => w == 0 ? '—' : '$w/${TowerDefenseGame.totalWaves}'),
+                  (w) => w == 0
+                      ? '—'
+                      : game.endless.value
+                          ? '$w/∞'
+                          : '$w/${TowerDefenseGame.totalWaves}'),
               const SizedBox(width: 14),
               _stat(
                   const Icon(Icons.favorite,
@@ -945,7 +949,9 @@ class LeftColOverlay extends StatelessWidget {
       builder: (context, _) {
         final ended = game.gameOver.value || game.gameWon.value;
         final running = game.waveRunning.value;
-        final allDone = game.waveNumber >= TowerDefenseGame.totalWaves;
+        // 無盡模式沒有「全部完成」。
+        final allDone = !game.endless.value &&
+            game.waveNumber >= TowerDefenseGame.totalWaves;
         final canStart = !ended && !running && !allDone;
 
         final String label;
@@ -955,6 +961,8 @@ class LeftColOverlay extends StatelessWidget {
           label = '全部完成';
         } else if (game.waveNumber == 0) {
           label = '開始遊戲';
+        } else if (game.endless.value) {
+          label = '下一波 (${game.waveNumber + 1})';
         } else {
           label = '下一波 (${game.waveNumber + 1}/${TowerDefenseGame.totalWaves})';
         }
@@ -998,7 +1006,9 @@ class LeftColOverlay extends StatelessWidget {
           return const SizedBox.shrink();
         }
         final next = game.waveNumber + 1;
-        if (next > TowerDefenseGame.totalWaves) return const SizedBox.shrink();
+        if (!game.endless.value && next > TowerDefenseGame.totalWaves) {
+          return const SizedBox.shrink();
+        }
         // 依「首次出現順序」聚合數量。
         final counts = <EnemyKind, int>{};
         for (final k in game.waveLineup(next)) {
@@ -1175,8 +1185,12 @@ class LeftColOverlay extends StatelessWidget {
 /// 設定抽屜：特效開關（由左上「設定」鈕開啟）。
 /// 作弊模式與重新開始鈕都在左上 HUD、不在此。
 class SettingsDrawer extends StatelessWidget {
-  const SettingsDrawer({super.key, required this.game});
+  const SettingsDrawer(
+      {super.key, required this.game, required this.onBackToMenu});
   final TowerDefenseGame game;
+
+  /// 返回主選單（重建遊戲並重新顯示模式選單）。
+  final VoidCallback onBackToMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -1235,6 +1249,21 @@ class SettingsDrawer extends StatelessWidget {
                 _kGold),
             _volumeTile(GameAudio.bgmOn, GameAudio.bgmVol),
             const Spacer(),
+            // 返回主選單（清進度，需確認）。
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmBackToMenu(context),
+                icon: const Icon(Icons.home, size: 18),
+                label: const Text('返回主選單',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kGold,
+                  side: const BorderSide(color: _kGoldDeep, width: 1.3),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
             // 音樂授權標註（xDeviruchi 授權條款要求）。
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -1247,6 +1276,29 @@ class SettingsDrawer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 返回主選單前先確認（會清掉目前進度）。
+  void _confirmBackToMenu(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => _themedDialog(
+        icon: Icons.home,
+        accent: _kGold,
+        title: '返回主選單？',
+        message: '目前的進度（金幣、生命、已蓋的塔）會全部清除，回到模式選擇畫面。',
+        actions: [
+          _dialogButton('取消', () => Navigator.pop(ctx), filled: false),
+          const SizedBox(width: 12),
+          _dialogButton('返回主選單', () {
+            Navigator.pop(ctx); // 關確認彈窗
+            Navigator.pop(context); // 關抽屜
+            onBackToMenu();
+          }, filled: true, color: Colors.redAccent),
+        ],
       ),
     );
   }
@@ -1331,6 +1383,124 @@ class SettingsDrawer extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 開場模式選單：蓋在整個畫面上（棋盤當背景），選「闖關 / 無盡」後才進場。
+/// 重新開始會再次顯示。
+class ModeSelectOverlay extends StatelessWidget {
+  const ModeSelectOverlay({super.key, required this.game, required this.onChosen});
+  final TowerDefenseGame game;
+  final void Function(bool endless) onChosen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        const ModalBarrier(color: Colors.black54, dismissible: false),
+        Center(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+            constraints: const BoxConstraints(maxWidth: 340),
+            decoration: _dialogBox(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 遊戲徽章 + 名稱
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset('assets/images/logo_256.png',
+                      width: 84, height: 84, fit: BoxFit.cover),
+                ),
+                const SizedBox(height: 12),
+                const Text('元素塔防',
+                    style: TextStyle(
+                        color: _kGold,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 4)),
+                const SizedBox(height: 4),
+                const Text('選擇模式',
+                    style: TextStyle(color: Color(0xFFD8C9A6), fontSize: 13)),
+                const SizedBox(height: 18),
+                _modeCard(
+                  icon: Icons.play_circle,
+                  color: Colors.green,
+                  title: '闖關模式',
+                  subtitle: '守住 ${TowerDefenseGame.totalWaves} 波，贏得勝利',
+                  onTap: () => onChosen(false),
+                ),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<int>(
+                  valueListenable: game.bestEndless,
+                  builder: (context, best, _) => _modeCard(
+                    icon: Icons.all_inclusive,
+                    color: const Color(0xFF7E57C2),
+                    title: '無盡模式',
+                    subtitle: best > 0 ? '最佳紀錄：$best 波' : '波次無盡，拚最高紀錄',
+                    onTap: () => onChosen(true),
+                  ),
+                ),
+              ],
+            ),
+          )
+              .animate()
+              .fadeIn(duration: 180.ms)
+              .scale(
+                begin: const Offset(0.25, 1.5),
+                duration: 300.ms,
+                curve: const Cubic(0.34, 1.56, 0.64, 1),
+              ),
+        ),
+      ],
+    );
+  }
+
+  /// 模式卡片：色塊圖示 + 標題 + 副標，整卡可點。
+  Widget _modeCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        GameAudio.ui('confirm', volume: 0.6);
+        onTap();
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color, width: 1.6),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(
+                        color: Color(0xFFE8DCC0), fontSize: 12)),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1663,14 +1833,36 @@ class EndOverlay extends StatelessWidget {
         final lost = game.gameOver.value;
         if (!won && !lost) return const SizedBox.shrink();
 
+        // 無盡模式失敗：顯示撐過幾波 + 最佳紀錄（破紀錄時金色強調）。
+        final endless = game.endless.value;
+        final String title;
+        final String message;
+        if (won) {
+          title = '勝利！';
+          message = '你成功守住了主堡！';
+        } else if (endless) {
+          title = '挑戰結束';
+          message = '無盡模式：撐過 ${game.completedWaves} 波\n'
+              '${game.newEndlessRecord ? '🏆 新紀錄！' : '最佳紀錄：${game.bestEndless.value} 波'}';
+        } else {
+          title = '遊戲結束';
+          message = '主堡失守了……再挑戰一次！';
+        }
+
         return Stack(
           children: [
             const ModalBarrier(color: Colors.black54, dismissible: false),
             _themedDialog(
-              icon: won ? Icons.emoji_events : Icons.sentiment_very_dissatisfied,
-              accent: won ? _kGold : Colors.redAccent,
-              title: won ? '勝利！' : '遊戲結束',
-              message: won ? '你成功守住了主堡！' : '主堡失守了……再挑戰一次！',
+              icon: won
+                  ? Icons.emoji_events
+                  : endless
+                      ? Icons.all_inclusive
+                      : Icons.sentiment_very_dissatisfied,
+              accent: won || (endless && game.newEndlessRecord)
+                  ? _kGold
+                  : Colors.redAccent,
+              title: title,
+              message: message,
               actions: [
                 _dialogButton('重新開始', onRestart),
               ],

@@ -15,17 +15,32 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late TowerDefenseGame game;
 
+  /// 是否已在開場選單選好模式（闖關/無盡）；重新開始會回到選單。
+  bool _modeChosen = false;
+
   @override
   void initState() {
     super.initState();
     game = TowerDefenseGame();
   }
 
-  /// 重新開始：建立全新的遊戲實例（GameWidget 會自動釋放舊的）。
+  /// 重新開始：建立全新的遊戲實例（GameWidget 會自動釋放舊的），
+  /// 直接重開「目前的模式」、不回主選單。
   void _restart() {
     GameAudio.restart(); // 停掉勝/敗 jingle、恢復 BGM
+    final endless = game.endless.value;
     setState(() {
       game = TowerDefenseGame();
+      game.endless.value = endless; // 保留模式
+    });
+  }
+
+  /// 返回主選單：全新遊戲實例 + 重新顯示模式選單（由設定抽屜觸發）。
+  void _backToMenu() {
+    GameAudio.restart();
+    setState(() {
+      game = TowerDefenseGame();
+      _modeChosen = false;
     });
   }
 
@@ -35,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // 不透明深色底（原本 Colors.black87 是 87% 半透明 → 分頁列/邊緣會透出半透明感）。
       backgroundColor: Colors.black,
       // 設定抽屜：由左上「設定」鈕開啟；關閉邊緣滑動手勢，避免與棋盤拖曳衝突。
-      drawer: SettingsDrawer(game: game),
+      drawer: SettingsDrawer(game: game, onBackToMenu: _backToMenu),
       drawerEnableOpenDragGesture: false,
       // 用 Stack 讓「結束彈窗」蓋住整個畫面（含底部 BuildBar），否則遊戲勝/敗時
       // 底部的建造列仍可點擊。EndOverlay 未結束時回傳 SizedBox.shrink，不擋操作。
@@ -70,6 +85,17 @@ class _HomeScreenState extends State<HomeScreen> {
         Positioned.fill(
           child: EndOverlay(game: game, onRestart: _restart),
         ),
+        // 開場模式選單：蓋住整個畫面（含底部建造列），選完才能操作。
+        if (!_modeChosen)
+          Positioned.fill(
+            child: ModeSelectOverlay(
+              game: game,
+              onChosen: (endless) => setState(() {
+                game.endless.value = endless;
+                _modeChosen = true;
+              }),
+            ),
+          ),
       ],
     );
   }

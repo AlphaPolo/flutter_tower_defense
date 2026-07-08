@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart'
     show FrictionSimulation, Simulation, SpringDescription, SpringSimulation;
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../screens/my_app.dart' show showTopMessage;
 import 'audio/game_audio.dart';
@@ -138,6 +139,16 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 玩家遊戲速度（1/2/3×）：與 demoSpeed 相乘決定每幀模擬子步數。
   final ValueNotifier<int> gameSpeed = ValueNotifier(1);
 
+  // ── 無盡模式 ─────────────────────────────────────────────
+  /// true＝無盡模式（開打前由 UI 選擇；無勝利條件、25 波後難度續漲）。
+  final ValueNotifier<bool> endless = ValueNotifier(false);
+
+  /// 無盡模式最佳紀錄（撐過幾波），啟動時從本機載入、破紀錄即寫回。
+  final ValueNotifier<int> bestEndless = ValueNotifier(0);
+
+  /// 本場是否刷新了無盡紀錄（結束彈窗顯示「新紀錄！」用）。
+  bool newEndlessRecord = false;
+
   // ── 自動演示 ──────────────────────────────────────────────
   final ValueNotifier<bool> demoRunning = ValueNotifier(false);
   AutoPlayerComponent? _autoPlayer;
@@ -145,6 +156,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   @override
   Future<void> onLoad() async {
+    _loadBestEndless();
     board = Board(
       boardRadius: boardRadius,
       hexagonRadius: hexRadius,
@@ -793,7 +805,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void startGame() {
     if (gameOver.value || gameWon.value) return;
     if (_spawner != null || enemies.isNotEmpty) return;
-    if (waveNumber >= totalWaves) return;
+    if (!endless.value && waveNumber >= totalWaves) return;
 
     waveNumber++;
     wave.value = waveNumber;
@@ -845,6 +857,25 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// Boss 波（每 5 波）。
   static const Set<int> bossWaves = {10, 15, 20, 25};
 
+  /// 讀/寫無盡模式最佳紀錄（測試等無外掛環境安靜略過）。
+  Future<void> _loadBestEndless() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      bestEndless.value = p.getInt('bestEndlessWave') ?? 0;
+    } catch (_) {/* no-op */}
+  }
+
+  Future<void> _saveBestEndless(int waves) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setInt('bestEndlessWave', waves);
+    } catch (_) {/* no-op */}
+  }
+
+  /// 該波是否為 Boss 波：闖關看固定清單；無盡第 10 波起每 5 波一次。
+  bool isBossWave(int wave) =>
+      endless.value ? wave >= 10 && wave % 5 == 0 : bossWaves.contains(wave);
+
   /// 招牌小隊（combo）：在指定波插入「擠在一起出現」的互補小隊。
   /// 目前只用已實作的種類；補師/護盾/分裂/再生等敵人做出來後再補更多波。
   static final Map<int, List<EnemyKind>> _squads = {
@@ -870,7 +901,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 第 [wave] 波玩家實際會遇到的完整敵人清單（含招牌小隊 / Boss 波的 Boss），
   /// 給「下一波預告」UI 用；與 buildWaveSchedule 用同一份快取組成。
   List<EnemyKind> waveLineup(int wave) {
-    if (bossWaves.contains(wave)) {
+    if (isBossWave(wave)) {
       return [..._cachedComposition(wave).take(10), EnemyKind.juggernaut];
     }
     return [..._cachedComposition(wave), ...?_squads[wave]];
@@ -878,7 +909,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 該波完整生成序列：Boss 波 → 護衛+Boss；一般波 → 權重填充（可能插入招牌小隊）。
   List<SpawnTick> buildWaveSchedule(int wave) {
-    if (bossWaves.contains(wave)) return _bossSchedule(wave);
+    if (isBossWave(wave)) return _bossSchedule(wave);
 
     final ticks = <SpawnTick>[
       for (final k in _cachedComposition(wave)) SpawnTick(k, 1.0),
@@ -918,8 +949,11 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   }
 
   EnemyStatus enemyStatusForWave(int wave) {
-    final hp = (100.0 + (wave - 1) * 40);
-    final speed = (1.5 + (wave - 1) * 0.05) * 0.85; // 全怪移速 -15%
+    var hp = (100.0 + (wave - 1) * 40);
+    // 無盡模式 25 波後：血量每波再 ×1.08 複利 → 難度持續攀升、終有一倒。
+    if (wave > totalWaves) hp *= pow(1.08, wave - totalWaves);
+    // 移速線性成長但封頂（約第 37 波達上限），避免後期快到不合理。
+    final speed = ((1.5 + (wave - 1) * 0.05) * 0.85).clamp(0.0, 2.8);
     return EnemyStatus(totalHp: hp, currentHp: hp, speed: speed);
   }
 
@@ -962,6 +996,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   /// 把整局重設回開局狀態（給演示用，不重建 game）。
   void resetForDemo() {
+    endless.value = false; // 自動演示固定跑闖關模式
     for (final t in towers.values) {
       t.removeFromParent();
     }
@@ -1001,6 +1036,15 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     waveRunning.value = false;
     freeObstacle.value += 1; // 每完成一波送一個障礙物
     _grantWoodsIncome(); // 風刃塔 × 密林：每波產小量金幣
+    if (endless.value) {
+      // 無盡：沒有勝利條件；每波結束就更新最佳紀錄（避免關頁面漏存）。
+      if (completedWaves > bestEndless.value) {
+        bestEndless.value = completedWaves;
+        newEndlessRecord = true;
+        _saveBestEndless(completedWaves);
+      }
+      return;
+    }
     if (completedWaves >= totalWaves) {
       gameWon.value = true;
       GameAudio.gameEnd(won: true);
@@ -1062,6 +1106,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     gameWon.dispose();
     woodsIncome.dispose();
     gameSpeed.dispose();
+    endless.dispose();
+    bestEndless.dispose();
     towerShadowImage.dispose();
     super.onRemove();
   }
