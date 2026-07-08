@@ -5,12 +5,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 
 import '../../utils/fullscreen.dart';
 import '../audio/game_audio.dart';
 import '../board/hex.dart';
 import '../components/enemy_kind.dart';
+import '../leaderboard/leaderboard.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
 
@@ -119,6 +121,7 @@ Widget _themedDialog({
   required Color accent,
   required String title,
   String? message,
+  Widget? extra, // 插在訊息與動作列之間的自訂區塊（如上傳成績）
   required List<Widget> actions,
 }) {
   return Center(
@@ -142,6 +145,10 @@ Widget _themedDialog({
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: Color(0xFFE8DCC0), fontSize: 14, height: 1.4)),
+          ],
+          if (extra != null) ...[
+            const SizedBox(height: 14),
+            extra,
           ],
           const SizedBox(height: 22),
           Row(mainAxisSize: MainAxisSize.min, children: actions),
@@ -1445,6 +1452,26 @@ class ModeSelectOverlay extends StatelessWidget {
                     onTap: () => onChosen(true),
                   ),
                 ),
+                const SizedBox(height: 12),
+                // 排行榜（無盡模式，季號分桶）：監聽 available——init 是非同步的，
+                // 選單常在它完成前就 build，好了按鈕即時浮現；失敗則一直隱藏。
+                ValueListenableBuilder<bool>(
+                  valueListenable: Leaderboard.available,
+                  builder: (context, ok, _) => !ok
+                      ? const SizedBox.shrink()
+                      : TextButton.icon(
+                          onPressed: () {
+                            GameAudio.ui('click', volume: 0.5);
+                            showLeaderboardDialog(context);
+                          },
+                          icon: const Icon(Icons.emoji_events,
+                              color: _kGold, size: 20),
+                          label: const Text('排行榜',
+                              style: TextStyle(
+                                  color: _kGold,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                ),
               ],
             ),
           )
@@ -1504,6 +1531,292 @@ class ModeSelectOverlay extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 無盡戰敗彈窗裡的「上傳成績」區塊：暱稱可改、可選擇不傳。
+/// 狀態：詢問中 → 上傳中 → 已上傳/未破紀錄；「不上傳」直接收起。
+class _EndlessUploadSection extends StatefulWidget {
+  const _EndlessUploadSection({required this.waves});
+  final int waves;
+
+  @override
+  State<_EndlessUploadSection> createState() => _EndlessUploadSectionState();
+}
+
+enum _UploadState { asking, busy, done, rejected, skipped }
+
+class _EndlessUploadSectionState extends State<_EndlessUploadSection> {
+  final _name = TextEditingController();
+  var _state = _UploadState.asking;
+
+  @override
+  void initState() {
+    super.initState();
+    Leaderboard.playerName().then((n) {
+      if (mounted && _name.text.isEmpty) _name.text = n;
+    });
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _upload() async {
+    setState(() => _state = _UploadState.busy);
+    await Leaderboard.setPlayerName(_name.text); // 先存暱稱（不重送）
+    final ok = await Leaderboard.submit(widget.waves);
+    if (!mounted) return;
+    setState(() => _state = ok ? _UploadState.done : _UploadState.rejected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Leaderboard.available.value) return const SizedBox.shrink();
+    switch (_state) {
+      case _UploadState.skipped:
+        return const SizedBox.shrink();
+      case _UploadState.done:
+        return const Text('✓ 已上傳排行榜',
+            style: TextStyle(color: _kGold, fontWeight: FontWeight.bold));
+      case _UploadState.rejected:
+        return Text('未超過你在榜上的紀錄（或連線失敗），未上傳',
+            style: TextStyle(color: Colors.grey[400], fontSize: 12.5));
+      case _UploadState.busy:
+        return const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(color: _kGold, strokeWidth: 2.5));
+      case _UploadState.asking:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 暱稱（可直接改，上傳時一併儲存）
+            SizedBox(
+              width: 220,
+              child: TextField(
+                controller: _name,
+                maxLength: 16,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  isDense: true,
+                  counterText: '',
+                  labelText: '排行榜暱稱',
+                  labelStyle:
+                      TextStyle(color: Colors.grey[500], fontSize: 12),
+                  enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: _kGoldDeep)),
+                  focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: _kGold)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogButton('上傳成績', _upload),
+                const SizedBox(width: 10),
+                _dialogButton('不上傳',
+                    () => setState(() => _state = _UploadState.skipped),
+                    filled: false),
+              ],
+            ),
+          ],
+        );
+    }
+  }
+}
+
+/// 排行榜彈窗：前 50 名 + 自己高亮 + 暱稱編輯。木質主題、載入/失敗狀態。
+Future<void> showLeaderboardDialog(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => const _LeaderboardDialog(),
+  );
+}
+
+class _LeaderboardDialog extends StatefulWidget {
+  const _LeaderboardDialog();
+
+  @override
+  State<_LeaderboardDialog> createState() => _LeaderboardDialogState();
+}
+
+class _LeaderboardDialogState extends State<_LeaderboardDialog> {
+  late Future<List<LeaderboardEntry>> _top;
+  String _myName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    // 先確保登入（自己那行才能高亮），再抓榜。
+    _top = Leaderboard.ensureSignedIn().then((_) => Leaderboard.top());
+    Leaderboard.playerName().then((n) {
+      if (mounted) setState(() => _myName = n);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final envTag = Leaderboard.env == 'staging' ? '（staging）' : '';
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 440),
+        decoration: _dialogBox(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.emoji_events, color: _kGold, size: 22),
+                const SizedBox(width: 8),
+                Text('無盡排行榜 · 第 ${Leaderboard.kSeason} 季$envTag',
+                    style: const TextStyle(
+                        color: _kGold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Color(0xFFD8C9A6)),
+                ),
+              ],
+            ),
+            const Divider(color: _kGoldDeep, height: 10),
+            Flexible(
+              child: FutureBuilder<List<LeaderboardEntry>>(
+                future: _top,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const Padding(
+                      padding: EdgeInsets.all(28),
+                      child: CircularProgressIndicator(color: _kGold),
+                    );
+                  }
+                  final list = snap.data ?? const [];
+                  if (list.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('還沒有紀錄——去無盡模式搶頭香！',
+                          style: TextStyle(color: Color(0xFFD8C9A6))),
+                    );
+                  }
+                  final myUid = Leaderboard.currentUid;
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: list.length,
+                    itemBuilder: (context, i) {
+                      final e = list[i];
+                      final mine = e.uid == myUid;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: mine
+                            ? BoxDecoration(
+                                color: _kGold.withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _kGoldDeep),
+                              )
+                            : null,
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 34,
+                              child: Text(
+                                '${i + 1}.',
+                                style: TextStyle(
+                                  color: i < 3 ? _kGold : Colors.grey[400],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                e.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: mine ? _kGold : Colors.white,
+                                  fontWeight: mine
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            Text('${e.wave} 波',
+                                style: const TextStyle(
+                                    color: Color(0xFFE8DCC0),
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(color: _kGoldDeep, height: 10),
+            // 我的暱稱 + 編輯
+            Row(
+              children: [
+                Text('暱稱：$_myName',
+                    style: const TextStyle(
+                        color: Color(0xFFD8C9A6), fontSize: 13)),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _editName,
+                  icon: const Icon(Icons.edit, color: _kGoldDeep, size: 16),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editName() async {
+    final ctrl = TextEditingController(text: _myName);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF241811),
+        title: const Text('修改暱稱',
+            style: TextStyle(color: _kGold, fontSize: 18)),
+        content: TextField(
+          controller: ctrl,
+          maxLength: 16,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            counterStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: _kGoldDeep)),
+          ),
+        ),
+        actions: [
+          _dialogButton('取消', () => Navigator.pop(ctx, false), filled: false),
+          _dialogButton('儲存', () => Navigator.pop(ctx, true)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    // 更新暱稱並同步榜上名字（同分重送，規則允許 >=）。
+    final p = await SharedPreferences.getInstance();
+    final best = p.getInt('bestEndlessWave') ?? 0;
+    await Leaderboard.setPlayerName(ctrl.text, currentWave: best);
+    setState(_reload);
   }
 }
 
@@ -1863,6 +2176,10 @@ class EndOverlay extends StatelessWidget {
                   : Colors.redAccent,
               title: title,
               message: message,
+              // 無盡戰敗且排行榜可用 → 詢問是否上傳成績（可改暱稱、可不傳）。
+              extra: !won && endless && game.completedWaves > 0
+                  ? _EndlessUploadSection(waves: game.completedWaves)
+                  : null,
               actions: [
                 _dialogButton('重新開始', onRestart),
               ],

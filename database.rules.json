@@ -1,0 +1,18 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "leaderboards": {
+      "$env": {
+        "$season": {
+          ".read": true,
+          ".indexOn": ["wave"],
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid",
+            ".validate": "newData.hasChildren(['name','wave','ts']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 16 && newData.child('wave').isNumber() && newData.child('wave').val() >= 1 && newData.child('wave').val() < 10000 && (!data.exists() || newData.child('wave').val() >= data.child('wave').val())"
+          }
+        }
+      }
+    }
+  }
+}
