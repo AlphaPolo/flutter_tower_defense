@@ -1,6 +1,12 @@
 import 'dart:math';
 
-extension IterableExtension<E> on Iterable<E>{
+extension IterableExtension<E> on Iterable<E> {
+
+  /// 方便當作測試資料使用
+  Iterable<E> repeat(int times) {
+    assert(times >= 0);
+    return Iterable.generate(times, (_) => this).expand((element) => element);
+  }
 
   E randomChoose() {
     final random = Random().nextInt(length);

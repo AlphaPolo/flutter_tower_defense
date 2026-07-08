@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tower_defense/utils/bottom_semicircle_clipper.dart';
 
@@ -1436,30 +1437,29 @@ class ModeSelectOverlay extends StatelessWidget {
         const ModalBarrier(color: Colors.black54, dismissible: false),
         Center(
           child: Container(
-            margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
-            constraints: const BoxConstraints(maxWidth: 340),
+            margin: const EdgeInsets.all(24).h,
+            padding: const EdgeInsets.fromLTRB(28, 26, 28, 24).h,
+            constraints: const BoxConstraints(maxWidth: 340).h,
             decoration: _dialogBox(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 遊戲徽章 + 名稱
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset('assets/images/logo_256.png',
-                      width: 84, height: 84, fit: BoxFit.cover),
+                  borderRadius: BorderRadius.circular(16).h,
+                  child: Image.asset(
+                    'assets/images/logo_256.png',
+                    width: 72.h, height: 72.h, fit: BoxFit.cover,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                const Text('元素塔防',
-                    style: TextStyle(
-                        color: _kGold,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4)),
-                const SizedBox(height: 4),
-                const Text('選擇模式',
-                    style: TextStyle(color: Color(0xFFD8C9A6), fontSize: 13)),
-                const SizedBox(height: 18),
+                SizedBox(height: 12.h),
+                Text(
+                  '元素塔防',
+                  style: TextStyle(color: _kGold, fontSize: 26.h, fontWeight: FontWeight.w900, letterSpacing: 4),
+                ),
+                SizedBox(height: 4.h),
+                Text('選擇模式', style: TextStyle(color: const Color(0xFFD8C9A6), fontSize: 13.h)),
+                SizedBox(height: 18.h),
                 _modeCard(
                   icon: Icons.play_circle,
                   color: Colors.green,
@@ -1467,7 +1467,7 @@ class ModeSelectOverlay extends StatelessWidget {
                   subtitle: '守住 ${TowerDefenseGame.totalWaves} 波，贏得勝利',
                   onTap: () => onChosen(false),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10.h),
                 ValueListenableBuilder<int>(
                   valueListenable: game.bestEndless,
                   builder: (context, best, _) => _modeCard(
@@ -1478,7 +1478,7 @@ class ModeSelectOverlay extends StatelessWidget {
                     onTap: () => onChosen(true),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 // 排行榜（無盡模式，季號分桶）：監聽 available——init 是非同步的，
                 // 選單常在它完成前就 build，好了按鈕即時浮現；失敗則一直隱藏。
                 ValueListenableBuilder<bool>(
@@ -1529,7 +1529,7 @@ class ModeSelectOverlay extends StatelessWidget {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 14.h, vertical: 12.h),
         decoration: BoxDecoration(
           color: color.withOpacity(0.16),
           borderRadius: BorderRadius.circular(14),
@@ -1537,20 +1537,17 @@ class ModeSelectOverlay extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 30),
-            const SizedBox(width: 12),
+            Icon(icon, color: color, size: 30.h),
+            SizedBox(width: 12.h),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        color: Color(0xFFE8DCC0), fontSize: 12)),
+                Text(
+                  title,
+                  style: TextStyle(color: color, fontSize: 17.h, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2.h),
+                Text(subtitle, style: TextStyle(color: Color(0xFFE8DCC0), fontSize: 12.h)),
               ],
             ),
           ],
@@ -1684,11 +1681,39 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
   }
 
   void _reload() {
-    // 先確保登入（自己那行才能高亮），再抓榜。
-    _top = Leaderboard.ensureSignedIn().then((_) => Leaderboard.top());
+    // ⚠️ TODO(UI 調版用)：假資料 20 筆。調完版面把下面兩行對調回真資料。
+    // _top = Leaderboard.ensureSignedIn().then((_) => Leaderboard.top());
+    _top = Leaderboard.ensureSignedIn().then(_fakeTop);
     Leaderboard.playerName().then((n) {
       if (mounted) setState(() => _myName = n);
     });
+  }
+
+  /// UI 調版用假資料：名次梯度、同分、長短暱稱、自己的高亮列（第 8 名）都涵蓋。
+  Future<List<LeaderboardEntry>> _fakeTop(String? myUid) async {
+    const names = [
+      '山寨大王', '路過的勇者', '狂暴的巨蛛42', '嗜金的獵手77', '木頭人',
+      '這是一個很長很長的暱稱測試', 'abc', '雷鳴的薩滿10', '冰霜的斥候33',
+      '沉默的滾木99', 'xX_Slayer_Xx', '幽影的野豬56', '不屈的哨兵21',
+      '敏捷的風刃88', '炙熱的火炮12', '小明', '迅捷的巨獸64', 'Q',
+      '第十九名的人',
+    ];
+    final base = DateTime.now().millisecondsSinceEpoch;
+    final list = <LeaderboardEntry>[
+      for (var i = 0; i < names.length; i++)
+        LeaderboardEntry(
+          'fake-$i',
+          names[i],
+          // 波數遞減 + 幾組同分（同分看 ts 排序）。
+          52 - i * 2 - (i % 3 == 0 ? 1 : 0),
+          base - i * 60000,
+        ),
+      // 自己（uid 對上 currentUid 才會金框高亮）→ 插在中段。
+      LeaderboardEntry(myUid ?? 'me', '我自己的名字', 37, base - 999000),
+    ];
+    list.sort((a, b) =>
+        b.wave != a.wave ? b.wave.compareTo(a.wave) : a.ts.compareTo(b.ts));
+    return list;
   }
 
   @override

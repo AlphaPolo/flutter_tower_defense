@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'home/home_screen.dart';
 
@@ -47,19 +48,25 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Tower Defense',
-      debugShowCheckedModeBanner: false,
-      scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-
+    // ScreenUtil：以 iPhone 14 橫向（844×390 邏輯像素）為設計稿基準；
+    // UI 尺寸用 .w/.h/.sp/.r 依實際螢幕等比縮放，縮小手機↔桌面的版面差異。
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true, // 文字縮放取 min(寬比,高比)，避免橫向被放過大
+      splitScreenMode: true,
+      builder: (context, _) => MaterialApp(
+        title: 'Flutter Tower Defense',
+        debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: scaffoldMessengerKey,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        builder: (context, child) {
+          return _OrientationGate(child: child!);
+        },
+        // themeMode: ThemeMode.dark,
+        home: const HomeScreen(),
       ),
-      builder: (context, child) {
-        return _OrientationGate(child: child!);
-      },
-      // themeMode: ThemeMode.dark,
-      home: const HomeScreen(),
     );
   }
 }
