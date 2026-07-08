@@ -1681,40 +1681,13 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
   }
 
   void _reload() {
-    // ⚠️ TODO(UI 調版用)：假資料 20 筆。調完版面把下面兩行對調回真資料。
-    // _top = Leaderboard.ensureSignedIn().then((_) => Leaderboard.top());
-    _top = Leaderboard.ensureSignedIn().then(_fakeTop);
+    // 先確保登入（自己那行才能高亮），再抓榜。
+    _top = Leaderboard.ensureSignedIn().then((_) => Leaderboard.top());
     Leaderboard.playerName().then((n) {
       if (mounted) setState(() => _myName = n);
     });
   }
 
-  /// UI 調版用假資料：名次梯度、同分、長短暱稱、自己的高亮列（第 8 名）都涵蓋。
-  Future<List<LeaderboardEntry>> _fakeTop(String? myUid) async {
-    const names = [
-      '山寨大王', '路過的勇者', '狂暴的巨蛛42', '嗜金的獵手77', '木頭人',
-      '這是一個很長很長的暱稱測試', 'abc', '雷鳴的薩滿10', '冰霜的斥候33',
-      '沉默的滾木99', 'xX_Slayer_Xx', '幽影的野豬56', '不屈的哨兵21',
-      '敏捷的風刃88', '炙熱的火炮12', '小明', '迅捷的巨獸64', 'Q',
-      '第十九名的人',
-    ];
-    final base = DateTime.now().millisecondsSinceEpoch;
-    final list = <LeaderboardEntry>[
-      for (var i = 0; i < names.length; i++)
-        LeaderboardEntry(
-          'fake-$i',
-          names[i],
-          // 波數遞減 + 幾組同分（同分看 ts 排序）。
-          52 - i * 2 - (i % 3 == 0 ? 1 : 0),
-          base - i * 60000,
-        ),
-      // 自己（uid 對上 currentUid 才會金框高亮）→ 插在中段。
-      LeaderboardEntry(myUid ?? 'me', '我自己的名字', 37, base - 999000),
-    ];
-    list.sort((a, b) =>
-        b.wave != a.wave ? b.wave.compareTo(a.wave) : a.ts.compareTo(b.ts));
-    return list;
-  }
 
   @override
   Widget build(BuildContext context) {

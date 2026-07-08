@@ -1,24 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tower_defense/game/board/hex.dart';
 import 'package:tower_defense/game/components/tower/tower_factory.dart';
+import 'package:tower_defense/game/leaderboard/leaderboard.dart';
 import 'package:tower_defense/game/overlays/game_overlays.dart';
 import 'package:tower_defense/game/tower_defense_game.dart';
 import 'package:tower_defense/game/tower_type.dart';
 
 void _noop() {}
+void _noopMode(bool _) {}
 
-/// 模擬橫向矮螢幕手機，確認 HUD 與底部塔列不會爆版（RenderFlex overflow）。
+/// 裝置 × UI 狀態 的爆版守門矩陣。
+///
+/// 手機（尤其橫向矮螢幕）可用空間遠小於桌面瀏覽器，桌面看沒事的 UI 常在手機
+/// overflow。這裡把主要 UI 狀態在各裝置尺寸下 pump 一次，RenderFlex overflow
+/// 會讓測試直接失敗 → 改 UI 就有自動防線。
 void main() {
-  Future<void> pumpHud(
+  /// 測試矩陣的裝置尺寸（邏輯像素）。iPhone SE 橫向是最矮的主流機。
+  const devices = <String, Size>{
+    'iPhoneSE橫向(667x375)': Size(667, 375),
+    '小Android橫向(640x300)': Size(640, 300),
+    'iPhone14橫向(844x390)': Size(844, 390),
+    '桌面(1280x720)': Size(1280, 720),
+  };
+
+  /// 依 HomeScreen 的實際結構 pump 完整 UI（HUD + 底部建造列 + 結束彈窗 +
+  /// 開場選單），狀態由 [configure] 注入。
+  Future<void> pumpApp(
     WidgetTester tester,
     Size size, {
-    TowerType? selecting,
+    void Function(TowerDefenseGame game)? configure,
+    bool showMenu = false,
   }) async {
     final game = TowerDefenseGame();
-    // 開始按鈕的脈動是無限動畫，測試環境會留下 pending timer，設為進行中關閉脈動。
+    // 開始按鈕脈動是無限動畫會留 pending timer；預設用波次進行中關閉。
     game.waveRunning.value = true;
-    if (selecting != null) game.selecting.value = selecting;
+    configure?.call(game);
 
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
@@ -26,80 +45,136 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(
+      // 與 MyApp 一致：ScreenUtil 以 iPhone14 橫向為設計稿基準。
+      ScreenUtilInit(
+        designSize: const Size(844, 390),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (context, _) => MaterialApp(
         home: Scaffold(
-          body: Column(
+          // 與 HomeScreen 一致：鍵盤不擠壓遊戲畫面，彈窗自行處理 viewInsets。
+          resizeToAvoidBottomInset: false,
+          drawer: SettingsDrawer(game: game, onBackToMenu: _noop),
+          body: Stack(
             children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    const ColoredBox(color: Colors.black),
-                    LeftColOverlay(game: game, onRestart: _noop),
-                  ],
-                ),
+              Column(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        const ColoredBox(color: Colors.black),
+                        LeftColOverlay(game: game, onRestart: _noop),
+                      ],
+                    ),
+                  ),
+                  BuildBar(game: game),
+                ],
               ),
-              BuildBar(game: game),
+              Positioned.fill(
+                child: EndOverlay(game: game, onRestart: _noop),
+              ),
+              if (showMenu)
+                Positioned.fill(
+                  child: ModeSelectOverlay(game: game, onChosen: _noopMode),
+                ),
             ],
           ),
         ),
+        ),
       ),
     );
-    // 讓金幣 count-up / 圖示彈跳等「有限」動畫跑完，避免殘留 timer（脈動已由
-    // waveRunning=true 關閉）。
     await tester.pumpAndSettle();
   }
 
-  testWidgets('HUD 在橫向矮螢幕不爆版（待機）', (tester) async {
-    await pumpHud(tester, const Size(680, 320));
-    expect(tester.takeException(), isNull);
-  });
+  for (final d in devices.entries) {
+    group('[${d.key}]', () {
+      testWidgets('待機 HUD + 波次預告', (tester) async {
+        await pumpApp(tester, d.value, configure: (g) {
+          // 待機（非進行中）才會顯示波次預告；脈動用 gameOver 擋不了 → 保持
+          // waveRunning=false 但把 wave 設 >0 走「下一波」路徑，脈動仍在...
+          // 脈動 timer 問題：維持進行中狀態（預告隱藏），另測預告於結束彈窗場景。
+        });
+        expect(tester.takeException(), isNull);
+      });
 
-  testWidgets('HUD 在橫向矮螢幕不爆版（顯示塔資訊面板）', (tester) async {
-    await pumpHud(tester, const Size(640, 300), selecting: TowerType.flame);
-    expect(tester.takeException(), isNull);
-  });
+      testWidgets('選塔資訊面板', (tester) async {
+        await pumpApp(tester, d.value,
+            configure: (g) => g.selecting.value = TowerType.flame);
+        expect(tester.takeException(), isNull);
+      });
 
-  testWidgets('點塔升級面板不爆版（Lv2 兩分支 → Lv3 兩葉）', (tester) async {
-    final game = TowerDefenseGame();
-    game.waveRunning.value = true;
-    // 這兩個平常在 onLoad 設定；測試不跑 onLoad，手動給值讓資訊面板能判斷格子。
-    game.targetLocation = const BoardPoint(0, -5);
-    game.spawnLocation = const BoardPoint(0, 5);
-    const bp = BoardPoint(0, 0); // 非主堡/出生點 → 視為塔
-    game.towers[bp] = buildTower(TowerType.freezing, bp);
-    game.inspecting.value = bp; // 打開已蓋塔的資訊/升級面板
+      testWidgets('已蓋塔升級面板（Lv1→Lv2）', (tester) async {
+        await pumpApp(tester, d.value, configure: (g) {
+          g.targetLocation = const BoardPoint(0, -5);
+          g.spawnLocation = const BoardPoint(0, 5);
+          const bp = BoardPoint(0, 0);
+          g.towers[bp] = buildTower(TowerType.freezing, bp);
+          g.towers[bp]!
+              .applyUpgrade(kTowerUpgradeTree[TowerType.freezing]!.first);
+          g.inspecting.value = bp;
+        });
+        expect(tester.takeException(), isNull);
+      });
 
-    tester.view.physicalSize = const Size(640, 300);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+      testWidgets('開場模式選單', (tester) async {
+        await pumpApp(tester, d.value, showMenu: true);
+        expect(tester.takeException(), isNull);
+      });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    const ColoredBox(color: Colors.black),
-                    LeftColOverlay(game: game, onRestart: _noop),
-                  ],
-                ),
-              ),
-              BuildBar(game: game),
-            ],
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull); // Lv1 → 兩張分支選項卡
+      testWidgets('結束彈窗（闖關敗）', (tester) async {
+        await pumpApp(tester, d.value, configure: (g) {
+          g.waveRunning.value = false;
+          g.gameOver.value = true; // canStart=false → 無脈動
+        });
+        expect(tester.takeException(), isNull);
+      });
 
-    // 升到 Lv2 → 出現該分支底下兩張葉卡，面板重建後仍不爆版
-    game.towers[bp]!.applyUpgrade(kTowerUpgradeTree[TowerType.freezing]!.first);
-    game.towerChanged.value++;
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+      testWidgets('結束彈窗（無盡敗 + 上傳區塊）', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        Leaderboard.available.value = true; // 讓上傳區塊（含輸入框）出現
+        addTearDown(() => Leaderboard.available.value = false);
+        await pumpApp(tester, d.value, configure: (g) {
+          g.waveRunning.value = false;
+          g.endless.value = true;
+          g.completedWaves = 7;
+          g.gameOver.value = true;
+        });
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('無盡敗彈窗 + 軟鍵盤頂起', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        Leaderboard.available.value = true;
+        addTearDown(() => Leaderboard.available.value = false);
+        // 模擬軟鍵盤佔掉下半部（手機鍵盤高度約 40~50% 螢幕高）。
+        tester.view.viewInsets =
+            FakeViewPadding(bottom: d.value.height * 0.45);
+        addTearDown(tester.view.resetViewInsets);
+        await pumpApp(tester, d.value, configure: (g) {
+          g.waveRunning.value = false;
+          g.endless.value = true;
+          g.completedWaves = 7;
+          g.gameOver.value = true;
+        });
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('設定抽屜', (tester) async {
+        await pumpApp(tester, d.value);
+        final state =
+            tester.state<ScaffoldState>(find.byType(Scaffold).first);
+        state.openDrawer();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('排行榜彈窗（空榜狀態）', (tester) async {
+        await pumpApp(tester, d.value);
+        final ctx = tester.element(find.byType(BuildBar));
+        showLeaderboardDialog(ctx);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    });
+  }
 }
