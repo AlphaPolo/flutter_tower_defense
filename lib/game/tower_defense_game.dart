@@ -412,8 +412,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
   Offset _toOffset(Vector2 v) => Offset(v.x, v.y);
 
-  /// 兩邏輯點之間是否被「天然地形（blocks）」遮擋。玩家建築不遮擋（狙擊塔規則）。
-  /// 沿線每半格取樣一次，查該格是否為擋路環境。
+  /// 兩邏輯點之間是否被「高聳天然地形（blocksSight）」遮擋——巨石/密林擋、
+  /// 平坦的水池/泥沼/荊棘不擋；玩家建築也不遮擋（狙擊塔規則）。
+  /// 沿線每半格取樣一次，查該格環境是否遮擋視線。
   bool terrainBlocksLine(Vector2 from, Vector2 to) {
     final dist = from.distanceTo(to);
     if (dist <= 0) return false;
@@ -425,13 +426,14 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
         from.y + (to.y - from.y) * t,
       ));
       final env = environment[bp];
-      if (env != null && env.blocks) return true;
+      if (env != null && env.blocksSight) return true;
     }
     return false;
   }
 
   /// 沿 [from] 往 [dirUnit] 的射線走 [maxLen]，回傳實際終點：
-  /// [ignoreTerrain] 為 false 時，撞到擋路地形就在該處截斷（狙擊塔彈道用）。
+  /// [ignoreTerrain] 為 false 時，撞到遮擋視線的高聳地形（blocksSight）
+  /// 就在該處截斷（狙擊塔彈道用）；水池等平坦地形不截斷。
   Vector2 rayEnd(Vector2 from, Vector2 dirUnit, double maxLen,
       {bool ignoreTerrain = false}) {
     final stepLen = board.hexagonRadius * 0.5;
@@ -441,7 +443,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       final p = from + dirUnit * (stepLen * i.toDouble()).clamp(0, maxLen);
       if (!ignoreTerrain) {
         final env = environment[board.pointToBoardPoint(_toOffset(p))];
-        if (env != null && env.blocks) return last;
+        if (env != null && env.blocksSight) return last;
       }
       last = p;
     }

@@ -48,8 +48,8 @@ const Map<TowerType, TowerStats> kTowerStats = {
     damage: 90,
     fireCD: 5000, // 全場最慢，重擊定位
     title: '狙擊塔',
-    description: '全圖射程，鎖定血量最高的敵人；射線會被天然地形遮擋（不被建築遮擋）。'
-        '對血量充足（≥80%）的目標傷害 +50%（獵首）。',
+    description: '全圖射程，鎖定血量最高的敵人；射線會被高聳地形（巨石/密林）遮擋，'
+        '不被建築與水面遮擋。對血量充足（≥80%）的目標傷害 +50%（獵首）。',
   ),
   TowerType.freezing: TowerStats(
     cost: 25, // base + 滿升 = 原費 60
@@ -227,7 +227,7 @@ const Map<TowerType, List<TowerUpgradeNode>> kTowerUpgradeTree = {
         key: 'B',
         name: '彈道破除',
         cost: 25,
-        desc: '射線不再被天然地形遮擋',
+        desc: '射線不再被高聳地形（巨石/密林）遮擋',
         mods: {TowerMod.losFree: 1},
         children: [_sniperMarksman, _sniperPierce]),
     // 與 A 的損益兩平點約 4.4 格（半張圖）：貼路蓋選 A、蓋遠角落選 C。

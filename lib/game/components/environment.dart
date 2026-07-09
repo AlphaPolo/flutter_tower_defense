@@ -10,16 +10,29 @@ import '../tower_defense_game.dart';
 
 /// 每場隨機佈置的天然環境種類。
 /// [blocks]＝是否阻擋敵人路線（也一律不可在上面建塔，見 game.isPlaceable）。
+/// [blocksSight]＝是否遮擋狙擊射線（高聳實體才擋；平坦的水池箭直接飛過）。
 enum EnvType {
-  boulder(blocks: true, label: '巨石', desc: '天然巨石，單純阻擋敵人前進。'),
-  pond(blocks: true, label: '水池', desc: '無法跨越的水池，阻擋路線。'),
-  woods(blocks: true, label: '密林', desc: '茂密樹林，阻擋路線。風刃塔蓋在旁邊時，每波會產出金幣（每片密林各算一次）。'),
+  boulder(
+      blocks: true,
+      blocksSight: true,
+      label: '巨石',
+      desc: '天然巨石，單純阻擋敵人前進。高聳，會遮擋狙擊射線。'),
+  pond(blocks: true, label: '水池', desc: '無法跨越的水池，阻擋路線。水面平坦，不遮擋狙擊射線。'),
+  woods(
+      blocks: true,
+      blocksSight: true,
+      label: '密林',
+      desc: '茂密樹林，阻擋路線、遮擋狙擊射線。風刃塔蓋在旁邊時，每波會產出金幣（每片密林各算一次）。'),
   mud(blocks: false, label: '泥沼', desc: '不阻擋路線；經過的敵人會被減速。'),
   thorns(blocks: false, label: '荊棘', desc: '不阻擋路線；經過的敵人持續受到少量傷害。');
 
   const EnvType(
-      {required this.blocks, required this.label, required this.desc});
+      {required this.blocks,
+      this.blocksSight = false,
+      required this.label,
+      required this.desc});
   final bool blocks;
+  final bool blocksSight;
   final String label;
   final String desc;
 }

@@ -40,7 +40,7 @@ void main() {
     }
   }
 
-  testWidgets('LoS：天然地形遮擋，玩家建築不遮擋', (tester) async {
+  testWidgets('LoS：高聳地形遮擋，水面與玩家建築不遮擋', (tester) async {
     final game = await bootSim(tester);
     final a = game.boardToLogical(const BoardPoint(0, 0));
     final b = game.boardToLogical(const BoardPoint(0, 2));
@@ -48,6 +48,14 @@ void main() {
 
     game.environment[const BoardPoint(0, 1)] = EnvType.boulder;
     expect(game.terrainBlocksLine(a, b), isTrue);
+
+    // 密林同為高聳 → 遮擋。
+    game.environment[const BoardPoint(0, 1)] = EnvType.woods;
+    expect(game.terrainBlocksLine(a, b), isTrue);
+
+    // 水池擋路（blocks）但平坦（blocksSight=false）→ 箭飛過、不遮擋。
+    game.environment[const BoardPoint(0, 1)] = EnvType.pond;
+    expect(game.terrainBlocksLine(a, b), isFalse);
     game.environment.remove(const BoardPoint(0, 1));
 
     // 玩家建築（障礙塔）不算天然地形 → 不遮擋狙擊射線。
