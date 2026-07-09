@@ -32,6 +32,7 @@ class EnemyKind {
     this.avatarDy = 0,
     this.splitInto,
     this.splitCount = 0,
+    this.heavy = false,
   });
 
   final String id;
@@ -70,6 +71,9 @@ class EnemyKind {
   // 分裂兵：死亡時生成 [splitCount] 隻 [splitInto] 種類的小怪（null＝不分裂）。
   final EnemyKind? splitInto;
   final int splitCount;
+
+  /// 重型敵人（坦克/巨蛛/巨獸）：狙擊塔「神射手」的 +40% 加成對象。
+  final bool heavy;
 
   static const grunt = EnemyKind(
     id: 'grunt',
@@ -142,6 +146,7 @@ class EnemyKind {
     unlockWave: 6,
     weight: 2,
     desc: '血厚、移動慢，漏過會扣 2 點生命。用持續傷害（毒/火）慢慢磨。',
+    heavy: true,
     sheet: 'enemy_minotaur_walk.png',
     frames: 8,
     frameSize: 320,
@@ -164,6 +169,7 @@ class EnemyKind {
     unlockWave: 999,
     weight: 0,
     desc: '極高血量、移動緩慢的 Boss，漏過會重扣生命。集中火力或用持續傷害對付。',
+    heavy: true,
     sheet: 'enemy_troll_walk.png',
     frames: 10,
     frameSize: 384,
@@ -239,6 +245,7 @@ class EnemyKind {
     topFrac: 0.281,
     splitInto: spiderling,
     splitCount: 3,
+    heavy: true,
   );
 
   /// 會參與波次「權重填充」的一般種類（依解鎖順序）。

@@ -7,8 +7,10 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../../constant/game_constant.dart';
+import '../../audio/game_audio.dart';
 import '../../board/hex.dart';
 import '../../effects/particles.dart';
+import '../../tower_defense_game.dart';
 import '../../tower_type.dart';
 import '../enemy_component.dart';
 import '../projectile/projectile.dart';
@@ -35,6 +37,8 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return LogTowerComponent(location);
     case TowerType.multishot:
       return MultishotTowerComponent(location);
+    case TowerType.sniper:
+      return SniperTowerComponent(location);
     case TowerType.obstacle:
       return ObstacleTowerComponent(location);
     case TowerType.spike:
@@ -628,3 +632,186 @@ class MultishotTowerComponent extends TowerComponent {
   @override
   void update(double dt) {} // 純支援、被動生效，不做任何攻擊
 }
+
+/// 狙擊塔：全圖射程、高傷慢速的單發弩箭塔。
+///
+/// - 鎖定「場上當前血量最高」且射線不被**天然地形**遮擋的敵人
+///   （玩家建築永不遮擋；「彈道破除」分支後地形也不遮擋）。
+/// - 瞄準 0.8 秒（紅色雷射漸亮）後朝目標方向射出一支高速弩箭
+///   （直線飛行、不追蹤），之後進入裝填 CD。
+/// - 傷害在弩箭「命中當下」逐敵結算（見 SniperBoltProjectileComponent）：
+///   獵首（血量比例 ≥ [huntTh] → ×1.5）、神射手對重型 ×(1+[heavyMul])。
+/// - 貫穿(Lv3)：弩箭貫穿沿途全部敵人直到彈道終點；否則命中第一個即消失。
+/// - 主動技（skillMul>0 解鎖）：[castSkillAt] 朝指定方向立刻射擊，
+///   CD（10 秒）與普攻裝填**各自獨立**。
+class SniperTowerComponent extends TowerComponent {
+  SniperTowerComponent(BoardPoint location) : super(TowerType.sniper, location);
+
+  /// 瞄準時間（ms）、主動技 CD（ms）與弩箭速度（speed/3 = px/ms，全場最快）。
+  static const double aimMs = 800;
+  static const double skillCdMs = 10000;
+  static const double boltSpeed = 5;
+
+  // 依升級的有效數值。
+  @override
+  double get damage => mod(TowerMod.dmg, 90);
+  double get huntTh => mod(TowerMod.huntTh, 0.8);
+  bool get losFree => mod(TowerMod.losFree, 0) > 0;
+  bool get pierce => mod(TowerMod.pierce, 0) > 0;
+  double get heavyMul => mod(TowerMod.heavyMul, 0);
+  double get skillMul => mod(TowerMod.skillMul, 0);
+  double get distRamp => mod(TowerMod.distRamp, 0);
+
+  /// 主動技狀態（UI 顯示按鈕 / CD 用）。
+  bool get skillUnlocked => skillMul > 0;
+  double skillCdLeft = 0;
+  bool get skillReady => skillUnlocked && skillCdLeft <= 0;
+
+  /// 瞄準倒數（>0＝瞄準中）；[aimProgress] 0→1 給雷射漸亮用。
+  double _aimLeft = 0;
+  double get aimProgress => 1 - (_aimLeft / aimMs).clamp(0.0, 1.0);
+  bool get aiming => target != null && _aimLeft > 0;
+
+  /// 射線最長邏輯距離（蓋過整張棋盤即可）。
+  double get _maxRay =>
+      game.board.hexagonRadius * (TowerDefenseGame.boardRadius * 4 + 4);
+
+  /// 雷射/彈道的螢幕起點（塔頂砲口附近）。
+  Vector2 get beamOriginScreen => position + Vector2(0, -size.y * 0.16);
+
+  @override
+  void update(double dt) {
+    final ms = dt * 1000;
+    skillCdLeft = (skillCdLeft - ms).clamp(0, skillCdMs);
+    prepareShoot = (prepareShoot - ms).clamp(0, fireCD.toDouble());
+
+    final t = target;
+    if (t != null) {
+      // 瞄準中：目標死亡 / 離場 / 失去視線 → 放棄重瞄（不進 CD）。
+      if (t.isDead ||
+          !t.isMounted ||
+          (!losFree && game.terrainBlocksLine(logicalPos, t.logicalPos))) {
+        target = null;
+        _aimLeft = 0;
+        return;
+      }
+      final diff = t.logicalPos - logicalPos;
+      direction = atan2(diff.y, diff.x);
+      _aimLeft -= ms;
+      if (_aimLeft <= 0) {
+        _fireAt(t);
+        target = null;
+        prepareShoot = fireCD.toDouble(); // 開火後才進裝填
+      }
+      return;
+    }
+
+    if (prepareShoot > 0) return;
+    final next = _pickTarget();
+    if (next == null) return;
+    target = next;
+    _aimLeft = aimMs;
+    game.world.add(SniperAimLaserComponent(this));
+  }
+
+  /// 血量最高優先；被地形擋住就退而求其次找下一個看得到的。
+  EnemyComponent? _pickTarget() {
+    final sorted = game.enemies
+        .where((e) => !e.isDead && e.isMounted)
+        .sortedBy<num>((e) => -e.status.currentHp);
+    for (final e in sorted) {
+      if (losFree || !game.terrainBlocksLine(logicalPos, e.logicalPos)) {
+        return e;
+      }
+    }
+    return null;
+  }
+
+  /// 普攻開火：朝鎖定目標「當下位置」的方向射出弩箭（直線、不追蹤）。
+  void _fireAt(EnemyComponent primary) {
+    final dirV = primary.logicalPos - logicalPos;
+    if (dirV.length2 == 0) return;
+    _launch(dirV.normalized(), mul: 1);
+  }
+
+  /// 主動技：朝 [aimLogical] 的方向立刻射擊。回傳是否成功施放（CD 未好回 false）。
+  /// 沒命中也照樣消耗 CD（玩家自己瞄）。是否穿透 / 無視地形沿用目前升級。
+  bool castSkillAt(Vector2 aimLogical) {
+    if (!skillReady) return false;
+    final dirV = aimLogical - logicalPos;
+    if (dirV.length2 == 0) return false;
+    _launch(dirV.normalized(), mul: skillMul);
+    skillCdLeft = skillCdMs;
+    game.towerChanged.value++; // 面板刷新技能 CD
+    return true;
+  }
+
+  /// 朝單位方向 [u] 射出一支弩箭（傷害倍率 [mul]）。彈道終點先算好：
+  /// 撞到擋路地形截斷（「彈道破除」則直達場邊）；命中判定由弩箭飛行時逐幀處理。
+  void _launch(Vector2 u, {required double mul}) {
+    direction = atan2(u.y, u.x);
+    final end = game.rayEnd(logicalPos, u, _maxRay, ignoreTerrain: losFree);
+    game.world.add(SniperBoltProjectileComponent(
+      damage: damage * mul,
+      start: logicalPos.clone(),
+      speed: boltSpeed,
+      end: end,
+      huntTh: huntTh,
+      heavyMul: heavyMul,
+      pierce: pierce,
+      distRamp: distRamp,
+    ));
+    GameAudio.fire(type, position);
+  }
+}
+
+/// 狙擊塔瞄準雷射：瞄準期間從塔頂到目標畫一條漸亮的細紅線＋目標收束圈。
+/// 世界元件（畫在單位之上），塔停止瞄準或離場即自毀。
+class SniperAimLaserComponent extends PositionComponent
+    with HasGameReference<TowerDefenseGame> {
+  SniperAimLaserComponent(this.tower);
+  final SniperTowerComponent tower;
+
+  @override
+  void onMount() {
+    super.onMount();
+    priority = 1999998; // 高於場上單位，略低於飛行子彈
+  }
+
+  @override
+  void update(double dt) {
+    if (!tower.isMounted || !tower.aiming) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = tower.target;
+    if (t == null || !t.isMounted) return;
+    final s = game.iso.scaleX;
+    final p = tower.aimProgress; // 0→1 漸亮
+    final from = tower.beamOriginScreen;
+    final to = game.logicalToScreen(t.logicalPos) - Vector2(0, 10 * s);
+    final a = Offset(from.x, from.y);
+    final b = Offset(to.x, to.y);
+    final alpha = 0.15 + 0.55 * p;
+    canvas.drawLine(
+      a,
+      b,
+      Paint()
+        ..color = const Color(0xFFFF3B30).withValues(alpha: alpha)
+        ..strokeWidth = (0.8 + 1.2 * p) * s
+        ..strokeCap = StrokeCap.round,
+    );
+    // 目標收束圈：由大縮小到貼身，開火前一刻最小最亮。
+    final r = (14 - 8 * p) * s;
+    canvas.drawCircle(
+      b,
+      r,
+      Paint()
+        ..color = const Color(0xFFFF3B30).withValues(alpha: alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4 * s,
+    );
+  }
+}
+

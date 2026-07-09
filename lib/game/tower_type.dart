@@ -9,6 +9,7 @@ enum TowerType {
   cannon,
   poison,
   log,
+  sniper,
   multishot,
   spike,
   vortex,
@@ -41,6 +42,15 @@ class TowerStats {
 }
 
 const Map<TowerType, TowerStats> kTowerStats = {
+  TowerType.sniper: TowerStats(
+    cost: 50, // base + 滿升(25+30) = 總投資 105
+    range: 99, // 邏輯上全圖（顯示端特判「全圖」）
+    damage: 90,
+    fireCD: 5000, // 全場最慢，重擊定位
+    title: '狙擊塔',
+    description: '全圖射程，鎖定血量最高的敵人；射線會被天然地形遮擋（不被建築遮擋）。'
+        '對血量充足（≥80%）的目標傷害 +50%（獵首）。',
+  ),
   TowerType.freezing: TowerStats(
     cost: 25, // base + 滿升 = 原費 60
     range: 2.5,
@@ -153,6 +163,12 @@ enum TowerMod {
   vuln, // 脆弱化：受物理攻擊的傷害加成（0.35 = +35%）
   blades, // 風刃：刀刃片數（每圈對每個敵人掃幾次；base 1）
   bleed, // 風刃：每刀疊一層流血，每層每秒傷害（0=無）
+  huntTh, // 狙擊：獵首閾值（目標血量比例 ≥ 此值 → 傷害 ×1.5；base 0.8）
+  losFree, // 狙擊：1＝射線不被天然地形遮擋（base 0）
+  pierce, // 狙擊：1＝攻擊貫穿彈道上全部敵人（base 0）
+  heavyMul, // 狙擊：對重型敵人（heavy）的傷害加成（0.4 = +40%；base 0）
+  skillMul, // 狙擊：主動技能傷害倍率（>0 即解鎖主動技；base 0＝未解鎖）
+  distRamp, // 狙擊：弩箭每飛 1 格的傷害加成（0.10 = +10%/格，上限 +100%；base 0）
 }
 
 /// 升級樹的一個節點（Lv2 分支或 Lv3 葉）。
@@ -178,11 +194,51 @@ class TowerUpgradeNode {
   final List<TowerUpgradeNode> children;
 }
 
-/// 各塔的升級樹（Model B 分支）：root = 2 個 Lv2 分支，各帶 2 個 Lv3 子節點。
+/// 各塔的升級樹（Model B 分支）：root = 2~3 個 Lv2 分支，各帶 2 個 Lv3 子節點。
 /// 升級樹：Lv2 選分支（雷電/火炮/毒有兩條 → 二擇一並鎖定；冰凍/火焰/風刃
-/// 單線），Lv3 再從所選分支底下二擇一。沒列出的塔不可升級。
+/// 單線；狙擊三條），Lv3 再從所選分支底下二擇一。沒列出的塔不可升級。
 /// 「滿升總價=原費」指 base 費 + 單一 build 路徑升級費的總投資。
+/// 狙擊塔 Lv3 葉（A/B 兩分支共用同一對；皆解鎖主動技能「指向狙擊」）。
+const _sniperMarksman = TowerUpgradeNode(
+    key: 'X',
+    name: '神射手',
+    cost: 30,
+    desc: '對重型敵人（坦克/巨蛛/巨獸）傷害 +40%；解鎖主動技能：指向狙擊，命中傷害 ×2',
+    mods: {TowerMod.heavyMul: 0.4, TowerMod.skillMul: 2});
+const _sniperPierce = TowerUpgradeNode(
+    key: 'Y',
+    name: '貫穿',
+    cost: 30,
+    desc: '所有攻擊貫穿彈道上的全部敵人；解鎖主動技能：指向狙擊',
+    mods: {TowerMod.pierce: 1, TowerMod.skillMul: 1});
+
 const Map<TowerType, List<TowerUpgradeNode>> kTowerUpgradeTree = {
+  // 狙擊：A 火力 / B 彈道 / C 遠距加成；Lv3 三分支共用（神射手/貫穿）。
+  // 滿升總價=原費 105
+  TowerType.sniper: [
+    TowerUpgradeNode(
+        key: 'A',
+        name: '重型槍管',
+        cost: 25,
+        desc: '傷害提升，獵首閾值 80% → 60%（加成窗口更大）',
+        mods: {TowerMod.dmg: 130, TowerMod.huntTh: 0.6},
+        children: [_sniperMarksman, _sniperPierce]),
+    TowerUpgradeNode(
+        key: 'B',
+        name: '彈道破除',
+        cost: 25,
+        desc: '射線不再被天然地形遮擋',
+        mods: {TowerMod.losFree: 1},
+        children: [_sniperMarksman, _sniperPierce]),
+    // 與 A 的損益兩平點約 4.4 格（半張圖）：貼路蓋選 A、蓋遠角落選 C。
+    TowerUpgradeNode(
+        key: 'C',
+        name: '百步穿楊',
+        cost: 25,
+        desc: '弩箭飛得越遠傷害越高：每飛 1 格 +10%（上限 +100%）',
+        mods: {TowerMod.distRamp: 0.10},
+        children: [_sniperMarksman, _sniperPierce]),
+  ],
   // 冰凍：A 減速強度、範圍。base slow .6, range 2.5, fdur 2000。滿升總價=原費 60
   TowerType.freezing: [
     TowerUpgradeNode(key: 'A', name: '霜域', cost: 15, desc: '冰環範圍加大', mods: {

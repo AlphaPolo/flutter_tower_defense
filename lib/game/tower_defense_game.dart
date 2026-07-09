@@ -191,6 +191,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       // 多重箭：Kenney UFO-A 3D 素材（懸浮支援建築）。
       TowerType.multishot:
           await Sprite.load('tower_multishot.png', images: isoImages),
+      // 狙擊塔：Kenney Tower Defense Kit 圓塔＋弩砲（weapon-ballista）。
+      TowerType.sniper:
+          await Sprite.load('tower_sniper.png', images: isoImages),
     };
     treeSprite = await Sprite.load('tree.png', images: isoImages);
     rockSprite = await Sprite.load('rock.png', images: isoImages);
@@ -407,6 +410,42 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       board.pointToBoardPoint(_toOffset(iso.screenToLogical(screen)));
 
   Offset _toOffset(Vector2 v) => Offset(v.x, v.y);
+
+  /// 兩邏輯點之間是否被「天然地形（blocks）」遮擋。玩家建築不遮擋（狙擊塔規則）。
+  /// 沿線每半格取樣一次，查該格是否為擋路環境。
+  bool terrainBlocksLine(Vector2 from, Vector2 to) {
+    final dist = from.distanceTo(to);
+    if (dist <= 0) return false;
+    final steps = (dist / (board.hexagonRadius * 0.5)).ceil().clamp(1, 400);
+    for (var i = 1; i < steps; i++) {
+      final t = i / steps;
+      final bp = board.pointToBoardPoint(Offset(
+        from.x + (to.x - from.x) * t,
+        from.y + (to.y - from.y) * t,
+      ));
+      final env = environment[bp];
+      if (env != null && env.blocks) return true;
+    }
+    return false;
+  }
+
+  /// 沿 [from] 往 [dirUnit] 的射線走 [maxLen]，回傳實際終點：
+  /// [ignoreTerrain] 為 false 時，撞到擋路地形就在該處截斷（狙擊塔彈道用）。
+  Vector2 rayEnd(Vector2 from, Vector2 dirUnit, double maxLen,
+      {bool ignoreTerrain = false}) {
+    final stepLen = board.hexagonRadius * 0.5;
+    final steps = (maxLen / stepLen).ceil().clamp(1, 400);
+    var last = from.clone();
+    for (var i = 1; i <= steps; i++) {
+      final p = from + dirUnit * (stepLen * i.toDouble()).clamp(0, maxLen);
+      if (!ignoreTerrain) {
+        final env = environment[board.pointToBoardPoint(_toOffset(p))];
+        if (env != null && env.blocks) return last;
+      }
+      last = p;
+    }
+    return last;
+  }
 
   /// 起動時把塔的貼地模糊陰影烘成一張共用小圖（做一次）。形狀＝用 iso 地面基向量
   /// 掃出的橢圓（與舊 _renderShadow 同參數），高斯只在此模糊一次；之後各塔以
@@ -751,6 +790,29 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void cancelSelection() {
     selecting.value = null;
     inspecting.value = null;
+    aimingSkill.value = null;
+  }
+
+  // ── 狙擊塔主動技瞄準模式 ──────────────────────────────────
+  /// 非 null＝正在為該格的狙擊塔選擇射擊方向：棋盤點擊改為「朝該點方向開火」，
+  /// BoardComponent 會畫瞄準預覽線。
+  final ValueNotifier<BoardPoint?> aimingSkill = ValueNotifier(null);
+
+  /// 進入瞄準模式（資訊面板的技能鈕呼叫）。技能未解鎖或 CD 中不進入。
+  void startSkillAim(BoardPoint point) {
+    final t = towers[point];
+    if (t is! SniperTowerComponent || !t.skillReady) return;
+    aimingSkill.value = point;
+    showMessage('點擊地圖任一點，朝該方向狙擊');
+  }
+
+  /// 瞄準模式下點擊棋盤：朝該「螢幕點」的方向施放主動技，並退出瞄準模式。
+  bool castSkillToward(Vector2 screen) {
+    final bp = aimingSkill.value;
+    aimingSkill.value = null;
+    final t = bp == null ? null : towers[bp];
+    if (t is! SniperTowerComponent) return false;
+    return t.castSkillAt(iso.screenToLogical(screen));
   }
   void toggleCheat() => cheat.value = !cheat.value;
 

@@ -193,6 +193,8 @@ class GameAudio {
         break; // 冰環施放頻繁、疊起來吵，不配音
       case TowerType.log:
         world('log', pos, volume: 0.9, throttleMs: 140);
+      case TowerType.sniper:
+        world('cannon', pos, volume: 0.55, throttleMs: 60); // 沿用炮響當槍聲，音量壓低區隔
       case TowerType.flame:
         break; // 持續噴射型：常駐音焦躁，先不配
       default:

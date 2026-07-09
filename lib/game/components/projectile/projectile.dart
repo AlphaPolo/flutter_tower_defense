@@ -736,3 +736,127 @@ class RollingLogProjectileComponent extends ProjectileComponent {
     );
   }
 }
+
+/// 狙擊塔弩箭：沿固定方向高速直飛的投射物（不追蹤）。傷害在「命中當下」
+/// 逐敵結算：獵首（血量比例 ≥ [huntTh] → ×1.5）、重型加成（heavy ×(1+[heavyMul])）。
+/// [pierce] false＝命中第一個敵人即消失；true＝貫穿沿途全部敵人直到彈道終點。
+/// 彈道終點 [end] 由塔計算（已依「彈道破除」與否被天然地形截斷）。
+class SniperBoltProjectileComponent extends ProjectileComponent {
+  SniperBoltProjectileComponent({
+    required super.damage, // 基礎傷害（含主動技倍率）；獵首/重型命中時再乘
+    required Vector2 start,
+    required super.speed,
+    required Vector2 end,
+    required this.huntTh,
+    required this.heavyMul,
+    required this.pierce,
+    this.distRamp = 0,
+  }) : super(start: start) {
+    _start.setFrom(start);
+    _end.setFrom(end);
+  }
+
+  final double huntTh;
+  final double heavyMul;
+  final bool pierce;
+  final double distRamp; // 百步穿楊：每飛 1 格 +distRamp（上限 +100%）
+
+  final Vector2 _start = Vector2.zero();
+  final Vector2 _end = Vector2.zero();
+  final Vector2 _u = Vector2.zero(); // 單位方向
+  final Set<EnemyComponent> _hit = {};
+  double _traveled = 0;
+  double _totalLen = 0;
+
+  @override
+  void onMount() {
+    super.onMount();
+    _totalLen = _start.distanceTo(_end);
+    if (_totalLen <= 0) {
+      dead = true;
+      return;
+    }
+    _u
+      ..setFrom(_end)
+      ..sub(_start)
+      ..scale(1 / _totalLen);
+  }
+
+  /// 命中單發傷害：獵首與重型加成依「命中當下」該敵人的狀態各自計算；
+  /// 百步穿楊依「飛到該敵人的距離」[hitDist]（邏輯 px）加成。
+  double _damageFor(EnemyComponent e, double hitDist) {
+    var dmg = damage;
+    if (e.status.currentHp / e.status.totalHp >= huntTh) dmg *= 1.5;
+    if (e.kind.heavy && heavyMul > 0) dmg *= 1 + heavyMul;
+    if (distRamp > 0) {
+      // 1 格 = 相鄰格心距 = √3 × hexagonRadius。加成封頂 +100%（×2）。
+      final cells = hitDist / (game.board.hexagonRadius * sqrt(3));
+      dmg *= 1 + min(distRamp * cells, 1.0);
+    }
+    return dmg;
+  }
+
+  @override
+  void onTick(double dtMs) {
+    final prev = _traveled;
+    _traveled = min(_traveled + (speed / 3) * dtMs, _totalLen);
+    logical
+      ..setFrom(_u)
+      ..scale(_traveled)
+      ..add(_start);
+
+    // 這一幀掃過的線段 [prev, _traveled]：距離線段 ≤ 半寬的敵人算命中
+    //（用線段而非目前點 → 高速下不會跳過敵人）。半寬依體型放寬。
+    for (final e in game.enemies) {
+      if (e.isDead || !e.isMounted || _hit.contains(e)) continue;
+      final rel = e.logicalPos - _start;
+      final alongRaw = rel.x * _u.x + rel.y * _u.y; // 敵人在彈道上的投影距離
+      final along = alongRaw.clamp(prev, _traveled);
+      final px = _start.x + _u.x * along - e.logicalPos.x;
+      final py = _start.y + _u.y * along - e.logicalPos.y;
+      final halfW = game.board.hexagonRadius * (0.35 + 0.2 * e.kind.sizeMul);
+      if (px * px + py * py > halfW * halfW) continue;
+      _hit.add(e);
+      // 距離加成用投影距離（幾何量，不吃幀率），不用命中當幀的 _traveled。
+      e.dealDamage(_damageFor(e, alongRaw.clamp(0.0, _totalLen)));
+      game.world.add(sparkBurst(
+          game.logicalToScreen(e.logicalPos) - Vector2(0, 10 * s), s));
+      if (!pierce) {
+        dead = true;
+        return;
+      }
+    }
+
+    if (_traveled >= _totalLen) dead = true; // 抵達彈道終點（地形/場邊）
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // 箭身沿「螢幕投影後」的飛行方向（吃 iso 壓扁），略抬離地面。
+    final d = game.logicalToScreen(logical + _u) - game.logicalToScreen(logical);
+    final len = d.length;
+    if (len <= 0) return;
+    final ux = d.x / len, uy = d.y / len;
+    final lift = Offset(0, -10 * s);
+    final tip = lift + Offset(ux, uy) * (9 * s);
+    final tail = lift - Offset(ux, uy) * (15 * s);
+    // 外圈暖色光暈（拖出速度感）+ 內芯亮白 + 箭頭。
+    canvas.drawLine(
+      tail - Offset(ux, uy) * (10 * s),
+      tip,
+      Paint()
+        ..color = const Color(0xFFFFB74D).withValues(alpha: 0.45)
+        ..strokeWidth = 3.5 * s
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      tail,
+      tip,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.95)
+        ..strokeWidth = 1.8 * s
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(tip, 2.2 * s, Paint()..color = const Color(0xFFFFE082));
+  }
+}

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart' hide PointerMoveEvent;
 import '../board/hex.dart';
 import '../tower_defense_game.dart';
 import '../tower_type.dart';
+import 'tower/tower_factory.dart';
 
 /// 畫出 isometric 棋盤背景圖 + 出生點 / 終點 / hover 高亮，並處理輸入。
 class BoardComponent extends PositionComponent
@@ -49,6 +50,41 @@ class BoardComponent extends PositionComponent
         removable ? Colors.redAccent : Colors.orangeAccent,
       );
     }
+
+    _aimPreview(canvas);
+  }
+
+  /// 最後一次指標位置（桌面 hover / 拖曳），瞄準模式畫預覽線用。
+  Vector2? _pointerPos;
+
+  /// 狙擊塔瞄準模式：塔格紅色框選 + 從塔頂到指標的預覽線（觸控裝置沒有 hover
+  /// 就只亮塔格，玩家直接點目標方向）。
+  void _aimPreview(Canvas canvas) {
+    final bp = game.aimingSkill.value;
+    if (bp == null) return;
+    final tower = game.towers[bp];
+    if (tower is! SniperTowerComponent) return;
+    _cornerFrame(canvas, bp, Colors.redAccent);
+    final p = _pointerPos;
+    if (p == null) return;
+    final s = game.iso.scaleX;
+    final from = tower.beamOriginScreen;
+    canvas.drawLine(
+      Offset(from.x, from.y),
+      Offset(p.x, p.y),
+      Paint()
+        ..color = Colors.redAccent.withValues(alpha: 0.6)
+        ..strokeWidth = 1.6 * s
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(
+      Offset(p.x, p.y),
+      6 * s,
+      Paint()
+        ..color = Colors.redAccent.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 * s,
+    );
   }
 
   /// 點選查看的塔：畫出貼地的射程圓——邏輯半徑 = hexagonRadius × range，
@@ -58,7 +94,8 @@ class BoardComponent extends PositionComponent
     final tower = game.towers[bp];
     if (tower == null) return;
     // 滾木塔沿方向直線滾出、非圓形範圍（方向已有箭頭表示）→ 不畫圈。
-    if (tower.type == TowerType.log) return;
+    // 狙擊塔射程全圖 → 畫圈沒有意義，也不畫。
+    if (tower.type == TowerType.log || tower.type == TowerType.sniper) return;
     final range = tower.range; // 用塔的有效射程（含升級加成）
     if (range <= 0) return;
     final s = game.iso.scaleX;
@@ -204,6 +241,11 @@ class BoardComponent extends PositionComponent
   // ── 輸入 ─────────────────────────────────────────────────
   @override
   void onTapUp(TapUpEvent event) {
+    // 狙擊塔瞄準模式：這一次點擊被攔截為「朝該點方向開火」。
+    if (game.aimingSkill.value != null) {
+      game.castSkillToward(event.localPosition);
+      return;
+    }
     final bp = game.screenToBoard(event.localPosition);
     if (bp == null) {
       game.cancelSelection(); // 點到棋盤透明角落 → 取消（同右鍵）
@@ -228,6 +270,7 @@ class BoardComponent extends PositionComponent
   @override
   void onPointerMove(PointerMoveEvent event) {
     hovered = game.screenToBoard(event.localPosition);
+    _pointerPos = event.localPosition.clone();
   }
 }
 

@@ -336,7 +336,8 @@ class LeftColOverlay extends StatelessWidget {
               Text(stats.description),
               const SizedBox(height: 16.0),
               Text('花費: ${stats.cost}'),
-              Text('範圍: ${stats.range}'),
+              // 狙擊塔射程全圖，顯示數字沒有意義。
+              Text('範圍: ${type == TowerType.sniper ? '全圖' : stats.range}'),
               if (stats.damage > 0) Text('傷害: ${stats.damage}'),
             ],
           ),
@@ -389,7 +390,7 @@ class LeftColOverlay extends StatelessWidget {
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
               : [
-                  '範圍: $range',
+                  '範圍: ${type == TowerType.sniper ? '全圖' : range}',
                   if (damage > 0) '傷害: $damage',
                 ];
         }
@@ -435,6 +436,12 @@ class LeftColOverlay extends StatelessWidget {
                     ),
                   ],
                 ),
+              ],
+              // 狙擊塔 Lv3 主動技：指向狙擊（進入瞄準模式，點地圖朝該方向射擊）。
+              if (game.towers[bp] case final SniperTowerComponent sniper
+                  when sniper.skillUnlocked) ...[
+                const SizedBox(height: 8),
+                _SniperSkillButton(game: game, bp: bp, tower: sniper),
               ],
               if (tower) _upgradeControl(bp),
               if (tower) ...[
@@ -496,9 +503,11 @@ class LeftColOverlay extends StatelessWidget {
         if (options.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            // 單一選項的塔（冰凍/火焰/風刃）不說「二擇一」。
+            // 單一選項的塔（冰凍/火焰/風刃）不說「N 擇一」；狙擊 Lv2 有三條。
             options.length > 1
-                ? (lv == 1 ? '選擇升級方向（二擇一，選了就鎖）' : '選擇強化（二擇一）')
+                ? (lv == 1
+                    ? '選擇升級方向（${options.length == 2 ? '二' : '三'}擇一，選了就鎖）'
+                    : '選擇強化（${options.length == 2 ? '二' : '三'}擇一）')
                 : (lv == 1 ? '升級方向' : '強化'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 11, color: Colors.grey),
@@ -865,4 +874,74 @@ class LeftColOverlay extends StatelessWidget {
 
   String _spdLabel(EnemyKind k) =>
       k.speedMul < 0.8 ? '慢' : (k.speedMul <= 1.3 ? '普通' : '快');
+}
+
+/// 狙擊塔主動技鈕：就緒時按下進入瞄準模式（點地圖朝該方向射擊）、瞄準中再按
+/// 一次取消；CD 中禁用並顯示剩餘秒數（每 0.2 秒刷新，只重繪這顆小按鈕）。
+class _SniperSkillButton extends StatefulWidget {
+  const _SniperSkillButton(
+      {required this.game, required this.bp, required this.tower});
+  final TowerDefenseGame game;
+  final BoardPoint bp;
+  final SniperTowerComponent tower;
+
+  @override
+  State<_SniperSkillButton> createState() => _SniperSkillButtonState();
+}
+
+class _SniperSkillButtonState extends State<_SniperSkillButton> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.tower;
+    final game = widget.game;
+    return ValueListenableBuilder<BoardPoint?>(
+      valueListenable: game.aimingSkill,
+      builder: (context, aiming, _) {
+        final isAiming = aiming == widget.bp;
+        final ready = t.skillReady;
+        final label = isAiming
+            ? '瞄準中…按此取消'
+            : ready
+                ? '指向狙擊'
+                : '冷卻 ${(t.skillCdLeft / 1000).ceil()} 秒';
+        return ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                isAiming ? Colors.orange.shade800 : Colors.redAccent.shade700,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.blueGrey.shade200,
+            disabledForegroundColor: Colors.white,
+          ),
+          onPressed: !ready && !isAiming
+              ? null
+              : () {
+                  GameAudio.ui('click', volume: 0.5);
+                  if (isAiming) {
+                    game.aimingSkill.value = null;
+                  } else {
+                    game.startSkillAim(widget.bp);
+                  }
+                },
+          icon: const Icon(Icons.gps_fixed, size: 18),
+          label: Text(label, style: const TextStyle(fontSize: 13)),
+        );
+      },
+    );
+  }
 }
