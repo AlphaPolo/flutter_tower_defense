@@ -23,6 +23,10 @@ manifest.json:
   the same projection and world-unit scale (relative sizes are correct).
 - "stack": true places a model on top of the previously imported model's top
   (e.g. a tower standing on a tile); otherwise it sits on the ground (z=0).
+- "dz": optional z offset applied after placement (e.g. negative to sink a
+  weapon down onto a platform floor below the crenellation top).
+- "rz": optional rotation (degrees) around the model's own vertical axis,
+  applied before placement (e.g. turn a weapon to face the camera).
 - Background is transparent.
 """
 
@@ -180,10 +184,17 @@ def main():
                     if o.parent is None:
                         o.scale *= sc
                 bpy.context.view_layer.update()
+            rz = m.get("rz", 0.0)
+            if rz:
+                for o in objs:
+                    if o.parent is None:
+                        o.rotation_euler.rotate_axis("Z", radians(rz))
+                bpy.context.view_layer.update()
             mn, mx = bbox_world(objs)
             cx = (mn.x + mx.x) / 2
             cy = (mn.y + mx.y) / 2
             dz = (stack_top - mn.z) if m.get("stack") else (-mn.z)
+            dz += m.get("dz", 0.0)
             ox, oy = (m.get("offset") or [0, 0])
             for o in objs:
                 if o.parent is None:

@@ -191,7 +191,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       // 多重箭：Kenney UFO-A 3D 素材（懸浮支援建築）。
       TowerType.multishot:
           await Sprite.load('tower_multishot.png', images: isoImages),
-      // 狙擊塔：Kenney Tower Defense Kit 圓塔＋弩砲（weapon-ballista）。
+      // 狙擊塔：KayKit Medieval Hexagon 塔座（tower_base_red）＋
+      // Kenney 弩砲（weapon-ballista），與火炮塔同視覺家族。
       TowerType.sniper:
           await Sprite.load('tower_sniper.png', images: isoImages),
     };
