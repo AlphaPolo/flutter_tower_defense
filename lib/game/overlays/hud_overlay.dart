@@ -389,10 +389,12 @@ class LeftColOverlay extends StatelessWidget {
           title = stats.title;
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
-              : [
-                  '範圍: ${type == TowerType.sniper ? '全圖' : range}',
-                  if (damage > 0) '傷害: $damage',
-                ];
+              : type == TowerType.beacon
+                  ? const ['瞄準標記：火炮/噴火/狙擊', '可「設定標靶」朝它持續開火', '未貫穿的狙擊箭會被擋下']
+                  : [
+                      '範圍: ${type == TowerType.sniper ? '全圖' : range}',
+                      if (damage > 0) '傷害: $damage',
+                    ];
         }
 
         return Container(
@@ -444,6 +446,7 @@ class LeftColOverlay extends StatelessWidget {
                 _SniperSkillButton(game: game, bp: bp, tower: sniper),
               ],
               if (tower) _upgradeControl(bp),
+              if (tower) _beaconControl(bp),
               if (tower) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
@@ -470,6 +473,57 @@ class LeftColOverlay extends StatelessWidget {
               ],
             ],
           ),
+        );
+      },
+    );
+  }
+
+  /// 標靶控制（僅火炮/噴火/狙擊）：未設定 → 「設定標靶」進入點選模式；
+  /// 已設定 → 可「解除」。監聽 assigningBeaconFor 顯示選取中狀態。
+  Widget _beaconControl(BoardPoint bp) {
+    final t = game.towers[bp];
+    if (t == null || !t.supportsBeacon) return const SizedBox.shrink();
+    return ValueListenableBuilder<BoardPoint?>(
+      valueListenable: game.assigningBeaconFor,
+      builder: (context, assigning, _) {
+        final picking = assigning == bp;
+        final has = t.beaconTarget != null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            if (picking)
+              const Text('點選場上的標靶樁…',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.brown)),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    has ? Colors.brown : const Color(0xFFB6832B),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                minimumSize: const Size(0, 30),
+                textStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                GameAudio.ui('select', volume: 0.6);
+                if (has) {
+                  game.clearBeaconTarget(bp);
+                } else if (picking) {
+                  game.assigningBeaconFor.value = null; // 再按一次取消
+                } else {
+                  game.assigningBeaconFor.value = bp;
+                }
+              },
+              icon: Icon(picking ? Icons.close : Icons.gps_fixed, size: 16),
+              label: Text(has
+                  ? '解除標靶'
+                  : picking
+                      ? '取消選取'
+                      : '設定標靶'),
+            ),
+          ],
         );
       },
     );

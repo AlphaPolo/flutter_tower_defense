@@ -34,6 +34,10 @@ class TowerComponent extends PositionComponent
   /// 讀有效數值：有升級覆寫就用覆寫，否則用 [base]。
   double mod(TowerMod key, double base) => _mods[key] ?? base;
 
+  /// 被玩家「拆除」時呼叫（僅 game.demolishAt 觸發；重置/清場不算拆除）。
+  /// 子類在此清理自己的跨物件狀態。
+  void onDemolished() {}
+
   /// 套用一個升級節點（加入 chosen 並疊上其 mods）。
   void applyUpgrade(TowerUpgradeNode node) {
     chosen.add(node);
@@ -43,6 +47,20 @@ class TowerComponent extends PositionComponent
   double direction = 0;
   EnemyComponent? target;
   double prepareShoot = 0;
+
+  /// 標靶樁指定（僅火炮/噴火/狙擊支援）：非 null 時波次中持續朝該格開火。
+  /// 標靶被拆除時由 game.demolishAt 自動清空。
+  BoardPoint? beaconTarget;
+
+  /// 此塔種是否支援「設定標靶」。
+  bool get supportsBeacon =>
+      type == TowerType.cannon ||
+      type == TowerType.flame ||
+      type == TowerType.sniper;
+
+  /// 標靶的邏輯座標（未設定回 null）。
+  Vector2? get beaconLogical =>
+      beaconTarget == null ? null : game.boardToLogical(beaconTarget!);
 
   /// 相鄰是否有多重箭支援塔的「快取」——只在建造/拆除時由 game 重算，
   /// 各塔每幀只讀這個 bool（不用每幀掃鄰格、零配置）。

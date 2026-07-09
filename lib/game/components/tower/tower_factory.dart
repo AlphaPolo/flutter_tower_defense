@@ -43,6 +43,7 @@ TowerComponent buildTower(TowerType type, BoardPoint location) {
       return ObstacleTowerComponent(location);
     case TowerType.spike:
     case TowerType.vortex:
+    case TowerType.beacon:
       // 陷阱類不走塔工廠（由 buildTrap 建立）。
       throw ArgumentError('$type 為陷阱，請改用 buildTrap');
   }
@@ -264,6 +265,31 @@ class FlameTowerComponent extends TowerComponent {
   @override
   void update(double dt) {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
+
+    // 標靶模式：轉向標靶後持續噴（不需要敵人；波間停火）。
+    final beacon = beaconLogical;
+    if (beacon != null) {
+      target = null;
+      final diffB = beacon - logicalPos;
+      if (diffB.length2 > 0) {
+        final delta = _angleDelta(atan2(diffB.y, diffB.x), direction);
+        final amount = min(rotateSpeed, delta.abs());
+        direction += delta.sign * amount;
+        direction = _angleDelta(direction, 0);
+      }
+      if (!game.waveRunning.value || prepareShoot > 0) return;
+      final fix = (Random().nextDouble() * 0.4) - 0.2;
+      game.world.add(FlameProjectileComponent(
+        damage: damage,
+        start: muzzle(),
+        speed: 0.5,
+        travelAngle: direction + fix,
+        lengthHex: range / 2,
+        burnDps: burnDps,
+      ));
+      prepareShoot = fireCD.toDouble();
+      return;
+    }
 
     final t = target;
     if (t != null) {
@@ -552,6 +578,31 @@ class CannonTowerComponent extends TowerComponent {
   void update(double dt) {
     prepareShoot = (prepareShoot - dt * 1000).clamp(0, fireCD.toDouble());
     if (prepareShoot > 0) return;
+
+    // 標靶模式：波次中持續砲擊標靶落點；超出射程 → 朝該方向打「極限射程」處。
+    final beacon = beaconLogical;
+    if (beacon != null) {
+      if (!game.waveRunning.value) return;
+      final diff = beacon - logicalPos;
+      if (diff.length2 == 0) return;
+      final maxLen = game.board.hexagonRadius * range;
+      final tp = diff.length > maxLen
+          ? logicalPos + diff.normalized() * maxLen
+          : beacon.clone();
+      direction = atan2(diff.y, diff.x);
+      game.world.add(CannonProjectileComponent(
+        damage: damage,
+        start: logicalPos.clone(),
+        speed: 0.6,
+        targetPos: tp,
+        blastHex: blastHex,
+        centerPeak: centerPeak,
+      ));
+      GameAudio.fire(type, position);
+      prepareShoot = fireCD.toDouble();
+      return;
+    }
+
     // 相鄰有多重箭 → 同時射最近 2 個目標（2 發砲彈）。
     if (shootNearest(multishotBuffed ? 2 : 1)) {
       prepareShoot = fireCD.toDouble();
@@ -686,6 +737,12 @@ class SniperTowerComponent extends TowerComponent {
     prepareShoot = (prepareShoot - ms).clamp(0, fireCD.toDouble());
 
     final t = target;
+    if (t != null && beaconTarget != null) {
+      // 剛設定標靶 → 中斷進行中的敵人瞄準。
+      target = null;
+      _aimLeft = 0;
+      return;
+    }
     if (t != null) {
       // 瞄準中：目標死亡 / 離場 / 失去視線 → 放棄重瞄（不進 CD）。
       if (t.isDead ||
@@ -707,6 +764,19 @@ class SniperTowerComponent extends TowerComponent {
     }
 
     if (prepareShoot > 0) return;
+
+    // 標靶模式：放棄敵人瞄準，波次中持續朝標靶射擊。
+    // 節奏＝瞄準時間＋裝填（與一般「瞄準→開火」週期等速，平衡中立）。
+    final beacon = beaconLogical;
+    if (beacon != null) {
+      if (!game.waveRunning.value) return;
+      final dirV = beacon - logicalPos;
+      if (dirV.length2 == 0) return;
+      _launch(dirV.normalized(), mul: 1);
+      prepareShoot = fireCD + aimMs;
+      return;
+    }
+
     final next = _pickTarget();
     if (next == null) return;
     target = next;
@@ -750,7 +820,22 @@ class SniperTowerComponent extends TowerComponent {
   /// 撞到擋路地形截斷（「彈道破除」則直達場邊）；命中判定由弩箭飛行時逐幀處理。
   void _launch(Vector2 u, {required double mul}) {
     direction = atan2(u.y, u.x);
-    final end = game.rayEnd(logicalPos, u, _maxRay, ignoreTerrain: losFree);
+    var end = game.rayEnd(logicalPos, u, _maxRay, ignoreTerrain: losFree);
+    // 標靶樁是實體擋箭物：未貫穿的弩箭飛到彈道上第一根標靶樁即停；
+    // 貫穿(Lv3)則穿過。一般射擊與主動技一體適用（物理一致）。
+    if (!pierce) {
+      final lane = game.board.hexagonRadius * 0.45; // 彈道判寬
+      var bestLen = (end - logicalPos).length;
+      for (final b in game.beaconLogicalPositions()) {
+        final v = b - logicalPos;
+        final along = v.dot(u);
+        if (along <= 0 || along >= bestLen) continue;
+        if ((v - u * along).length <= lane) {
+          bestLen = along;
+          end = logicalPos + u * along;
+        }
+      }
+    }
     game.world.add(SniperBoltProjectileComponent(
       damage: damage * mul,
       start: logicalPos.clone(),

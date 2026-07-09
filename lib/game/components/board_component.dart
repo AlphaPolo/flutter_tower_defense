@@ -38,6 +38,16 @@ class BoardComponent extends PositionComponent
     if (inspecting != null) {
       _rangeCircle(canvas, inspecting);
       _cornerFrame(canvas, inspecting, Colors.cyanAccent);
+      _beaconLink(canvas, inspecting);
+    }
+
+    // 「選取標靶」模式：金色高亮場上所有標靶樁，提示可點。
+    if (game.assigningBeaconFor.value != null) {
+      for (final e in game.traps.entries) {
+        if (e.value.type == TowerType.beacon) {
+          _cornerFrame(canvas, e.key, Colors.amberAccent);
+        }
+      }
     }
 
     final h = hovered;
@@ -122,6 +132,36 @@ class BoardComponent extends PositionComponent
         ..strokeWidth = 2 * s
         ..color = Colors.cyanAccent.withValues(alpha: 0.55),
     );
+  }
+
+  /// 檢視中的塔若設定了標靶：畫一條「塔 → 標靶」的金色虛線 + 標靶框，
+  /// 一眼看出這座塔正在朝哪裡集火。
+  void _beaconLink(Canvas canvas, BoardPoint bp) {
+    final t = game.towers[bp];
+    final target = t?.beaconTarget;
+    if (t == null || target == null) return;
+    final s = game.iso.scaleX;
+    final from = game.boardToScreen(bp);
+    final to = game.boardToScreen(target);
+    final dir = to - from;
+    final len = dir.length;
+    if (len == 0) return;
+    final u = dir / len;
+    final paint = Paint()
+      ..color = Colors.amberAccent.withValues(alpha: 0.85)
+      ..strokeWidth = 2.5 * s
+      ..strokeCap = StrokeCap.round;
+    // 虛線（手繪 dash：Flutter 無內建）。
+    const dash = 10.0;
+    const gap = 7.0;
+    var d = 0.0;
+    while (d < len) {
+      final a = from + u * d;
+      final b = from + u * min(d + dash, len);
+      canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      d += dash + gap;
+    }
+    _cornerFrame(canvas, target, Colors.amberAccent);
   }
 
   /// 四角括號選取框：在六個頂點各畫一個 L 形角，邊中間留空（像對焦框）。
@@ -247,6 +287,17 @@ class BoardComponent extends PositionComponent
       return;
     }
     final bp = game.screenToBoard(event.localPosition);
+
+    // 「選取標靶」模式：點到標靶樁 → 綁定；點其他地方 → 退出模式、照常處理。
+    final assigning = game.assigningBeaconFor.value;
+    if (assigning != null) {
+      game.assigningBeaconFor.value = null;
+      if (bp != null && game.setBeaconTarget(assigning, bp)) {
+        game.showMessage('已設定標靶');
+        return;
+      }
+    }
+
     if (bp == null) {
       game.cancelSelection(); // 點到棋盤透明角落 → 取消（同右鍵）
       return;

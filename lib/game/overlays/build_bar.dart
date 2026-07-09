@@ -29,7 +29,7 @@ class _BuildBarState extends State<BuildBar> {
       TowerType.airBlade,
       TowerType.sniper,
     ]),
-    ('陷阱', [TowerType.spike, TowerType.vortex]),
+    ('陷阱', [TowerType.spike, TowerType.vortex, TowerType.beacon]),
     ('支援', [TowerType.multishot, TowerType.obstacle]),
   ];
 

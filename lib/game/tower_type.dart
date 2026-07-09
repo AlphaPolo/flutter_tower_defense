@@ -12,13 +12,14 @@ enum TowerType {
   sniper,
   multishot,
   spike,
+  beacon,
   vortex,
   obstacle,
 }
 
 /// 陷阱類：蓋在地面、不阻擋敵人（不進 towers Map，尋路看不到），
 /// 可蓋在敵人路徑上，靠敵人經過 / 週期觸發。
-const Set<TowerType> kTrapTypes = {TowerType.spike, TowerType.vortex};
+const Set<TowerType> kTrapTypes = {TowerType.spike, TowerType.vortex, TowerType.beacon};
 
 bool isTrapType(TowerType type) => kTrapTypes.contains(type);
 
@@ -122,6 +123,15 @@ const Map<TowerType, TowerStats> kTowerStats = {
     fireCD: 450,
     title: '地刺',
     description: '埋設在地面的尖刺。不會阻擋敵人前進，敵人經過時持續受到傷害。',
+  ),
+  TowerType.beacon: TowerStats(
+    cost: 10,
+    range: 0,
+    damage: 0,
+    fireCD: 0,
+    title: '標靶樁',
+    description: '插在路上的瞄準標記。點選火炮/噴火/狙擊塔可「設定標靶」，'
+        '波次中持續朝它開火；未貫穿的狙擊箭會被它擋下。',
   ),
   TowerType.vortex: TowerStats(
     cost: 40,

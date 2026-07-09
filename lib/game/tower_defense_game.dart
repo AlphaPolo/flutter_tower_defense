@@ -81,6 +81,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Sprite thornsSprite; // 荊棘(thorns)天然環境用
   late final Sprite mudSprite; // 泥沼(mud)天然環境用
   late final Sprite spikeTrapSprite; // 地刺陷阱(spike)用
+  late final Sprite beaconTrapSprite; // 標靶樁(beacon)用
 
   // 塔陰影：塔不會動、所有塔陰影同形，故起動時把「模糊好的貼地橢圓」烘成一張圖，
   // 之後每座塔每幀只用便宜的 drawImageRect 貼上 → 免掉每幀 50+ 個 MaskFilter.blur。
@@ -201,6 +202,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     thornsSprite = await Sprite.load('thorns.png', images: isoImages);
     mudSprite = await Sprite.load('mud.png', images: isoImages);
     spikeTrapSprite = await Sprite.load('trap_spike.png', images: isoImages);
+    beaconTrapSprite =
+        await Sprite.load('trap_beacon.png', images: isoImages);
     final dustImg = await fxImages.load('dust.png');
     dustAnim = SpriteAnimation.fromFrameData(
       dustImg,
@@ -638,6 +641,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     // 陷阱：不影響尋路，退回 75% 後直接移除（不需重算）。
     final trap = traps.remove(point);
     if (trap != null) {
+      trap.onDemolished(); // 功能自身的跨物件清理（拆除語意，重置不觸發）
       trap.removeFromParent();
       if (inspecting.value == point) inspecting.value = null;
       final refund = (statsOf(trap.type).cost * 0.75).floor();
@@ -649,6 +653,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
 
     final tower = towers.remove(point);
     if (tower == null) return false;
+    tower.onDemolished(); // 功能自身的跨物件清理（拆除語意，重置不觸發）
     tower.removeFromParent();
     recomputeGuide();
     refreshMultishotBuffs(); // 拆掉多重箭/鄰塔可能改變增益
@@ -820,6 +825,32 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void toggleCheat() => cheat.value = !cheat.value;
 
   // ── 敵人登記 ─────────────────────────────────────────────
+  /// 「選取標靶」模式：非 null＝這座塔正在等玩家點選場上的標靶樁。
+  final ValueNotifier<BoardPoint?> assigningBeaconFor = ValueNotifier(null);
+
+  /// 把 [towerCell] 的塔指向 [beaconCell] 的標靶樁。成功回 true。
+  bool setBeaconTarget(BoardPoint towerCell, BoardPoint beaconCell) {
+    final t = towers[towerCell];
+    if (t == null || !t.supportsBeacon) return false;
+    if (traps[beaconCell]?.type != TowerType.beacon) return false;
+    t.beaconTarget = beaconCell;
+    towerChanged.value++;
+    return true;
+  }
+
+  /// 解除 [towerCell] 塔的標靶指定。
+  void clearBeaconTarget(BoardPoint towerCell) {
+    towers[towerCell]?.beaconTarget = null;
+    towerChanged.value++;
+  }
+
+  /// 場上所有標靶樁的邏輯座標（狙擊箭「未貫穿被擋」判定用）。
+  Iterable<Vector2> beaconLogicalPositions() sync* {
+    for (final e in traps.entries) {
+      if (e.value.type == TowerType.beacon) yield boardToLogical(e.key);
+    }
+  }
+
   /// 已排進 world 但尚未 mount 的敵人數。敵人 world.add 後要下一幀才 mount 進
   /// [enemies]，若「最後一隻在場敵人死亡」與「佇列還有敵人」同幀發生，完成判定
   /// 只看 enemies.isEmpty 會提前成立 → 波次被誤判完成、之後 startGame 又因
@@ -1199,6 +1230,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     gameWon.dispose();
     woodsIncome.dispose();
     gameSpeed.dispose();
+    assigningBeaconFor.dispose();
     endless.dispose();
     bestEndless.dispose();
     towerShadowImage.dispose();

@@ -53,6 +53,11 @@ class TrapComponent extends PositionComponent
   /// 觸發效果（子類覆寫）。
   void onTrigger(EnemyComponent enemy) {}
 
+  /// 被玩家「拆除」時呼叫（僅 game.demolishAt 觸發；重置/清場的移除不算拆除，
+  /// 別掛到 Flame 的 onRemove——那是生命週期 hook，語意不同）。
+  /// 子類在此清理自己的跨物件狀態（如標靶樁解除塔的指定）。
+  void onDemolished() {}
+
   /// 對敵人的「路線位置 [pos]」施加位置力場（就地修改），預設無作用。
   /// 渦流陷阱覆寫此方法把敵人往中心拉。[seed]＝敵人身分（穩定散布角度用）。
   void pullPosition(Vector2 pos, int seed) {}
@@ -66,9 +71,43 @@ TrapComponent buildTrap(TowerType type, BoardPoint location) {
   switch (type) {
     case TowerType.vortex:
       return VortexTrapComponent(location);
+    case TowerType.beacon:
+      return BeaconTrapComponent(location);
     case TowerType.spike:
     default:
       return SpikeTrapComponent(location);
+  }
+}
+
+/// 標靶樁：純瞄準標記——敵人踩過無任何效果（range 0 → onTrigger 永不觸發），
+/// 功能全在塔側（火炮/噴火/狙擊 setBeaconTarget 後朝它開火）與狙擊箭的
+/// 「未貫穿被擋下」判定（見 SniperTower._launch）。
+class BeaconTrapComponent extends TrapComponent {
+  BeaconTrapComponent(BoardPoint location) : super(TowerType.beacon, location);
+
+  /// 被拆 → 指向此樁的塔全部自動解除；選取模式若開著也一併退出。
+  @override
+  void onDemolished() {
+    for (final t in game.towers.values) {
+      if (t.beaconTarget == location) t.beaconTarget = null;
+    }
+    if (game.assigningBeaconFor.value != null) {
+      game.assigningBeaconFor.value = null;
+    }
+    game.towerChanged.value++;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final s = game.iso.scaleX;
+    final r = game.board.hexagonRadius * s;
+    // 稻草人標靶素材：底座對齊格中心、身體往上（比例與其他站立物一致）。
+    final w = r * 1.5;
+    game.beaconTrapSprite.render(
+      canvas,
+      position: Vector2(-w / 2, -0.82 * w),
+      size: Vector2(w, w),
+    );
   }
 }
 
