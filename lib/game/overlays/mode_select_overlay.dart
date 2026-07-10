@@ -20,64 +20,72 @@ class ModeSelectOverlay extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(28, 26, 28, 24).h,
             constraints: const BoxConstraints(maxWidth: 340).h,
             decoration: _dialogBox(),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 遊戲徽章 + 名稱
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16).h,
-                  child: Image.asset(
-                    'assets/images/logo_256.png',
-                    width: 72.h, height: 72.h, fit: BoxFit.cover,
-                  ),
-                ),
-                SizedBox(height: 12.h),
-                Text(
-                  '元素塔防',
-                  style: TextStyle(color: _kGold, fontSize: 26.h, fontWeight: FontWeight.w900, letterSpacing: 4),
-                ),
-                SizedBox(height: 4.h),
-                Text('選擇模式', style: TextStyle(color: const Color(0xFFD8C9A6), fontSize: 13.h)),
-                SizedBox(height: 18.h),
-                _modeCard(
-                  icon: Icons.play_circle,
-                  color: Colors.green,
-                  title: '闖關模式',
-                  subtitle: '守住 ${TowerDefenseGame.totalWaves} 波，贏得勝利',
-                  onTap: () => onChosen(false),
-                ),
-                SizedBox(height: 10.h),
-                ValueListenableBuilder<int>(
-                  valueListenable: game.bestEndless,
-                  builder: (context, best, _) => _modeCard(
-                    icon: Icons.all_inclusive,
-                    color: const Color(0xFF7E57C2),
-                    title: '無盡模式',
-                    subtitle: best > 0 ? '最佳紀錄：$best 波' : '波次無盡，拚最高紀錄',
-                    onTap: () => onChosen(true),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-                // 排行榜（無盡模式，季號分桶）：監聽 available——init 是非同步的，
-                // 選單常在它完成前就 build，好了按鈕即時浮現；失敗則一直隱藏。
-                ValueListenableBuilder<bool>(
-                  valueListenable: Leaderboard.available,
-                  builder: (context, ok, _) => !ok
-                      ? const SizedBox.shrink()
-                      : TextButton.icon(
-                          onPressed: () {
-                            GameAudio.ui('click', volume: 0.5);
-                            showLeaderboardDialog(context);
-                          },
-                          icon: const Icon(Icons.emoji_events,
-                              color: _kGold, size: 20),
-                          label: const Text('排行榜',
-                              style: TextStyle(
-                                  color: _kGold,
-                                  fontWeight: FontWeight.bold)),
+            child: LayoutBuilder(
+              builder: (context, constraint) {
+                print(constraint.maxHeight);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 遊戲徽章 + 名稱
+                    if (constraint.maxHeight > 300)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: 12.h),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16).h,
+                          child: Image.asset(
+                            'assets/images/logo_256.png',
+                            width: 72.h, height: 72.h, fit: BoxFit.cover,
+                          ),
                         ),
-                ),
-              ],
+                      ),
+                    Text(
+                      '元素塔防',
+                      style: TextStyle(color: _kGold, fontSize: 26.h, fontWeight: FontWeight.w900, letterSpacing: 4),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text('選擇模式', style: TextStyle(color: const Color(0xFFD8C9A6), fontSize: 13.h)),
+                    SizedBox(height: 18.h),
+                    _modeCard(
+                      icon: Icons.play_circle,
+                      color: Colors.green,
+                      title: '闖關模式',
+                      subtitle: '守住 ${TowerDefenseGame.totalWaves} 波，贏得勝利',
+                      onTap: () => onChosen(false),
+                    ),
+                    SizedBox(height: 10.h),
+                    ValueListenableBuilder<int>(
+                      valueListenable: game.bestEndless,
+                      builder: (context, best, _) => _modeCard(
+                        icon: Icons.all_inclusive,
+                        color: const Color(0xFF7E57C2),
+                        title: '無盡模式',
+                        subtitle: best > 0 ? '最佳紀錄：$best 波' : '波次無盡，拚最高紀錄',
+                        onTap: () => onChosen(true),
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    // 排行榜（無盡模式，季號分桶）：監聽 available——init 是非同步的，
+                    // 選單常在它完成前就 build，好了按鈕即時浮現；失敗則一直隱藏。
+                    ValueListenableBuilder<bool>(
+                      valueListenable: Leaderboard.available,
+                      builder: (context, ok, _) => !ok
+                          ? const SizedBox.shrink()
+                          : TextButton.icon(
+                              onPressed: () {
+                                GameAudio.ui('click', volume: 0.5);
+                                showLeaderboardDialog(context);
+                              },
+                              icon: const Icon(Icons.emoji_events,
+                                  color: _kGold, size: 20),
+                              label: const Text('排行榜',
+                                  style: TextStyle(
+                                      color: _kGold,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                    ),
+                  ],
+                );
+              }
             ),
           )
               .animate()

@@ -45,9 +45,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      // 與 MyApp 一致：ScreenUtil 以 iPhone14 橫向為設計稿基準。
       ScreenUtilInit(
-        designSize: const Size(844, 390),
+        // 與 MyApp 完全一致（390×844）：守門要測跟出貨相同的縮放環境。
+        designSize: const Size(390, 844),
         minTextAdapt: true,
         splitScreenMode: true,
         builder: (context, _) => MaterialApp(
