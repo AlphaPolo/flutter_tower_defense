@@ -85,7 +85,7 @@ TrapComponent buildTrap(TowerType type, BoardPoint location) {
 class BeaconTrapComponent extends TrapComponent {
   BeaconTrapComponent(BoardPoint location) : super(TowerType.beacon, location);
 
-  /// 被拆 → 指向此樁的塔全部自動解除；選取模式若開著也一併退出。
+  /// 被拆 → 指向此樁的塔全部自動解除；兩種選取模式若開著也一併退出。
   @override
   void onDemolished() {
     for (final t in game.towers.values) {
@@ -93,6 +93,9 @@ class BeaconTrapComponent extends TrapComponent {
     }
     if (game.assigningBeaconFor.value != null) {
       game.assigningBeaconFor.value = null;
+    }
+    if (game.assigningTowersFor.value == location) {
+      game.assigningTowersFor.value = null;
     }
     game.towerChanged.value++;
   }

@@ -390,7 +390,11 @@ class LeftColOverlay extends StatelessWidget {
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
               : type == TowerType.beacon
-                  ? const ['瞄準標記：火炮/噴火/狙擊', '可「設定標靶」朝它持續開火', '未貫穿的狙擊箭會被擋下']
+                  ? [
+                      '瞄準標記：火炮/噴火/狙擊',
+                      '未貫穿的狙擊箭會被擋下',
+                      '目前有 ${game.towersTargeting(bp)} 座塔指向這裡',
+                    ]
                   : [
                       '範圍: ${type == TowerType.sniper ? '全圖' : range}',
                       if (damage > 0) '傷害: $damage',
@@ -447,6 +451,7 @@ class LeftColOverlay extends StatelessWidget {
               ],
               if (tower) _upgradeControl(bp),
               if (tower) _beaconControl(bp),
+              if (game.typeAt(bp) == TowerType.beacon) _towerPickControl(bp),
               if (tower) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
@@ -513,7 +518,7 @@ class LeftColOverlay extends StatelessWidget {
                 } else if (picking) {
                   game.assigningBeaconFor.value = null; // 再按一次取消
                 } else {
-                  game.assigningBeaconFor.value = bp;
+                  game.startBeaconPick(bp); // 互斥入口（清其他點擊模式）
                 }
               },
               icon: Icon(picking ? Icons.close : Icons.gps_fixed, size: 16),
@@ -522,6 +527,48 @@ class LeftColOverlay extends StatelessWidget {
                   : picking
                       ? '取消選取'
                       : '設定標靶'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 標靶樁面板的「指定塔」控制：進入選塔模式（點塔切換綁定、可連續多選，
+  /// 點空地或按[完成]退出）。
+  Widget _towerPickControl(BoardPoint bp) {
+    return ValueListenableBuilder<BoardPoint?>(
+      valueListenable: game.assigningTowersFor,
+      builder: (context, picking, _) {
+        final active = picking == bp;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            if (active)
+              const Text('點選塔切換綁定，點空地完成',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.brown)),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    active ? Colors.brown : const Color(0xFFB6832B),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                minimumSize: const Size(0, 30),
+                textStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                GameAudio.ui('select', volume: 0.6);
+                if (active) {
+                  game.assigningTowersFor.value = null;
+                } else {
+                  game.startTowerPick(bp);
+                }
+              },
+              icon: Icon(active ? Icons.check : Icons.gps_fixed, size: 16),
+              label: Text(active ? '完成' : '指定塔'),
             ),
           ],
         );

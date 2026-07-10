@@ -798,7 +798,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void cancelSelection() {
     selecting.value = null;
     inspecting.value = null;
-    aimingSkill.value = null;
+    _clearPickModes();
   }
 
   // ── 狙擊塔主動技瞄準模式 ──────────────────────────────────
@@ -810,6 +810,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void startSkillAim(BoardPoint point) {
     final t = towers[point];
     if (t is! SniperTowerComponent || !t.skillReady) return;
+    _clearPickModes();
     aimingSkill.value = point;
     showMessage('點擊地圖任一點，朝該方向狙擊');
   }
@@ -827,6 +828,46 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   // ── 敵人登記 ─────────────────────────────────────────────
   /// 「選取標靶」模式：非 null＝這座塔正在等玩家點選場上的標靶樁。
   final ValueNotifier<BoardPoint?> assigningBeaconFor = ValueNotifier(null);
+
+  /// 「選塔」模式（標靶端反向指定）：非 null＝這根標靶樁正在等玩家點選塔，
+  /// 點支援的塔切換綁定（可連續多選），點空地/非支援物件退出。
+  final ValueNotifier<BoardPoint?> assigningTowersFor = ValueNotifier(null);
+
+  /// 三種點擊模式互斥（狙擊指向技/塔選標靶/標靶選塔）：進任一個先清其他。
+  void _clearPickModes() {
+    aimingSkill.value = null;
+    assigningBeaconFor.value = null;
+    assigningTowersFor.value = null;
+  }
+
+  /// 進入「塔選標靶」模式（塔資訊面板的按鈕呼叫）。
+  void startBeaconPick(BoardPoint towerCell) {
+    _clearPickModes();
+    assigningBeaconFor.value = towerCell;
+  }
+
+  /// 進入「標靶選塔」模式（標靶樁資訊面板的按鈕呼叫）。
+  void startTowerPick(BoardPoint beaconCell) {
+    if (traps[beaconCell]?.type != TowerType.beacon) return;
+    _clearPickModes();
+    assigningTowersFor.value = beaconCell;
+    showMessage('點選火炮/噴火/狙擊塔切換綁定，點空地完成');
+  }
+
+  /// 切換 [towerCell] 塔對 [beaconCell] 的綁定：已指向本樁 → 解除；
+  /// 否則直接改指向本樁（含從其他標靶搶過來——後設定者贏）。
+  bool toggleBeaconTarget(BoardPoint towerCell, BoardPoint beaconCell) {
+    final t = towers[towerCell];
+    if (t == null || !t.supportsBeacon) return false;
+    if (traps[beaconCell]?.type != TowerType.beacon) return false;
+    t.beaconTarget = t.beaconTarget == beaconCell ? null : beaconCell;
+    towerChanged.value++;
+    return true;
+  }
+
+  /// 指向 [beaconCell] 標靶樁的塔數（標靶面板顯示影響範圍用）。
+  int towersTargeting(BoardPoint beaconCell) =>
+      towers.values.where((t) => t.beaconTarget == beaconCell).length;
 
   /// 把 [towerCell] 的塔指向 [beaconCell] 的標靶樁。成功回 true。
   bool setBeaconTarget(BoardPoint towerCell, BoardPoint beaconCell) {
@@ -1231,6 +1272,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     woodsIncome.dispose();
     gameSpeed.dispose();
     assigningBeaconFor.dispose();
+    assigningTowersFor.dispose();
     endless.dispose();
     bestEndless.dispose();
     towerShadowImage.dispose();

@@ -50,6 +50,19 @@ class BoardComponent extends PositionComponent
       }
     }
 
+    // 「選塔」模式：標靶樁金框；支援的塔金框、已綁定本樁的青框＋虛線。
+    final picking = game.assigningTowersFor.value;
+    if (picking != null) {
+      _cornerFrame(canvas, picking, Colors.amberAccent);
+      for (final e in game.towers.entries) {
+        if (!e.value.supportsBeacon) continue;
+        final bound = e.value.beaconTarget == picking;
+        _cornerFrame(
+            canvas, e.key, bound ? Colors.cyanAccent : Colors.amberAccent);
+        if (bound) _dashedLink(canvas, e.key, picking, Colors.cyanAccent);
+      }
+    }
+
     final h = hovered;
     if (h != null) {
       // 滑到建築/陷阱上→紅色(可拆除)；空地→橘色。用四角括號選取框。
@@ -140,18 +153,24 @@ class BoardComponent extends PositionComponent
     final t = game.towers[bp];
     final target = t?.beaconTarget;
     if (t == null || target == null) return;
+    _dashedLink(canvas, bp, target, Colors.amberAccent);
+    _cornerFrame(canvas, target, Colors.amberAccent);
+  }
+
+  /// 兩格之間的虛線（手繪 dash：Flutter 無內建）。
+  void _dashedLink(
+      Canvas canvas, BoardPoint fromBp, BoardPoint toBp, Color color) {
     final s = game.iso.scaleX;
-    final from = game.boardToScreen(bp);
-    final to = game.boardToScreen(target);
+    final from = game.boardToScreen(fromBp);
+    final to = game.boardToScreen(toBp);
     final dir = to - from;
     final len = dir.length;
     if (len == 0) return;
     final u = dir / len;
     final paint = Paint()
-      ..color = Colors.amberAccent.withValues(alpha: 0.85)
+      ..color = color.withValues(alpha: 0.85)
       ..strokeWidth = 2.5 * s
       ..strokeCap = StrokeCap.round;
-    // 虛線（手繪 dash：Flutter 無內建）。
     const dash = 10.0;
     const gap = 7.0;
     var d = 0.0;
@@ -161,7 +180,6 @@ class BoardComponent extends PositionComponent
       canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
       d += dash + gap;
     }
-    _cornerFrame(canvas, target, Colors.amberAccent);
   }
 
   /// 四角括號選取框：在六個頂點各畫一個 L 形角，邊中間留空（像對焦框）。
@@ -296,6 +314,18 @@ class BoardComponent extends PositionComponent
         game.showMessage('已設定標靶');
         return;
       }
+    }
+
+    // 「選塔」模式（標靶端反向指定）：點支援的塔 → 切換綁定、留在模式內
+    // 連續多選；點空地/非支援物件 → 退出模式、照常處理該點擊。
+    final picking = game.assigningTowersFor.value;
+    if (picking != null) {
+      final t = bp == null ? null : game.towers[bp];
+      if (t != null && t.supportsBeacon) {
+        game.toggleBeaconTarget(bp!, picking);
+        return; // 多選：不退出
+      }
+      game.assigningTowersFor.value = null;
     }
 
     if (bp == null) {
