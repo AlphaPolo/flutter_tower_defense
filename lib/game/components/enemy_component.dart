@@ -148,6 +148,8 @@ class EnemyComponent extends PositionComponent
     }
     var dmg = damage;
     if (physical) {
+      // 物理抗性（護甲兵）與脆弱化相乘疊算：×(1-resist)×(1+amp)。
+      dmg *= 1 - kind.physicalResist;
       var amp = 0.0;
       for (final e in effects) {
         if (e is VulnerableEffect && e.physicalAmp > amp) amp = e.physicalAmp;

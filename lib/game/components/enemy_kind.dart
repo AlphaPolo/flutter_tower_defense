@@ -33,6 +33,7 @@ class EnemyKind {
     this.splitInto,
     this.splitCount = 0,
     this.heavy = false,
+    this.physicalResist = 0,
   });
 
   final String id;
@@ -74,6 +75,10 @@ class EnemyKind {
 
   /// 重型敵人（坦克/巨蛛/巨獸）：狙擊塔「神射手」的 +40% 加成對象。
   final bool heavy;
+
+  /// 物理抗性：0~1，擋掉的「物理」傷害比例（滾木/火炮/風刃/地刺/狙擊直擊）。
+  /// 元素傷害（火/雷/毒/DoT）不受影響；與脆弱化（vuln）相乘疊算。
+  final double physicalResist;
 
   static const grunt = EnemyKind(
     id: 'grunt',
@@ -248,6 +253,30 @@ class EnemyKind {
     heavy: true,
   );
 
+  /// 鐵甲龜（Tiny Swords Caveborn Turtle）：龜殼擋一半物理傷害的護甲兵。
+  /// 逼玩家別只堆物理塔——用元素塔（火/雷/毒）或霜牢脆弱化對付。
+  static const turtle = EnemyKind(
+    id: 'turtle',
+    name: '鐵甲龜',
+    hpMul: 1.4,
+    speedMul: 0.65,
+    reward: 10,
+    leakDamage: 1,
+    color: Color(0xFF6D8B3C),
+    sizeMul: 1.3,
+    unlockWave: 9,
+    weight: 2,
+    desc: '龜殼抵擋一半物理傷害（滾木/火炮/風刃/地刺/狙擊）。'
+        '用元素塔（火/雷/毒）或霜牢的脆弱化對付。',
+    sheet: 'enemy_turtle_walk.png',
+    frames: 7,
+    frameSize: 320,
+    footFrac: 0.65,
+    topFrac: 0.37,
+    pixel: true,
+    physicalResist: 0.5,
+  );
+
   /// 會參與波次「權重填充」的一般種類（依解鎖順序）。
-  static const all = [grunt, scout, swarm, brute, shaman, splitter];
+  static const all = [grunt, scout, swarm, brute, shaman, turtle, splitter];
 }
