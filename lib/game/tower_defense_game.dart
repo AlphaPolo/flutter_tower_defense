@@ -82,6 +82,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   late final Sprite mudSprite; // 泥沼(mud)天然環境用
   late final Sprite spikeTrapSprite; // 地刺陷阱(spike)用
   late final Sprite beaconTrapSprite; // 標靶樁(beacon)用
+  late final Sprite cannonBallSprite; // 火炮砲彈（Tiny Swords Cannon_Ball 像素球）
 
   // 塔陰影：塔不會動、所有塔陰影同形，故起動時把「模糊好的貼地橢圓」烘成一張圖，
   // 之後每座塔每幀只用便宜的 drawImageRect 貼上 → 免掉每幀 50+ 個 MaskFilter.blur。
@@ -204,6 +205,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     spikeTrapSprite = await Sprite.load('trap_spike.png', images: isoImages);
     beaconTrapSprite =
         await Sprite.load('trap_beacon.png', images: isoImages);
+    cannonBallSprite =
+        await Sprite.load('cannon_ball.png', images: isoImages);
     final dustImg = await fxImages.load('dust.png');
     dustAnim = SpriteAnimation.fromFrameData(
       dustImg,

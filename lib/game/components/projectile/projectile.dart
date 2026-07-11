@@ -163,6 +163,7 @@ class CannonProjectileComponent extends ProjectileComponent {
   double get _lift => _launchPx * (1 - _t) + sin(_t * pi) * 32 * s;
 
   double _smokeT = 0; // 硝煙尾跡計時（ms）
+  double _spinDir = 1; // 滾動方向：朝螢幕右飛順時針轉、朝左逆時針
 
   @override
   void onMount() {
@@ -170,6 +171,10 @@ class CannonProjectileComponent extends ProjectileComponent {
     _start.setFrom(logical);
     goalLogical = targetPos.clone();
     lifeTime = _flightMs;
+    _spinDir =
+        game.logicalToScreen(targetPos).x >= game.logicalToScreen(_start).x
+            ? 1
+            : -1;
   }
 
   @override
@@ -216,23 +221,29 @@ class CannonProjectileComponent extends ProjectileComponent {
     game.cameraShake.shake(7.0 * falloff);
   }
 
+  /// 像素球不模糊放大（同敵人 pixel 素材的最近鄰策略）；
+  /// modulate 全像素乘上灰值 → 整體壓暗約 2 成、明暗關係不變。
+  static final Paint _ballPaint = Paint()
+    ..filterQuality = FilterQuality.none
+    ..colorFilter =
+        const ColorFilter.mode(Color(0xFFC8C8C8), BlendMode.modulate);
+
   @override
   void render(Canvas canvas) {
     // 拋物線：從塔頂投石機高度([_launchPx])出發，中段抬升成弧線，落到地面(0)。
-    final lift = _lift;
-    canvas.drawCircle(
-      Offset(0, -lift),
-      7 * s,
-      Paint()..color = const Color(0xFF333333),
+    // 砲彈用 Tiny Swords 像素鐵球，飛行全程滾轉一圈（方向跟著飛行方向）。
+    final size = 13 * s;
+    canvas.save();
+    canvas.translate(0, -_lift);
+    canvas.rotate(_spinDir * (clock / _flightMs) * 2 * pi);
+    game.cannonBallSprite.render(
+      canvas,
+      position: Vector2.zero(),
+      size: Vector2.all(size),
+      anchor: Anchor.center,
+      overridePaint: _ballPaint,
     );
-    canvas.drawCircle(
-      Offset(0, -lift),
-      7 * s,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = Colors.orange.withValues(alpha: 0.85),
-    );
+    canvas.restore();
   }
 }
 
