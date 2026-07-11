@@ -116,7 +116,7 @@ class LeftColOverlay extends StatelessWidget {
               ),
 
               _stat(
-                const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
+                Icon(Icons.favorite, color: Colors.redAccent, size: 18.h),
                 game.heart,
                 (v) => '$v',
               ),
@@ -352,7 +352,64 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 點到格子時顯示資訊：塔(可拆除) / 主堡 / 敵人出生點。
+  /// 依格子內容產出面板頂部資訊；空地回傳 null（不顯示面板）。
+  _InspectInfo? _inspectInfoFor(BoardPoint bp) {
+    if (bp == game.targetLocation) {
+      return (
+        kind: _CellKind.castle,
+        icon: Icon(Icons.castle, color: Colors.green, size: 44.h),
+        title: '主堡（終點）',
+        lines: const ['守住這裡！', '敵人抵達會扣 1 生命', '生命歸零即遊戲結束'],
+      );
+    }
+    if (bp == game.spawnLocation) {
+      return (
+        kind: _CellKind.spawn,
+        icon: Icon(Icons.flag, color: Colors.redAccent, size: 44.h),
+        title: '敵人出生點',
+        lines: const ['敵人從這裡出現', '沿著路線前往主堡'],
+      );
+    }
+    final e = game.environment[bp];
+    if (e != null) {
+      return (
+        kind: _CellKind.environment,
+        icon: Icon(Icons.terrain, color: const Color(0xFF6D4C41), size: 44.h),
+        title: e.label,
+        lines: [e.desc, e.blocks ? '（阻擋路線）' : '（可經過）'],
+      );
+    }
+    final type = game.typeAt(bp);
+    if (type == null) return null;
+    // 已蓋的塔用「有效數值」getter（含升級加成，與實際判定/射程圈一致）；
+    // 陷阱不在 towers 裡 → 退回基礎值。
+    final stats = statsOf(type);
+    final t = game.towers[bp];
+    final range = t?.range ?? stats.range;
+    final damage = t?.damage ?? stats.damage;
+    return (
+      kind: _CellKind.tower,
+      icon: SizedBox.square(
+          dimension: 48.h, child: ClipOval(child: towerIcon(type))),
+      title: stats.title,
+      lines: type == TowerType.obstacle
+          ? const ['阻擋敵人前進']
+          : type == TowerType.beacon
+              ? [
+                  '瞄準標記：火炮/噴火/狙擊',
+                  '未貫穿的狙擊箭會被擋下',
+                  '目前有 ${game.towersTargeting(bp)} 座塔指向這裡',
+                ]
+              : [
+                  '範圍: ${type == TowerType.sniper ? '全圖' : range}',
+                  if (damage > 0) '傷害: $damage',
+                ],
+    );
+  }
+
+  /// 點到格子時顯示資訊：塔(可拆除) / 主堡 / 敵人出生點 / 天然環境。
+  /// 頂部資訊由 [_inspectInfoFor] 產出；底部操作各自判斷適不適用（不適用回
+  /// shrink），此處只管排版順序。
   Widget _inspectPanel() {
     return AnimatedBuilder(
       animation:
@@ -360,52 +417,8 @@ class LeftColOverlay extends StatelessWidget {
       builder: (context, _) {
         final bp = game.inspecting.value;
         if (bp == null) return const SizedBox.shrink();
-
-        late final Widget icon;
-        late final String title;
-        late final List<String> lines;
-        var tower = false;
-        var env = false;
-
-        if (bp == game.targetLocation) {
-          icon = Icon(Icons.castle, color: Colors.green, size: 44.h);
-          title = '主堡（終點）';
-          lines = ['守住這裡！', '敵人抵達會扣 1 生命', '生命歸零即遊戲結束'];
-        } else if (bp == game.spawnLocation) {
-          icon = Icon(Icons.flag, color: Colors.redAccent, size: 44.h);
-          title = '敵人出生點';
-          lines = ['敵人從這裡出現', '沿著路線前往主堡'];
-        } else if (game.environment.containsKey(bp)) {
-          env = true;
-          final e = game.environment[bp]!;
-          icon = Icon(Icons.terrain, color: Color(0xFF6D4C41), size: 44.h);
-          title = e.label;
-          lines = [e.desc, e.blocks ? '（阻擋路線）' : '（可經過）'];
-        } else {
-          final type = game.typeAt(bp);
-          if (type == null) return const SizedBox.shrink();
-          tower = true;
-          final stats = statsOf(type);
-          // 已蓋的塔用「有效數值」getter（含升級加成，與實際判定/射程圈一致）；
-          // 陷阱不在 towers 裡 → 退回基礎值。
-          final t = game.towers[bp];
-          final range = t?.range ?? stats.range;
-          final damage = t?.damage ?? stats.damage;
-          icon = SizedBox.square(dimension: 48.h, child: ClipOval(child: towerIcon(type)));
-          title = stats.title;
-          lines = type == TowerType.obstacle
-              ? const ['阻擋敵人前進']
-              : type == TowerType.beacon
-                  ? [
-                      '瞄準標記：火炮/噴火/狙擊',
-                      '未貫穿的狙擊箭會被擋下',
-                      '目前有 ${game.towersTargeting(bp)} 座塔指向這裡',
-                    ]
-                  : [
-                      '範圍: ${type == TowerType.sniper ? '全圖' : range}',
-                      if (damage > 0) '傷害: $damage',
-                    ];
-        }
+        final info = _inspectInfoFor(bp);
+        if (info == null) return const SizedBox.shrink();
 
         return Container(
           margin: const EdgeInsets.all(8).h,
@@ -418,70 +431,33 @@ class LeftColOverlay extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(child: icon),
+                Center(child: info.icon),
                 SizedBox(height: 8.h),
-                Text(title, textAlign: TextAlign.center),
+                Text(info.title, textAlign: TextAlign.center),
                 SizedBox(height: 6.h),
-                for (final l in lines)
+                for (final l in info.lines)
                   Text(l, style: TextStyle(fontSize: 13.h)),
-                if (game.isLogTower(bp)) ...[
-                  SizedBox(height: 8.h),
-                  Text(
-                    '滾木方向',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12.h, color: Colors.black54),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: () => game.rotateLog(bp, -1),
-                        icon: const Icon(Icons.rotate_left),
-                        iconSize: 26.h,
-                        color: Colors.brown,
-                        tooltip: '逆時針',
-                      ),
-                      IconButton(
-                        onPressed: () => game.rotateLog(bp, 1),
-                        icon: const Icon(Icons.rotate_right),
-                        iconSize: 26.h,
-                        color: Colors.brown,
-                        tooltip: '順時針',
-                      ),
-                    ],
-                  ),
-                ],
-                // 狙擊塔 Lv3 主動技：指向狙擊（進入瞄準模式，點地圖朝該方向射擊）。
-                if (game.towers[bp] case final SniperTowerComponent sniper
-                    when sniper.skillUnlocked) ...[
-                  SizedBox(height: 8.h),
-                  _SniperSkillButton(game: game, bp: bp, tower: sniper),
-                ],
-                if (tower) _upgradeControl(bp),
-                if (tower) _beaconControl(bp),
-                if (game.typeAt(bp) == TowerType.beacon) _towerPickControl(bp),
-                if (tower) ...[
+                if (info.kind == _CellKind.tower) ...[
+                  _logRotateControl(bp),
+                  _sniperSkillControl(bp),
+                  _upgradeControl(bp),
+                  _beaconControl(bp),
+                  _towerPickControl(bp),
                   SizedBox(height: 12.h),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
+                  _actionButton(
+                    color: Colors.red,
+                    icon: Icons.delete_outline,
+                    label: '拆除',
                     onPressed: () => game.demolishAt(bp),
-                    icon: Icon(Icons.delete_outline, size: 18.h),
-                    label: const Text('拆除'),
                   ),
                 ],
-                if (env) ...[
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade800,
-                      foregroundColor: Colors.white,
-                    ),
+                if (info.kind == _CellKind.environment) ...[
+                  SizedBox(height: 12.h),
+                  _actionButton(
+                    color: Colors.orange.shade800,
+                    icon: Icons.cleaning_services,
+                    label: '清除 (${TowerDefenseGame.envClearCost})',
                     onPressed: () => game.clearEnvironmentAt(bp),
-                    icon: Icon(Icons.cleaning_services, size: 18.h),
-                    label: Text('清除 (${TowerDefenseGame.envClearCost})'),
                   ),
                 ],
               ],
@@ -489,6 +465,74 @@ class LeftColOverlay extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// 滾木塔的方向控制（非滾木塔隱藏）。
+  Widget _logRotateControl(BoardPoint bp) {
+    if (!game.isLogTower(bp)) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(height: 8.h),
+        Text(
+          '滾木方向',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12.h, color: Colors.black54),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () => game.rotateLog(bp, -1),
+              icon: const Icon(Icons.rotate_left),
+              iconSize: 26.h,
+              color: Colors.brown,
+              tooltip: '逆時針',
+            ),
+            IconButton(
+              onPressed: () => game.rotateLog(bp, 1),
+              icon: const Icon(Icons.rotate_right),
+              iconSize: 26.h,
+              color: Colors.brown,
+              tooltip: '順時針',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 狙擊塔 Lv3 主動技：指向狙擊（進入瞄準模式，點地圖朝該方向射擊）。
+  Widget _sniperSkillControl(BoardPoint bp) {
+    if (game.towers[bp] case final SniperTowerComponent sniper
+        when sniper.skillUnlocked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: 8.h),
+          _SniperSkillButton(game: game, bp: bp, tower: sniper),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// 面板底部的動作鈕（拆除/清除環境）：同款式，只差顏色與行為。
+  Widget _actionButton({
+    required Color color,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18.h),
+      label: Text(label),
     );
   }
 
@@ -549,6 +593,7 @@ class LeftColOverlay extends StatelessWidget {
   /// 標靶樁面板的「指定塔」控制：進入選塔模式（點塔切換綁定、可連續多選，
   /// 點空地或按[完成]退出）。
   Widget _towerPickControl(BoardPoint bp) {
+    if (game.typeAt(bp) != TowerType.beacon) return const SizedBox.shrink();
     return ValueListenableBuilder<BoardPoint?>(
       valueListenable: game.assigningTowersFor,
       builder: (context, picking, _) {
@@ -1066,3 +1111,16 @@ class _SniperSkillButtonState extends State<_SniperSkillButton> {
     );
   }
 }
+
+// ═══ 資訊面板的資料模型 ═══
+
+/// 被點選格子的種類：決定面板底部顯示哪些操作鈕。
+enum _CellKind { castle, spawn, environment, tower }
+
+/// 面板頂部的「圖示＋標題＋說明行」內容（[_CellKind.tower] 含陷阱/障礙）。
+typedef _InspectInfo = ({
+  _CellKind kind,
+  Widget icon,
+  String title,
+  List<String> lines,
+});
