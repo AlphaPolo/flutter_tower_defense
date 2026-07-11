@@ -17,7 +17,7 @@ class LeftColOverlay extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, c) {
           return Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8).h,
             child: Stack(
               children: [
                 // 左上：狀態列 + 設定鈕（開啟設定抽屜）
@@ -28,9 +28,9 @@ class LeftColOverlay extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _statusPill(),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       _hudButtons(),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       _cheatButton(), // 作弊模式（在設定/重新開始列下方）
                     ],
                   ),
@@ -45,11 +45,11 @@ class LeftColOverlay extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _enemyInfoCard(),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         _wavePreview(),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
-                          spacing: 6,
+                          spacing: 6.h,
                           children: [
                             _startButton(),
                             _speedButton(),
@@ -91,40 +91,44 @@ class LeftColOverlay extends StatelessWidget {
       clipBehavior: Clip.none, // 讓密林收入浮動字能飄出膠囊範圍
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: _woodBox(radius: 22),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7).h,
+          decoration: _woodBox(radius: 22.h),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            spacing: 14.h,
             children: [
               _stat(
-                  // 波次：game-icons.net「crossed-sabres」(lorc, CC BY 3.0)，
-                  // 白色 alpha 形狀以 srcIn 染成藍色。
-                  Image.asset('assets/ui/crossed_sabres.png',
-                      width: 18,
-                      height: 18,
-                      color: Colors.lightBlueAccent,
-                      colorBlendMode: BlendMode.srcIn),
-                  game.wave,
-                  (w) => w == 0
-                      ? '—'
-                      : game.endless.value
-                          ? '$w/∞'
-                          : '$w/${TowerDefenseGame.totalWaves}'),
-              const SizedBox(width: 14),
+                // 波次：game-icons.net「crossed-sabres」(lorc, CC BY 3.0)，
+                // 白色 alpha 形狀以 srcIn 染成藍色。
+                Image.asset(
+                  'assets/ui/crossed_sabres.png',
+                  width: 18.h,
+                  height: 18.h,
+                  color: Colors.lightBlueAccent,
+                  colorBlendMode: BlendMode.srcIn,
+                ),
+                game.wave,
+                (w) => w == 0
+                    ? '—'
+                    : game.endless.value
+                        ? '$w/∞'
+                        : '$w/${TowerDefenseGame.totalWaves}',
+              ),
+
               _stat(
-                  const Icon(Icons.favorite,
-                      color: Colors.redAccent, size: 18),
-                  game.heart,
-                  (v) => '$v'),
-              const SizedBox(width: 14),
+                const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
+                game.heart,
+                (v) => '$v',
+              ),
+
               _coinStat(),
             ],
           ),
         ),
         // 密林收入：金幣旁「+xx 從密林」淡入 → 上飄 → 淡出（取代頂部 banner）。
         Positioned(
-          right: 2,
-          top: 34,
+          right: 2.h,
+          top: 34.h,
           child: IgnorePointer(child: _woodsIncomeFloat()),
         ),
       ],
@@ -139,16 +143,16 @@ class LeftColOverlay extends StatelessWidget {
         if (e == null) return const SizedBox.shrink();
         return Text(
           '+${e.$2} 從密林',
-          style: const TextStyle(
+          style: TextStyle(
             color: _kGold,
-            fontSize: 12.5,
+            fontSize: 12.5.h,
             fontWeight: FontWeight.bold,
-            shadows: [Shadow(color: Colors.black87, blurRadius: 3)],
+            shadows: const [Shadow(color: Colors.black87, blurRadius: 3)],
           ),
         )
             .animate(key: ValueKey(e.$1))
             .fadeIn(duration: 500.ms, curve: Curves.easeOut)
-            .moveY(begin: 8, end: -16, duration: 4000.ms, curve: Curves.easeOut)
+            .moveY(begin: 8.h, end: -16.h, duration: 4000.ms, curve: Curves.easeOut)
             .fadeOut(delay: 3000.ms, duration: 1000.ms);
       },
     );
@@ -160,15 +164,15 @@ class LeftColOverlay extends StatelessWidget {
       valueListenable: game.coin,
       builder: (context, v, _) => Row(
         mainAxisSize: MainAxisSize.min,
+        spacing: 4.h,
         children: [
           // 每次金幣變動，圖示彈一下（key 改變 → 重新播放）。
-          _uiIcon('coin', 20).animate(key: ValueKey(v)).scaleXY(
+          _uiIcon('coin', 20.h).animate(key: ValueKey(v)).scaleXY(
                 begin: 1.35,
                 end: 1.0,
                 duration: 260.ms,
                 curve: Curves.easeOutBack,
               ),
-          const SizedBox(width: 4),
           // 數字從舊值平滑跑到新值（TweenAnimationBuilder 不加 key → 保留狀態）。
           TweenAnimationBuilder<double>(
             tween: Tween<double>(end: v.toDouble()),
@@ -176,9 +180,9 @@ class LeftColOverlay extends StatelessWidget {
             curve: Curves.easeOut,
             builder: (context, val, child) => Text(
               '${val.round()}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 15,
+                fontSize: 15.h,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -194,14 +198,14 @@ class LeftColOverlay extends StatelessWidget {
       valueListenable: listenable,
       builder: (context, v, _) => Row(
         mainAxisSize: MainAxisSize.min,
+        spacing: 4.h,
         children: [
           icon,
-          const SizedBox(width: 4),
           Text(
             fmt(v),
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 15,
+              fontSize: 15.h,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -216,19 +220,19 @@ class LeftColOverlay extends StatelessWidget {
     return Builder(
       builder: (context) {
         return Row(
-          spacing: 6,
+          spacing: 6.h,
           children: [
             GestureDetector(
               onTap: () => Scaffold.of(context).openDrawer(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6).h,
                 decoration: _woodBox(radius: 18, strong: false),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  spacing: 6.h,
                   children: [
-                    Icon(Icons.settings, color: _kGold, size: 18),
-                    SizedBox(width: 6),
-                    Text('設定', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+                    Icon(Icons.settings, color: _kGold, size: 18.h),
+                    Text('設定', style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: _kGold)),
                   ],
                 ),
               ),
@@ -237,14 +241,14 @@ class LeftColOverlay extends StatelessWidget {
             GestureDetector(
               onTap: () => _confirmReset(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6).h,
                 decoration: _woodBox(radius: 18, strong: false),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  spacing: 6.h,
                   children: [
-                    Icon(Icons.refresh, color: _kGold, size: 18),
-                    SizedBox(width: 6),
-                    Text('重新開始', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kGold)),
+                    Icon(Icons.refresh, color: _kGold, size: 18.h),
+                    Text('重新開始', style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: _kGold)),
                   ],
                 ),
               ),
@@ -264,18 +268,17 @@ class LeftColOverlay extends StatelessWidget {
         return GestureDetector(
           onTap: () => game.toggleCheat(),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6).h,
             decoration: _woodBox(radius: 18, strong: false),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              spacing: 6.h,
               children: [
-                Icon(Icons.bolt, color: color, size: 18),
-                const SizedBox(width: 6),
-                Text('作弊模式${on ? '：開' : ''}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: color)),
+                Icon(Icons.bolt, color: color, size: 18.h),
+                Text(
+                  '作弊模式${on ? '：開' : ''}',
+                  style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: color),
+                ),
               ],
             ),
           ),
@@ -313,33 +316,36 @@ class LeftColOverlay extends StatelessWidget {
         if (type == null) return const SizedBox.shrink();
         final stats = statsOf(type);
         return Container(
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(maxWidth: 150),
+          margin: const EdgeInsets.all(8).h,
+          padding: const EdgeInsets.all(12).h,
+          constraints: const BoxConstraints(maxWidth: 180).h,
           decoration: _panelBox(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: SizedBox.square(
-                  dimension: 48,
-                  child: ClipPath(
-                    clipper: const BottomSemicircleClipper(),
-                    child: towerIcon(type),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(fontSize: 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: SizedBox.square(
+                    dimension: 48.h,
+                    child: ClipPath(
+                      clipper: const BottomSemicircleClipper(),
+                      child: towerIcon(type),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16.0),
-              Text(stats.title, textAlign: TextAlign.center),
-              const SizedBox(height: 16.0),
-              Text(stats.description),
-              const SizedBox(height: 16.0),
-              Text('花費: ${stats.cost}'),
-              // 狙擊塔射程全圖，顯示數字沒有意義。
-              Text('範圍: ${type == TowerType.sniper ? '全圖' : stats.range}'),
-              if (stats.damage > 0) Text('傷害: ${stats.damage}'),
-            ],
+                SizedBox(height: 16.0.h),
+                Text(stats.title, textAlign: TextAlign.center),
+                SizedBox(height: 16.0.h),
+                Text(stats.description),
+                SizedBox(height: 16.0.h),
+                Text('花費: ${stats.cost}'),
+                // 狙擊塔射程全圖，顯示數字沒有意義。
+                Text('範圍: ${type == TowerType.sniper ? '全圖' : stats.range}'),
+                if (stats.damage > 0) Text('傷害: ${stats.damage}'),
+              ],
+            ),
           ),
         );
       },
@@ -362,17 +368,17 @@ class LeftColOverlay extends StatelessWidget {
         var env = false;
 
         if (bp == game.targetLocation) {
-          icon = const Icon(Icons.castle, color: Colors.green, size: 44);
+          icon = Icon(Icons.castle, color: Colors.green, size: 44.h);
           title = '主堡（終點）';
           lines = ['守住這裡！', '敵人抵達會扣 1 生命', '生命歸零即遊戲結束'];
         } else if (bp == game.spawnLocation) {
-          icon = const Icon(Icons.flag, color: Colors.redAccent, size: 44);
+          icon = Icon(Icons.flag, color: Colors.redAccent, size: 44.h);
           title = '敵人出生點';
           lines = ['敵人從這裡出現', '沿著路線前往主堡'];
         } else if (game.environment.containsKey(bp)) {
           env = true;
           final e = game.environment[bp]!;
-          icon = const Icon(Icons.terrain, color: Color(0xFF6D4C41), size: 44);
+          icon = Icon(Icons.terrain, color: Color(0xFF6D4C41), size: 44.h);
           title = e.label;
           lines = [e.desc, e.blocks ? '（阻擋路線）' : '（可經過）'];
         } else {
@@ -385,7 +391,7 @@ class LeftColOverlay extends StatelessWidget {
           final t = game.towers[bp];
           final range = t?.range ?? stats.range;
           final damage = t?.damage ?? stats.damage;
-          icon = SizedBox.square(dimension: 48, child: ClipOval(child: towerIcon(type)));
+          icon = SizedBox.square(dimension: 48.h, child: ClipOval(child: towerIcon(type)));
           title = stats.title;
           lines = type == TowerType.obstacle
               ? const ['阻擋敵人前進']
@@ -402,81 +408,84 @@ class LeftColOverlay extends StatelessWidget {
         }
 
         return Container(
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(maxWidth: 150),
+          margin: const EdgeInsets.all(8).h,
+          padding: const EdgeInsets.all(12).h,
+          constraints: const BoxConstraints(maxWidth: 180).h,
           decoration: _panelBox(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(child: icon),
-              const SizedBox(height: 8),
-              Text(title, textAlign: TextAlign.center),
-              const SizedBox(height: 6),
-              for (final l in lines)
-                Text(l, style: const TextStyle(fontSize: 13)),
-              if (game.isLogTower(bp)) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  '滾木方向',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () => game.rotateLog(bp, -1),
-                      icon: const Icon(Icons.rotate_left),
-                      iconSize: 26,
-                      color: Colors.brown,
-                      tooltip: '逆時針',
-                    ),
-                    IconButton(
-                      onPressed: () => game.rotateLog(bp, 1),
-                      icon: const Icon(Icons.rotate_right),
-                      iconSize: 26,
-                      color: Colors.brown,
-                      tooltip: '順時針',
-                    ),
-                  ],
-                ),
-              ],
-              // 狙擊塔 Lv3 主動技：指向狙擊（進入瞄準模式，點地圖朝該方向射擊）。
-              if (game.towers[bp] case final SniperTowerComponent sniper
-                  when sniper.skillUnlocked) ...[
-                const SizedBox(height: 8),
-                _SniperSkillButton(game: game, bp: bp, tower: sniper),
-              ],
-              if (tower) _upgradeControl(bp),
-              if (tower) _beaconControl(bp),
-              if (game.typeAt(bp) == TowerType.beacon) _towerPickControl(bp),
-              if (tower) ...[
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+          child: DefaultTextStyle.merge(
+            style: TextStyle(fontSize: 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: icon),
+                SizedBox(height: 8.h),
+                Text(title, textAlign: TextAlign.center),
+                SizedBox(height: 6.h),
+                for (final l in lines)
+                  Text(l, style: TextStyle(fontSize: 13.h)),
+                if (game.isLogTower(bp)) ...[
+                  SizedBox(height: 8.h),
+                  Text(
+                    '滾木方向',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12.h, color: Colors.black54),
                   ),
-                  onPressed: () => game.demolishAt(bp),
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('拆除'),
-                ),
-              ],
-              if (env) ...[
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade800,
-                    foregroundColor: Colors.white,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: () => game.rotateLog(bp, -1),
+                        icon: const Icon(Icons.rotate_left),
+                        iconSize: 26.h,
+                        color: Colors.brown,
+                        tooltip: '逆時針',
+                      ),
+                      IconButton(
+                        onPressed: () => game.rotateLog(bp, 1),
+                        icon: const Icon(Icons.rotate_right),
+                        iconSize: 26.h,
+                        color: Colors.brown,
+                        tooltip: '順時針',
+                      ),
+                    ],
                   ),
-                  onPressed: () => game.clearEnvironmentAt(bp),
-                  icon: const Icon(Icons.cleaning_services, size: 18),
-                  label: Text('清除 (${TowerDefenseGame.envClearCost})'),
-                ),
+                ],
+                // 狙擊塔 Lv3 主動技：指向狙擊（進入瞄準模式，點地圖朝該方向射擊）。
+                if (game.towers[bp] case final SniperTowerComponent sniper
+                    when sniper.skillUnlocked) ...[
+                  SizedBox(height: 8.h),
+                  _SniperSkillButton(game: game, bp: bp, tower: sniper),
+                ],
+                if (tower) _upgradeControl(bp),
+                if (tower) _beaconControl(bp),
+                if (game.typeAt(bp) == TowerType.beacon) _towerPickControl(bp),
+                if (tower) ...[
+                  SizedBox(height: 12.h),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => game.demolishAt(bp),
+                    icon: Icon(Icons.delete_outline, size: 18.h),
+                    label: const Text('拆除'),
+                  ),
+                ],
+                if (env) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade800,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => game.clearEnvironmentAt(bp),
+                    icon: Icon(Icons.cleaning_services, size: 18.h),
+                    label: Text('清除 (${TowerDefenseGame.envClearCost})'),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },
@@ -496,20 +505,21 @@ class LeftColOverlay extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
+            SizedBox(height: 8.h),
             if (picking)
-              const Text('點選場上的標靶樁…',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.brown)),
+              Text(
+                '點選場上的標靶樁…',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.h, color: Colors.brown),
+              ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor:
                     has ? Colors.brown : const Color(0xFFB6832B),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                minimumSize: const Size(0, 30),
-                textStyle: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.bold),
+                padding: const EdgeInsets.symmetric(vertical: 4).h,
+                minimumSize: Size(0, 30.h),
+                textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
               ),
               onPressed: () {
                 GameAudio.ui('select', volume: 0.6);
@@ -521,12 +531,14 @@ class LeftColOverlay extends StatelessWidget {
                   game.startBeaconPick(bp); // 互斥入口（清其他點擊模式）
                 }
               },
-              icon: Icon(picking ? Icons.close : Icons.gps_fixed, size: 16),
-              label: Text(has
-                  ? '解除標靶'
-                  : picking
-                      ? '取消選取'
-                      : '設定標靶'),
+              icon: Icon(picking ? Icons.close : Icons.gps_fixed, size: 16.h),
+              label: Text(
+                has
+                    ? '解除標靶'
+                    : picking
+                        ? '取消選取'
+                        : '設定標靶',
+              ),
             ),
           ],
         );
@@ -544,20 +556,21 @@ class LeftColOverlay extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
+            SizedBox(height: 8.h),
             if (active)
-              const Text('點選塔切換綁定，點空地完成',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.brown)),
+              Text(
+                '點選塔切換綁定，點空地完成',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.h, color: Colors.brown),
+              ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor:
-                    active ? Colors.brown : const Color(0xFFB6832B),
+                active ? Colors.brown : const Color(0xFFB6832B),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                minimumSize: const Size(0, 30),
-                textStyle: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.bold),
+                padding: const EdgeInsets.symmetric(vertical: 4).h,
+                minimumSize: Size(0, 30.h),
+                textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
               ),
               onPressed: () {
                 GameAudio.ui('select', volume: 0.6);
@@ -567,7 +580,7 @@ class LeftColOverlay extends StatelessWidget {
                   game.startTowerPick(bp);
                 }
               },
-              icon: Icon(active ? Icons.check : Icons.gps_fixed, size: 16),
+              icon: Icon(active ? Icons.check : Icons.gps_fixed, size: 16.h),
               label: Text(active ? '完成' : '指定塔'),
             ),
           ],
@@ -589,20 +602,22 @@ class LeftColOverlay extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Text(
           '等級 $lv / ${maxLevelOf(type)}',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
         ),
         if (chosenPath != null) ...[
-          const SizedBox(height: 2),
-          Text('已選：$chosenPath',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Colors.brown)),
+          SizedBox(height: 2.h),
+          Text(
+            '已選：$chosenPath',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.h, color: Colors.brown),
+          ),
         ],
         if (options.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: 6.h),
           Text(
             // 單一選項的塔（冰凍/火焰/風刃）不說「N 擇一」；狙擊 Lv2 有三條。
             options.length > 1
@@ -611,12 +626,12 @@ class LeftColOverlay extends StatelessWidget {
                     : '選擇強化（${options.length == 2 ? '二' : '三'}擇一）')
                 : (lv == 1 ? '升級方向' : '強化'),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(fontSize: 11.h, color: Colors.grey),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           // 面板窄（maxWidth 150），兩張選項卡改上下堆疊（各佔滿寬），避免爆版。
           for (var i = 0; i < options.length; i++) ...[
-            if (i > 0) const SizedBox(height: 6),
+            if (i > 0) SizedBox(height: 6.h),
             _upgradeOptionCard(bp, options[i]),
           ],
         ] else
@@ -634,10 +649,10 @@ class LeftColOverlay extends StatelessWidget {
   Widget _upgradeOptionCard(BoardPoint bp, TowerUpgradeNode node) {
     final affordable = game.cheat.value || game.coin.value >= node.cost;
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(6).h,
       decoration: BoxDecoration(
         color: Colors.amber.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8).h,
         border: Border.all(color: Colors.amber.shade700),
       ),
       child: Column(
@@ -646,23 +661,22 @@ class LeftColOverlay extends StatelessWidget {
         children: [
           Text(node.name,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 12,
+              style: TextStyle(
+                  fontSize: 12.h,
                   fontWeight: FontWeight.bold,
                   color: Colors.brown)),
-          const SizedBox(height: 2),
+          SizedBox(height: 2.h),
           Text(node.desc,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10)),
-          const SizedBox(height: 4),
+              style: TextStyle(fontSize: 10.h)),
+          SizedBox(height: 4.h),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.amber.shade700,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              minimumSize: const Size(0, 30),
-              textStyle:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              padding: const EdgeInsets.symmetric(vertical: 4).h,
+              minimumSize: Size(0, 30.h),
+              textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
             ),
             onPressed: affordable ? () => game.upgradeTower(bp, node) : null,
             child: Text('升級 (${node.cost})'),
@@ -685,13 +699,13 @@ class LeftColOverlay extends StatelessWidget {
           },
           child: Container(
             alignment: Alignment.center,
-            padding: const EdgeInsets.only(left: 6, right: 6),
+            padding: const EdgeInsets.only(left: 6, right: 6).h,
             decoration: ShapeDecoration(
               gradient: _kWoodGradient,
               shape: StadiumBorder(
                 side: BorderSide(
                   color: active ? _kGold : _kGoldDeep.withValues(alpha: 0.85),
-                  width: active ? 2 : 1.3,
+                  width: (active ? 2 : 1.3).h,
                 ),
               ),
               shadows: [
@@ -705,20 +719,20 @@ class LeftColOverlay extends StatelessWidget {
             // 速度圖示：1/2/3 個重疊的 ▶（Material 沒有內建三箭頭，
             // 用 play_arrow 疊排組出經典的倍速標示）。
             child: Row(
-              spacing: 8,
+              spacing: 8.h,
               children: [
                 SizedBox(
-                  width: 30,
-                  height: 30,
+                  width: 30.h,
+                  height: 30.h,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       for (var i = 0; i < sp; i++)
                         Transform.translate(
-                          offset: Offset((i - (sp - 1) / 2) * 8.0, 0),
+                          offset: Offset(((i - (sp - 1) / 2) * 8.0).h, 0),
                           child: Icon(
                             Icons.play_arrow,
-                            size: 19,
+                            size: 19.h,
                             color: active ? _kGold : const Color(0xFFD8C9A6),
                           ),
                         ),
@@ -726,7 +740,7 @@ class LeftColOverlay extends StatelessWidget {
                   ),
                 ),
 
-                Text('x $sp', style: TextStyle(color: _kGold, fontWeight: FontWeight.w900)),
+                Text('x $sp', style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 16.h)),
 
               ],
             ),
@@ -772,12 +786,12 @@ class LeftColOverlay extends StatelessWidget {
               shape: const StadiumBorder(),
               color: canStart ? Colors.green : Colors.grey.shade600,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5).h,
             child: Row(
-              spacing: 4,
+              spacing: 4.h,
               children: [
-                Icon(Icons.play_circle, color: canStart ? Colors.white : disableForegroundColor),
-                Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: canStart ? Colors.white : disableForegroundColor)),
+                Icon(Icons.play_circle, color: canStart ? Colors.white : disableForegroundColor, size: 24.h),
+                Text(label, style: TextStyle(fontSize: 16.h, fontWeight: FontWeight.bold, color: canStart ? Colors.white : disableForegroundColor)),
               ],
             ),
           ),
@@ -810,8 +824,8 @@ class LeftColOverlay extends StatelessWidget {
           counts[k] = (counts[k] ?? 0) + 1;
         }
         return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          margin: const EdgeInsets.only(bottom: 8).h,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6).h,
           decoration: _woodBox(radius: 14, strong: false),
           // 後期敵種多時可橫向捲動，窄螢幕不爆版。
           child: SingleChildScrollView(
@@ -819,16 +833,22 @@ class LeftColOverlay extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('下一波',
-                    style: TextStyle(
-                        color: _kGold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                for (final e in counts.entries) ...[
-                  _previewChip(e.key, e.value),
-                  const SizedBox(width: 8),
-                ],
+                Text(
+                  '下一波',
+                  style: TextStyle(
+                    color: _kGold,
+                    fontSize: 12.h,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(width: 8.h),
+                Row(
+                  spacing: 8.h,
+                  children: [
+                    for (final e in counts.entries)
+                      _previewChip(e.key, e.value)
+                  ],
+                ),
               ],
             ),
           ),
@@ -842,16 +862,17 @@ class LeftColOverlay extends StatelessWidget {
     final boss = kind == EnemyKind.juggernaut;
     return Row(
       mainAxisSize: MainAxisSize.min,
+      spacing: 3.h,
       children: [
         Container(
-          width: 26,
-          height: 26,
+          width: 26.h,
+          height: 26.h,
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.5),
             shape: BoxShape.circle,
             border: Border.all(
               color: boss ? Colors.redAccent : Colors.white24,
-              width: boss ? 2 : 1.2,
+              width: (boss ? 2 : 1.2).h,
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -859,12 +880,11 @@ class LeftColOverlay extends StatelessWidget {
             painter: _EnemyAvatarPainter(game.enemySheets[kind.id], kind),
           ),
         ),
-        const SizedBox(width: 3),
         Text(
           '×$count',
           style: TextStyle(
             color: boss ? Colors.redAccent : Colors.white,
-            fontSize: 12,
+            fontSize: 12.h,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -884,7 +904,7 @@ class LeftColOverlay extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              spacing: 6,
+              spacing: 6.h,
               children: [
                 for (final k in kinds)
                   _enemyAvatarButton(k, sel == k),
@@ -901,14 +921,14 @@ class LeftColOverlay extends StatelessWidget {
       onTap: () =>
           game.inspectingEnemy.value = selected ? null : kind,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 40.h,
+        height: 40.h,
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
           border: Border.all(
             color: selected ? Colors.orangeAccent : Colors.white24,
-            width: selected ? 2.5 : 1.5,
+            width: (selected ? 2.5 : 1.5).h,
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -1039,8 +1059,8 @@ class _SniperSkillButtonState extends State<_SniperSkillButton> {
                     game.startSkillAim(widget.bp);
                   }
                 },
-          icon: const Icon(Icons.gps_fixed, size: 18),
-          label: Text(label, style: const TextStyle(fontSize: 13)),
+          icon: Icon(Icons.gps_fixed, size: 18.h),
+          label: Text(label, style: TextStyle(fontSize: 13.h)),
         );
       },
     );

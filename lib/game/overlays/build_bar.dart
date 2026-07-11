@@ -43,14 +43,14 @@ class _BuildBarState extends State<BuildBar> {
       clipBehavior: Clip.none,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: _tabH),
+          padding: const EdgeInsets.only(top: _tabH).h,
           child: _barBody(),
         ),
         Positioned(
           left: 0,
           right: 0,
           top: 0,
-          child: SizedBox(height: _tabH, child: _tabStrip()),
+          child: SizedBox(height: _tabH.h, child: _tabStrip()),
         ),
       ],
     );
@@ -59,12 +59,13 @@ class _BuildBarState extends State<BuildBar> {
   /// 分頁列（水平；超出可左右捲）。
   Widget _tabStrip() {
     return Padding(
-      padding: const EdgeInsets.only(left: 10),
+      padding: const EdgeInsets.only(left: 10).h,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none, // 讓選中頁籤往下凸出不被裁掉
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end, // 底部對齊到 bar 頂
+          spacing: 3.h,
           children: [for (var i = 0; i < _cats.length; i++) _chromeTab(i)],
         ),
       ),
@@ -75,23 +76,20 @@ class _BuildBarState extends State<BuildBar> {
   /// 3px 與 bar 連成一體；未選＝暗底、較矮（凹陷感）。
   Widget _chromeTab(int i) {
     final sel = i == _tab;
+    final borderSide = BorderSide(
+      color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
+      width: (sel ? 2 : 1).h,
+    );
     final tab = Container(
-      margin: const EdgeInsets.only(right: 3),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: sel ? 7 : 5),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: sel ? 7 : 5).h,
       decoration: BoxDecoration(
         gradient: sel ? _kSelTabGradient : null,
         color: sel ? null : const Color(0xFF241811),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)).h,
         border: Border(
-          top: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
-              width: sel ? 2 : 1),
-          left: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
-              width: sel ? 2 : 1),
-          right: BorderSide(
-              color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
-              width: sel ? 2 : 1),
+          top: borderSide,
+          left: borderSide,
+          right: borderSide,
         ),
       ),
       child: Text(
@@ -99,7 +97,7 @@ class _BuildBarState extends State<BuildBar> {
         style: TextStyle(
           color: sel ? _kGold : const Color(0xFFB0A088),
           fontWeight: FontWeight.bold,
-          fontSize: 13,
+          fontSize: 13.h,
         ),
       ),
     );
@@ -112,7 +110,7 @@ class _BuildBarState extends State<BuildBar> {
           setState(() => _tab = i);
         },
         child: sel
-            ? Transform.translate(offset: const Offset(0, 2), child: tab)
+            ? Transform.translate(offset: Offset(0, 2.h), child: tab)
             : tab,
       ),
     );
@@ -121,17 +119,17 @@ class _BuildBarState extends State<BuildBar> {
   /// 底部 bar 本體：木紋底 + 頂部金邊 + 該分類的塔列。
   Widget _barBody() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: _kWoodGradient,
-        border: Border(top: BorderSide(color: _kGoldDeep, width: 2)),
-        boxShadow: [
+        border: Border(top: BorderSide(color: _kGoldDeep, width: 2.h)),
+        boxShadow: const [
           BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, -2)),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8).h,
       child: SafeArea(
         top: false,
-        child: SizedBox(width: double.infinity, height: 82, child: _towerRow()),
+        child: SizedBox(width: double.infinity, height: 75.h, child: _towerRow()),
       ),
     );
   }
@@ -144,10 +142,10 @@ class _BuildBarState extends State<BuildBar> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           // 預留右側空間給全螢幕鈕，避免最右邊的塔被蓋住點不到。
-          padding: EdgeInsets.only(right: kIsWeb ? 48 : 0),
+          padding: EdgeInsets.only(right: kIsWeb ? 48 : 0).h,
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            spacing: 12,
+            spacing: 12.h,
             children: [
               for (final type in _cats[_tab].$2) _icon(type),
             ],
@@ -175,8 +173,8 @@ class _BuildBarState extends State<BuildBar> {
 
   Widget _icon(TowerType type) {
     final button = Container(
-      width: 60,
-      height: 60,
+      width: 50.h,
+      height: 50.h,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         boxShadow: [
@@ -203,7 +201,7 @@ class _BuildBarState extends State<BuildBar> {
             game.selectTower(type);
           },
           child: Container(
-            padding: const EdgeInsets.all(2),
+            padding: const EdgeInsets.all(2).h,
             decoration: const BoxDecoration(
               border: Border.fromBorderSide(BorderSide(color: _kGoldDeep, width: 4, strokeAlign: BorderSide.strokeAlignCenter)),
               shape: BoxShape.circle,
@@ -228,16 +226,17 @@ class _BuildBarState extends State<BuildBar> {
                       top: -4,
                       right: -4,
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(6).h,
                         decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '$count',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 12.h,
                           ),
                         ),
                       ),
@@ -262,18 +261,20 @@ class _BuildBarState extends State<BuildBar> {
   /// 塔按鈕下方的費用標籤（障礙物顯示「免費」）。
   Widget _costLabel(TowerType type) {
     if (type == TowerType.obstacle) {
-      return const Text('免費',
-          style: TextStyle(
-              color: _kGold, fontSize: 11, fontWeight: FontWeight.bold));
+      return Text('免費',
+        style: TextStyle(
+        color: _kGold, fontSize: 11.h, fontWeight: FontWeight.bold),
+      );
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _uiIcon('coin', 14),
-        const SizedBox(width: 2),
-        Text('${statsOf(type).cost}',
-            style: const TextStyle(
-                color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+        _uiIcon('coin', 14.h),
+        SizedBox(width: 2.h),
+        Text(
+          '${statsOf(type).cost}',
+          style: TextStyle(color: _kGold, fontSize: 11.h, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }
