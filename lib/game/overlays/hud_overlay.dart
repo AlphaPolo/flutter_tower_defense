@@ -167,16 +167,21 @@ class LeftColOverlay extends StatelessWidget {
         spacing: 4.h,
         children: [
           // 每次金幣變動，圖示彈一下（key 改變 → 重新播放）。
-          _uiIcon('coin', 20.h).animate(key: ValueKey(v)).scaleXY(
-                begin: 1.35,
-                end: 1.0,
-                duration: 260.ms,
-                curve: Curves.easeOutBack,
-              ),
+          if (_reduceMotion(context))
+            _uiIcon('coin', 20.h)
+          else
+            _uiIcon('coin', 20.h).animate(key: ValueKey(v)).scaleXY(
+                  begin: 1.35,
+                  end: 1.0,
+                  duration: 260.ms,
+                  curve: Curves.easeOutBack,
+                ),
           // 數字從舊值平滑跑到新值（TweenAnimationBuilder 不加 key → 保留狀態）。
           TweenAnimationBuilder<double>(
             tween: Tween<double>(end: v.toDouble()),
-            duration: const Duration(milliseconds: 450),
+            duration: _reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 450),
             curve: Curves.easeOut,
             builder: (context, val, child) => Text(
               '${val.round()}',
@@ -315,7 +320,7 @@ class LeftColOverlay extends StatelessWidget {
       builder: (context, type, _) {
         if (type == null) return const SizedBox.shrink();
         final stats = statsOf(type);
-        return Container(
+        final panel = Container(
           margin: const EdgeInsets.all(8).h,
           padding: const EdgeInsets.all(12).h,
           constraints: const BoxConstraints(maxWidth: 180).h,
@@ -348,6 +353,16 @@ class LeftColOverlay extends StatelessWidget {
             ),
           ),
         );
+        if (_reduceMotion(context)) return panel;
+        // 進場：與資訊面板同款（換選塔種類重播一次）。
+        return panel.animate(key: ValueKey(type)).fadeIn(
+              duration: 120.ms,
+              curve: Curves.easeOut,
+            ).scale(
+              begin: const Offset(0.92, 0.92),
+              duration: 160.ms,
+              curve: Curves.easeOutCubic,
+            );
       },
     );
   }
@@ -420,7 +435,7 @@ class LeftColOverlay extends StatelessWidget {
         final info = _inspectInfoFor(bp);
         if (info == null) return const SizedBox.shrink();
 
-        return Container(
+        final panel = Container(
           margin: const EdgeInsets.all(8).h,
           padding: const EdgeInsets.all(12).h,
           constraints: const BoxConstraints(maxWidth: 180).h,
@@ -464,6 +479,16 @@ class LeftColOverlay extends StatelessWidget {
             ),
           ),
         );
+        if (_reduceMotion(context)) return panel;
+        // 進場：輕縮放＋淡入（120/160ms）；點到另一格（key 變）重播一次。
+        return panel.animate(key: ValueKey(bp)).fadeIn(
+              duration: 120.ms,
+              curve: Curves.easeOut,
+            ).scale(
+              begin: const Offset(0.92, 0.92),
+              duration: 160.ms,
+              curve: Curves.easeOutCubic,
+            );
       },
     );
   }

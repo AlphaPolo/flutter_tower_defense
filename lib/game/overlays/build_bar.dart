@@ -129,7 +129,29 @@ class _BuildBarState extends State<BuildBar> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8).h,
       child: SafeArea(
         top: false,
-        child: SizedBox(width: double.infinity, height: 75.h, child: _towerRow()),
+        child: SizedBox(
+          width: double.infinity,
+          height: 75.h,
+          // 切頁過場：卡片列淡入＋約 6px 右滑進場（reduce-motion 直接切）。
+          child: AnimatedSwitcher(
+            duration: _reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween(
+                  begin: const Offset(0.015, 0),
+                  end: Offset.zero,
+                ).animate(anim),
+                child: child,
+              ),
+            ),
+            child: KeyedSubtree(key: ValueKey(_tab), child: _towerRow()),
+          ),
+        ),
       ),
     );
   }

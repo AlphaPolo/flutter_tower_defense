@@ -3,6 +3,10 @@ part of 'game_overlays.dart';
 // ═══ 主題：色票/漸層/木質外框/彈窗元件（_kGold、_woodBox、_themedDialog…） ═══
 
 // ── HUD 主題：奇幻木質風（暖木底 + 金銅邊 + 柔和陰影）───────────────────
+/// 尊重系統「減少動態效果」設定：true 時動效降級為直接顯示。
+bool _reduceMotion(BuildContext context) =>
+    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
 // ── 色票 token：overlay 一律引用具名色，不散落裸 hex ────────────────
 const Color _kGold = Color(0xFFE8C877); // 金銅亮（標題/高亮）
 const Color _kGoldDeep = Color(0xFFB6832B); // 金銅暗（描邊）
@@ -109,7 +113,8 @@ Widget _themedDialog({
   required List<Widget> actions,
 }) {
   return Center(
-    child: Container(
+    child: Builder(builder: (context) {
+      final card = Container(
       margin: const EdgeInsets.all(24),
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
       constraints: const BoxConstraints(maxWidth: 340),
@@ -138,17 +143,15 @@ Widget _themedDialog({
           Row(mainAxisSize: MainAxisSize.min, children: actions),
         ],
       ),
-    )
-        // flutter_animate 入場：淡入 + 由小彈出（easeOutBack 過衝），有彈跳感。
-        .animate()
-        .fadeIn(duration: 180.ms)
-        .scale(
-          begin: const Offset(0.25, 1.5),
-          // end: const Offset(1, 1),
-          duration: 300.ms,
-          // curve: Curves.easeOutBack,
-          curve: const Cubic(0.34, 1.56, 0.64, 1),
-        ),
+    );
+      if (_reduceMotion(context)) return card;
+      // flutter_animate 入場：淡入 + 由小彈出（easeOutBack 過衝），有彈跳感。
+      return card.animate().fadeIn(duration: 180.ms).scale(
+            begin: const Offset(0.25, 1.5),
+            duration: 300.ms,
+            curve: const Cubic(0.34, 1.56, 0.64, 1),
+          );
+    }),
   );
 }
 
