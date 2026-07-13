@@ -303,7 +303,7 @@ class LeftColOverlay extends StatelessWidget {
           _dialogButton('確定重置', () {
             Navigator.pop(ctx);
             onRestart();
-          }, filled: true, color: Colors.redAccent),
+          }, filled: true, tone: _WoodTone.danger),
         ],
       ),
     );
@@ -444,8 +444,8 @@ class LeftColOverlay extends StatelessWidget {
                   _beaconControl(bp),
                   _towerPickControl(bp),
                   SizedBox(height: 12.h),
-                  _actionButton(
-                    color: Colors.red,
+                  _WoodButton(
+                    tone: _WoodTone.danger,
                     icon: Icons.delete_outline,
                     label: '拆除',
                     onPressed: () => game.demolishAt(bp),
@@ -453,8 +453,8 @@ class LeftColOverlay extends StatelessWidget {
                 ],
                 if (info.kind == _CellKind.environment) ...[
                   SizedBox(height: 12.h),
-                  _actionButton(
-                    color: Colors.orange.shade800,
+                  _WoodButton(
+                    tone: _WoodTone.warn,
                     icon: Icons.cleaning_services,
                     label: '清除 (${TowerDefenseGame.envClearCost})',
                     onPressed: () => game.clearEnvironmentAt(bp),
@@ -518,24 +518,6 @@ class LeftColOverlay extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  /// 面板底部的動作鈕（拆除/清除環境）：同款式，只差顏色與行為。
-  Widget _actionButton({
-    required Color color,
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-      ),
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18.h),
-      label: Text(label),
-    );
-  }
-
   /// 標靶控制（僅火炮/噴火/狙擊）：未設定 → 「設定標靶」進入點選模式；
   /// 已設定 → 可「解除」。監聽 assigningBeaconFor 顯示選取中狀態。
   Widget _beaconControl(BoardPoint bp) {
@@ -556,15 +538,15 @@ class LeftColOverlay extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11.h, color: Colors.brown),
               ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    has ? Colors.brown : const Color(0xFFB6832B),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 4).h,
-                minimumSize: Size(0, 30.h),
-                textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
-              ),
+            _WoodButton(
+              dense: true,
+              tone: (has || picking) ? _WoodTone.wood : _WoodTone.gold,
+              icon: picking ? Icons.close : Icons.gps_fixed,
+              label: has
+                  ? '解除標靶'
+                  : picking
+                      ? '取消選取'
+                      : '設定標靶',
               onPressed: () {
                 GameAudio.ui('select', volume: 0.6);
                 if (has) {
@@ -575,14 +557,6 @@ class LeftColOverlay extends StatelessWidget {
                   game.startBeaconPick(bp); // 互斥入口（清其他點擊模式）
                 }
               },
-              icon: Icon(picking ? Icons.close : Icons.gps_fixed, size: 16.h),
-              label: Text(
-                has
-                    ? '解除標靶'
-                    : picking
-                        ? '取消選取'
-                        : '設定標靶',
-              ),
             ),
           ],
         );
@@ -608,15 +582,11 @@ class LeftColOverlay extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11.h, color: Colors.brown),
               ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                active ? Colors.brown : const Color(0xFFB6832B),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 4).h,
-                minimumSize: Size(0, 30.h),
-                textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
-              ),
+            _WoodButton(
+              dense: true,
+              tone: active ? _WoodTone.wood : _WoodTone.gold,
+              icon: active ? Icons.check : Icons.gps_fixed,
+              label: active ? '完成' : '指定塔',
               onPressed: () {
                 GameAudio.ui('select', volume: 0.6);
                 if (active) {
@@ -625,8 +595,6 @@ class LeftColOverlay extends StatelessWidget {
                   game.startTowerPick(bp);
                 }
               },
-              icon: Icon(active ? Icons.check : Icons.gps_fixed, size: 16.h),
-              label: Text(active ? '完成' : '指定塔'),
             ),
           ],
         );
@@ -715,16 +683,10 @@ class LeftColOverlay extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 10.h)),
           SizedBox(height: 4.h),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber.shade700,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 4).h,
-              minimumSize: Size(0, 30.h),
-              textStyle: TextStyle(fontSize: 12.h, fontWeight: FontWeight.bold),
-            ),
+          _WoodButton(
+            dense: true,
+            label: '升級 (${node.cost})',
             onPressed: affordable ? () => game.upgradeTower(bp, node) : null,
-            child: Text('升級 (${node.cost})'),
           ),
         ],
       ),
@@ -778,7 +740,7 @@ class LeftColOverlay extends StatelessWidget {
                           child: Icon(
                             Icons.play_arrow,
                             size: 19.h,
-                            color: active ? _kGold : const Color(0xFFD8C9A6),
+                            color: active ? _kGold : _kTextDim,
                           ),
                         ),
                     ],
@@ -1086,14 +1048,10 @@ class _SniperSkillButtonState extends State<_SniperSkillButton> {
             : ready
                 ? '指向狙擊'
                 : '冷卻 ${(t.skillCdLeft / 1000).ceil()} 秒';
-        return ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                isAiming ? Colors.orange.shade800 : Colors.redAccent.shade700,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.blueGrey.shade200,
-            disabledForegroundColor: Colors.white,
-          ),
+        return _WoodButton(
+          tone: isAiming ? _WoodTone.warn : _WoodTone.danger,
+          icon: Icons.gps_fixed,
+          label: label,
           onPressed: !ready && !isAiming
               ? null
               : () {
@@ -1104,8 +1062,6 @@ class _SniperSkillButtonState extends State<_SniperSkillButton> {
                     game.startSkillAim(widget.bp);
                   }
                 },
-          icon: Icon(Icons.gps_fixed, size: 18.h),
-          label: Text(label, style: TextStyle(fontSize: 13.h)),
         );
       },
     );

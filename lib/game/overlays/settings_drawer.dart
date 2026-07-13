@@ -16,7 +16,7 @@ class SettingsDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       width: 300,
-      backgroundColor: const Color(0xFF241811), // 深木底
+      backgroundColor: _kWoodDark, // 深木底
       child: SafeArea(
         child: Column(
           children: [
@@ -91,16 +91,11 @@ class SettingsDrawer extends StatelessWidget {
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                            child: OutlinedButton.icon(
+                            child: _WoodButton(
+                              tone: _WoodTone.wood,
+                              icon: Icons.home,
+                              label: '返回主選單',
                               onPressed: () => _confirmBackToMenu(context),
-                              icon: const Icon(Icons.home, size: 18),
-                              label: const Text('返回主選單',
-                                  style: TextStyle(fontWeight: FontWeight.bold)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: _kGold,
-                                side: const BorderSide(color: _kGoldDeep, width: 1.3),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                              ),
                             ),
                           ),
                           // 音樂授權標註（xDeviruchi 授權條款要求）。
@@ -110,7 +105,7 @@ class SettingsDrawer extends StatelessWidget {
                               'Music: Alexandr Zhelanov (CC-BY 3.0)\n'
                                   'Victory theme by Marllon Silva (xDeviruchi)\n'
                                   'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                              style: const TextStyle(color: _kTextFaint, fontSize: 11),
                             ),
                           ),
                         ],
@@ -143,7 +138,7 @@ class SettingsDrawer extends StatelessWidget {
             Navigator.pop(ctx); // 關確認彈窗
             Navigator.pop(context); // 關抽屜
             onBackToMenu();
-          }, filled: true, color: Colors.redAccent),
+          }, filled: true, tone: _WoodTone.danger),
         ],
       ),
     );
@@ -179,6 +174,7 @@ class SettingsDrawer extends StatelessWidget {
                 color: on ? onColor : Colors.grey[300],
                 fontWeight: FontWeight.bold)),
         trailing: CupertinoSwitch(
+            activeTrackColor: _kGoldDeep, // 家族簽名：開＝金銅，不用 Cupertino 綠
             value: on,
             onChanged: (_) {
               GameAudio.ui('switch', volume: 0.6);

@@ -64,7 +64,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xFFD8C9A6)),
+                  icon: const Icon(Icons.close, color: _kTextDim),
                 ),
               ],
             ),
@@ -84,7 +84,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
                     return const Padding(
                       padding: EdgeInsets.all(24),
                       child: Text('還沒有紀錄——去無盡模式搶頭香！',
-                          style: TextStyle(color: Color(0xFFD8C9A6))),
+                          style: TextStyle(color: _kTextDim)),
                     );
                   }
                   final myUid = Leaderboard.currentUid;
@@ -130,7 +130,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
                             ),
                             Text('${e.wave} 波',
                                 style: const TextStyle(
-                                    color: Color(0xFFE8DCC0),
+                                    color: _kTextSoft,
                                     fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -146,7 +146,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
               children: [
                 Text('暱稱：$_myName',
                     style: const TextStyle(
-                        color: Color(0xFFD8C9A6), fontSize: 13)),
+                        color: _kTextDim, fontSize: 13)),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: _editName,
@@ -164,23 +164,27 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
     final ctrl = TextEditingController(text: _myName);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF241811),
-        title: const Text('修改暱稱',
-            style: TextStyle(color: _kGold, fontSize: 18)),
-        content: TextField(
+      builder: (ctx) => _themedDialog(
+        icon: Icons.edit,
+        accent: _kGold,
+        title: '修改暱稱',
+        extra: TextField(
           controller: ctrl,
           maxLength: 16,
           autofocus: true,
+          textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
-            counterStyle: TextStyle(color: Colors.grey),
+            counterStyle: TextStyle(color: _kTextFaint),
             enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: _kGoldDeep)),
+            focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: _kGold)),
           ),
         ),
         actions: [
           _dialogButton('取消', () => Navigator.pop(ctx, false), filled: false),
+          const SizedBox(width: 12),
           _dialogButton('儲存', () => Navigator.pop(ctx, true)),
         ],
       ),

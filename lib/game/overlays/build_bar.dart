@@ -84,7 +84,7 @@ class _BuildBarState extends State<BuildBar> {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: sel ? 7 : 5).h,
       decoration: BoxDecoration(
         gradient: sel ? _kSelTabGradient : null,
-        color: sel ? null : const Color(0xFF241811),
+        color: sel ? null : _kWoodDark,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(10)).h,
         border: Border(
           top: borderSide,
@@ -95,7 +95,7 @@ class _BuildBarState extends State<BuildBar> {
       child: Text(
         _cats[i].$1,
         style: TextStyle(
-          color: sel ? _kGold : const Color(0xFFB0A088),
+          color: sel ? _kGold : _kTextFaint,
           fontWeight: FontWeight.bold,
           fontSize: 13.h,
         ),

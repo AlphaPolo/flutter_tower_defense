@@ -43,7 +43,7 @@ class ModeSelectOverlay extends StatelessWidget {
                       style: TextStyle(color: _kGold, fontSize: 26.h, fontWeight: FontWeight.w900, letterSpacing: 4),
                     ),
                     SizedBox(height: 4.h),
-                    Text('選擇模式', style: TextStyle(color: const Color(0xFFD8C9A6), fontSize: 13.h)),
+                    Text('選擇模式', style: TextStyle(color: _kTextDim, fontSize: 13.h)),
                     SizedBox(height: 18.h),
                     _modeCard(
                       icon: Icons.play_circle,
@@ -134,7 +134,7 @@ class ModeSelectOverlay extends StatelessWidget {
                   style: TextStyle(color: color, fontSize: 17.h, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 2.h),
-                Text(subtitle, style: TextStyle(color: Color(0xFFE8DCC0), fontSize: 12.h)),
+                Text(subtitle, style: TextStyle(color: _kTextSoft, fontSize: 12.h)),
               ],
             ),
           ],
