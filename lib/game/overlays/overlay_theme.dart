@@ -112,12 +112,11 @@ Widget _themedDialog({
   Widget? extra, // 插在訊息與動作列之間的自訂區塊（如上傳成績）
   required List<Widget> actions,
 }) {
-  return Center(
-    child: Builder(builder: (context) {
-      final card = Container(
-      margin: const EdgeInsets.all(24),
+  return Builder(builder: (context) {
+    final card = Container(
+      // 固定設計畫布：內部全用絕對數字排版；裝不下時整張等比縮小。
+      width: 340,
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
-      constraints: const BoxConstraints(maxWidth: 340),
       decoration: _dialogBox(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -144,15 +143,23 @@ Widget _themedDialog({
         ],
       ),
     );
-      if (_reduceMotion(context)) return card;
-      // flutter_animate 入場：淡入 + 由小彈出（easeOutBack 過衝），有彈跳感。
-      return card.animate().fadeIn(duration: 180.ms).scale(
-            begin: const Offset(0.25, 1.5),
-            duration: 300.ms,
-            curve: const Cubic(0.34, 1.56, 0.64, 1),
-          );
-    }),
-  );
+    // flutter_animate 入場：淡入 + 由小彈出（easeOutBack 過衝），有彈跳感。
+    final animated = _reduceMotion(context)
+        ? card
+        : card.animate().fadeIn(duration: 180.ms).scale(
+              begin: const Offset(0.25, 1.5),
+              duration: 300.ms,
+              curve: const Cubic(0.34, 1.56, 0.64, 1),
+            );
+    // 路線2「固定畫布」：鍵盤/小螢幕吃掉空間時，整張卡等比縮小塞進
+    // 剩餘空間 → 永不溢出，比例永遠跟設計稿一致。
+    return Padding(
+      padding: MediaQuery.viewInsetsOf(context) + const EdgeInsets.all(16),
+      child: Center(
+        child: FittedBox(fit: BoxFit.scaleDown, child: animated),
+      ),
+    );
+  });
 }
 
 // ═══ 木質按鈕：取代素顏 ElevatedButton 的統一控件 ═══
@@ -192,59 +199,71 @@ class _WoodButton extends StatefulWidget {
 
 class _WoodButtonState extends State<_WoodButton> {
   bool _pressed = false;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    final (top, bottom) = _woodToneColors(enabled ? widget.tone : null);
+    var (top, bottom) = _woodToneColors(enabled ? widget.tone : null);
+    if (_hover && enabled && !_pressed) {
+      // 桌面 hover：整體提亮一階（觸控裝置不會觸發）。
+      top = Color.lerp(top, Colors.white, 0.08)!;
+      bottom = Color.lerp(bottom, Colors.white, 0.08)!;
+    }
     final fg = enabled ? _kParchment : _kTextFaint;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-      onTapCancel: () => setState(() => _pressed = false),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTap: widget.onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 70),
-        height: (widget.dense ? 30 : 38).h,
-        padding: EdgeInsets.symmetric(horizontal: widget.dense ? 10 : 16).h,
-        // 按下：往下沉 1.5px、漸層壓平、收掉陰影 → 實體按鍵手感。
-        transform: Matrix4.translationValues(0, _pressed ? 1.5 : 0, 0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: _pressed ? [bottom, bottom] : [top, bottom],
-          ),
-          borderRadius: BorderRadius.circular(9).h,
-          border: Border.all(
-              color: _kGoldDeep.withValues(alpha: enabled ? 0.9 : 0.4),
-              width: 1.2),
-          boxShadow: [
-            if (enabled && !_pressed)
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (widget.icon != null) ...[
-              Icon(widget.icon, size: (widget.dense ? 14 : 16).h, color: fg),
-              SizedBox(width: 6.h),
-            ],
-            Text(
-              widget.label,
-              style: TextStyle(
-                color: fg,
-                fontSize: (widget.dense ? 12 : 13).h,
-                fontWeight: FontWeight.bold,
-              ),
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 70),
+          height: (widget.dense ? 30 : 38).h,
+          padding: EdgeInsets.symmetric(horizontal: widget.dense ? 10 : 16).h,
+          // 按下：往下沉 1.5px、漸層壓平、收掉陰影 → 實體按鍵手感。
+          transform: Matrix4.translationValues(0, _pressed ? 1.5 : 0, 0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: _pressed ? [bottom, bottom] : [top, bottom],
             ),
-          ],
+            borderRadius: BorderRadius.circular(9).h,
+            border: Border.all(
+                color: _kGoldDeep.withValues(
+                    alpha: !enabled ? 0.4 : (_hover ? 1.0 : 0.9)),
+                width: 1.2),
+            boxShadow: [
+              if (enabled && !_pressed)
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(widget.icon, size: (widget.dense ? 14 : 16).h, color: fg),
+                SizedBox(width: 6.h),
+              ],
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: (widget.dense ? 12 : 13).h,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

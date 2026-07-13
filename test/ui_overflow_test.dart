@@ -175,6 +175,24 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       });
+
+      testWidgets('排行榜彈窗（滿榜 20 筆＋長暱稱）', (tester) async {
+        // 滿榜：卡片高度封頂 → 列表捲動；長暱稱吃 Expanded+ellipsis。
+        Leaderboard.debugFakeTop = [
+          for (var i = 0; i < 20; i++)
+            LeaderboardEntry(
+                'uid$i',
+                i == 0 ? '超長暱稱十六個字塞好塞滿測試用' : '玩家$i',
+                99 - i,
+                1700000000000 + i),
+        ];
+        addTearDown(() => Leaderboard.debugFakeTop = null);
+        await pumpApp(tester, d.value);
+        final ctx = tester.element(find.byType(BuildBar));
+        showLeaderboardDialog(ctx);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
     });
   }
 }

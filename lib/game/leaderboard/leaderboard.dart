@@ -122,8 +122,13 @@ class Leaderboard {
     if (currentWave != null && currentWave > 0) await submit(currentWave);
   }
 
+  /// 測試注入：非 null 時 [top] 直接回傳這份清單（UI 矩陣的滿榜狀態用）。
+  @visibleForTesting
+  static List<LeaderboardEntry>? debugFakeTop;
+
   /// 前 [n] 名（wave 大→小；同分早達成者在前）。失敗回空清單。
   static Future<List<LeaderboardEntry>> top({int n = 50}) async {
+    if (debugFakeTop != null) return debugFakeTop!;
     if (!_inited) return [];
     try {
       final snap = await FirebaseDatabase.instance
