@@ -11,7 +11,7 @@ import 'package:flutter/physics.dart'
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/my_app.dart' show showTopMessage;
+import 'overlays/game_overlays.dart' show showTopMessage;
 import 'audio/game_audio.dart';
 import 'board/hex.dart';
 import 'board/pathfinding.dart';
@@ -1246,6 +1246,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
       coin.value += gold;
       // 通知 HUD 顯示「+xx 從密林」浮動提示（序號遞增 → 金額相同也會重播）。
       woodsIncome.value = ((woodsIncome.value?.$1 ?? 0) + 1, gold);
+      showMessage('密林收入 +$gold 金幣');
     }
   }
 

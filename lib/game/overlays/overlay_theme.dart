@@ -269,3 +269,75 @@ class _WoodButtonState extends State<_WoodButton> {
     );
   }
 }
+
+// ═══ 頂部訊息 toast：取代素顏紅色 MaterialBanner ═══
+
+/// 給 [showTopMessage] 取得 overlay 用；由 MyApp 綁進 MaterialApp.navigatorKey。
+final GlobalKey<NavigatorState> gameNavigatorKey = GlobalKey<NavigatorState>();
+
+OverlayEntry? _toastEntry;
+Timer? _toastTimer;
+
+/// 頂部彈出一則木質膠囊提示（金幣不足/拆除退款/操作指引共用），
+/// [duration] 後自動收起；再次呼叫直接替換。浮在遊戲上、不擋點擊。
+void showTopMessage(String message,
+    {Duration duration = const Duration(seconds: 2)}) {
+  final overlay = gameNavigatorKey.currentState?.overlay;
+  if (overlay == null) return;
+  _toastTimer?.cancel();
+  _toastEntry?.remove();
+  final entry = OverlayEntry(
+    builder: (_) => _TopToast(message: message, holdMs: duration.inMilliseconds),
+  );
+  _toastEntry = entry;
+  overlay.insert(entry);
+  // 移除交給外部 timer（widget 內的退場動畫剛好在此之前結束）。
+  _toastTimer = Timer(duration, () {
+    if (_toastEntry == entry) {
+      _toastEntry = null;
+      entry.remove();
+    }
+  });
+}
+
+class _TopToast extends StatelessWidget {
+  const _TopToast({required this.message, required this.holdMs});
+  final String message;
+  final int holdMs;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget pill = Container(
+      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 9).h,
+      decoration: _woodBox(radius: 22),
+      child: Text(
+        message,
+        style: TextStyle(
+            color: _kTextSoft, fontSize: 14.h, fontWeight: FontWeight.bold),
+      ),
+    );
+    if (!_reduceMotion(context)) {
+      // 進場：上方滑入＋淡入；停留後淡出上滑（退場結束略早於 entry 移除）。
+      final out = (holdMs - 400).clamp(0, 1 << 30);
+      pill = pill
+          .animate()
+          .fadeIn(duration: 160.ms, curve: Curves.easeOut)
+          .slideY(begin: -0.6, end: 0, duration: 200.ms, curve: Curves.easeOutCubic)
+          .then(delay: (out - 200).clamp(0, 1 << 30).ms)
+          .fadeOut(duration: 200.ms)
+          .slideY(end: -0.4, duration: 200.ms);
+    }
+    // OverlayEntry 不在任何 Material 之下 → 不包會出現黃底線除錯字樣。
+    return Material(
+      type: MaterialType.transparency,
+      child: IgnorePointer(
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(padding: EdgeInsets.only(top: 10.h), child: pill),
+          ),
+        ),
+      ),
+    );
+  }
+}
