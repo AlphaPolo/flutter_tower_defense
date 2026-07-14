@@ -32,6 +32,43 @@
   <title>元素塔防</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- 載入 splash：Flutter 首幀（flutter-first-frame）前顯示，避免白屏/素 spinner -->
+  <style>
+    html, body { background: #241811; margin: 0; height: 100%; }
+    #splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px;
+      background: radial-gradient(ellipse at 50% 42%, #4a3627 0%, #241811 70%);
+      transition: opacity .45s ease-out;
+    }
+    #splash.gone { opacity: 0; pointer-events: none; }
+    #splash img {
+      width: 96px; height: 96px; border-radius: 20px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.55);
+      animation: bob 2.8s ease-in-out infinite;
+    }
+    #splash h1 {
+      color: #e8c877; font: 900 26px/1 system-ui, sans-serif;
+      letter-spacing: 6px; margin: 0; text-shadow: 0 2px 8px rgba(0,0,0,.6);
+    }
+    #splash .bar {
+      width: 180px; height: 6px; border-radius: 3px; overflow: hidden;
+      background: rgba(0,0,0,.45); border: 1px solid rgba(182,131,43,.55);
+    }
+    #splash .bar::before {
+      content: ''; display: block; height: 100%; width: 40%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #b6832b, #e8c877, #b6832b);
+      animation: sweep 1.2s ease-in-out infinite;
+    }
+    @keyframes bob   { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+    @keyframes sweep { 0% { margin-left: -40% } 100% { margin-left: 100% } }
+    @media (prefers-reduced-motion: reduce) {
+      #splash img, #splash .bar::before { animation: none; }
+    }
+  </style>
+
   <script>
     // The value below is injected by flutter build, do not touch.
     var serviceWorkerVersion = null;
@@ -43,6 +80,20 @@
   <script src="assets/packages/flutter_soloud/web/init_module.dart.js" defer></script>
 </head>
 <body>
+  <div id="splash">
+    <img src="icons/Icon-192.png" alt="">
+    <h1>元素塔防</h1>
+    <div class="bar"></div>
+  </div>
+  <script>
+    // Flutter 畫出第一幀 → splash 淡出移除。
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('splash');
+      if (!el) return;
+      el.classList.add('gone');
+      setTimeout(function () { el.remove(); }, 500);
+    });
+  </script>
   <script>
     window.addEventListener('load', function(ev) {
       // Download main.dart.js

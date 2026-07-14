@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tower_defense/game/board/hex.dart';
 import 'package:tower_defense/game/components/tower/tower_factory.dart';
+import 'package:tower_defense/game/components/enemy_kind.dart';
 import 'package:tower_defense/game/leaderboard/leaderboard.dart';
 import 'package:tower_defense/game/overlays/game_overlays.dart';
 import 'package:tower_defense/game/tower_defense_game.dart';
@@ -123,6 +124,13 @@ void main() {
           g.towers[bp]!
               .applyUpgrade(kTowerUpgradeTree[TowerType.freezing]!.first);
           g.inspecting.value = bp;
+        });
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('敵人圖鑑卡', (tester) async {
+        await pumpApp(tester, d.value, configure: (g) {
+          g.inspectingEnemy.value = EnemyKind.turtle; // 說明文最長的敵人
         });
         expect(tester.takeException(), isNull);
       });

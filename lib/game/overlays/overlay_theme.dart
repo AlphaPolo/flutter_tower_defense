@@ -57,6 +57,17 @@ Widget _uiIcon(String name, double size) => Image.asset(
       filterQuality: FilterQuality.none, // 像素風：最近鄰、邊緣銳利
     );
 
+/// game-icons.net 白色 alpha 圖示（srcIn 染色）——取代 Material Icons，
+/// 與像素 UI 同視覺語言。素材 assets/ui/gi_<name>.png（128px，CC BY 3.0，
+/// 來源對照見 assets/ui/SOURCES.md）。
+Widget _gi(String name, {double? size, Color color = _kGold}) => Image.asset(
+      'assets/ui/gi_$name.png',
+      width: size,
+      height: size,
+      color: color,
+      colorBlendMode: BlendMode.srcIn,
+    );
+
 /// 內容卡片外框：羊皮紙漸層底 + 金銅細邊 + 柔和陰影（深色文字仍清楚）。
 BoxDecoration _panelBox({double radius = 12}) => BoxDecoration(
       gradient: const LinearGradient(
@@ -105,7 +116,7 @@ Widget _dialogButton(String label, VoidCallback onTap,
 
 /// 統一風格彈窗面板（勝利／失敗／確認共用）：圖示 + 標題 + 說明 + 動作列。
 Widget _themedDialog({
-  required IconData icon,
+  required String icon, // game-icons 名（見 _gi）
   required Color accent,
   required String title,
   String? message,
@@ -121,7 +132,7 @@ Widget _themedDialog({
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: accent, size: 46),
+          _gi(icon, size: 46, color: accent),
           const SizedBox(height: 12),
           Text(title,
               textAlign: TextAlign.center,
@@ -153,10 +164,15 @@ Widget _themedDialog({
             );
     // 路線2「固定畫布」：鍵盤/小螢幕吃掉空間時，整張卡等比縮小塞進
     // 剩餘空間 → 永不溢出，比例永遠跟設計稿一致。
-    return Padding(
-      padding: MediaQuery.viewInsetsOf(context) + const EdgeInsets.all(16),
-      child: Center(
-        child: FittedBox(fit: BoxFit.scaleDown, child: animated),
+    // Material：showDialog 的 route 沒有 Material 祖先（以前 AlertDialog 自帶），
+    // 卡片裡有 TextField（改暱稱/上傳成績）沒有它會直接 throw。
+    return Material(
+      type: MaterialType.transparency,
+      child: Padding(
+        padding: MediaQuery.viewInsetsOf(context) + const EdgeInsets.all(16),
+        child: Center(
+          child: FittedBox(fit: BoxFit.scaleDown, child: animated),
+        ),
       ),
     );
   });
@@ -189,7 +205,7 @@ class _WoodButton extends StatefulWidget {
 
   final String label;
   final VoidCallback? onPressed;
-  final IconData? icon;
+  final String? icon; // game-icons 名（見 _gi）
   final _WoodTone tone;
   final bool dense;
 
@@ -251,7 +267,7 @@ class _WoodButtonState extends State<_WoodButton> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (widget.icon != null) ...[
-                Icon(widget.icon, size: (widget.dense ? 14 : 16).h, color: fg),
+                _gi(widget.icon!, size: (widget.dense ? 14 : 16).h, color: fg),
                 SizedBox(width: 6.h),
               ],
               Text(

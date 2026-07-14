@@ -194,10 +194,9 @@ class _BuildBarState extends State<BuildBar> {
 
   Widget _fullscreenButton() {
     return IconButton(
-      iconSize: 26,
       tooltip: '全螢幕',
       onPressed: toggleFullscreen,
-      icon: const Icon(Icons.fullscreen, color: Colors.white),
+      icon: _gi('expand', size: 26, color: Colors.white),
     );
   }
 

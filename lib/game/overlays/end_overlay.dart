@@ -130,15 +130,36 @@ class EndOverlay extends StatelessWidget {
           message = '主堡失守了……再挑戰一次！';
         }
 
+        final celebrate = won || (endless && game.newEndlessRecord);
         return Stack(
           children: [
-            const ModalBarrier(color: Colors.black54, dismissible: false),
+            // 失敗遮罩更深一階＋紅色暗角；勝利維持標準遮罩＋金色彩帶。
+            ModalBarrier(
+                color: celebrate ? Colors.black54 : Colors.black87,
+                dismissible: false),
+            if (!celebrate)
+              const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      radius: 1.1,
+                      colors: [
+                        Colors.transparent,
+                        Color(0x40801515), // 邊緣滲入的暗紅
+                      ],
+                      stops: [0.55, 1.0],
+                    ),
+                  ),
+                  child: SizedBox.expand(),
+                ),
+              ),
+            if (celebrate) const Positioned.fill(child: _Confetti()),
             _themedDialog(
               icon: won
-                  ? Icons.emoji_events
+                  ? 'trophy_cup'
                   : endless
-                      ? Icons.all_inclusive
-                      : Icons.sentiment_very_dissatisfied,
+                      ? 'infinity'
+                      : 'death_skull',
               accent: won || (endless && game.newEndlessRecord)
                   ? _kGold
                   : Colors.redAccent,
@@ -157,4 +178,70 @@ class EndOverlay extends StatelessWidget {
       },
     );
   }
+}
+
+/// 勝利/新紀錄彩帶：金色紙屑一次性向上噴發後飄落（reduce-motion 不播）。
+/// 純 CustomPainter：無元件配置、一條 1.8 秒的 controller 驅動全部粒子。
+class _Confetti extends StatefulWidget {
+  const _Confetti();
+
+  @override
+  State<_Confetti> createState() => _ConfettiState();
+}
+
+class _ConfettiState extends State<_Confetti>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1800))
+    ..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_reduceMotion(context)) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: CustomPaint(painter: _ConfettiPainter(_c), size: Size.infinite),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.t) : super(repaint: t);
+  final Animation<double> t;
+
+  static const _colors = [_kGold, _kGoldDeep, _kParchment, Color(0xFFFFF3C8)];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final v = t.value;
+    if (v >= 1) return;
+    final rnd = Random(7); // 固定種子 → 每次噴發形狀一致、免存粒子狀態
+    final origin = Offset(size.width / 2, size.height * 0.62);
+    final paint = Paint();
+    for (var i = 0; i < 30; i++) {
+      // 向上扇形初速 + 重力下墜；尾段淡出。
+      final ang = -pi / 2 + (rnd.nextDouble() - 0.5) * pi * 0.9;
+      final speed = size.shortestSide * (0.55 + rnd.nextDouble() * 0.55);
+      final x = origin.dx + cos(ang) * speed * v;
+      final y = origin.dy +
+          sin(ang) * speed * v +
+          size.shortestSide * 0.9 * v * v; // 重力
+      final fade = (1 - (v - 0.65) / 0.35).clamp(0.0, 1.0);
+      paint.color = _colors[i % _colors.length].withValues(alpha: fade);
+      final s = 3.0 + rnd.nextDouble() * 4.5;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate((rnd.nextDouble() * 2 - 1) * 8 * v); // 翻轉飄落感
+      canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: s, height: s * 0.55), paint);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter old) => false;
 }

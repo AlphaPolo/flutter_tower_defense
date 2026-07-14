@@ -24,6 +24,8 @@ class MyApp extends StatelessWidget {
         navigatorKey: gameNavigatorKey,
         theme: ThemeData(
           primarySwatch: Colors.blue,
+          // 霞鶩文楷：楷書手寫感，配木質/羊皮紙主題的說書氣質。
+          fontFamily: 'WenKaiTC',
         ),
         builder: (context, child) {
           return _OrientationGate(child: child!);

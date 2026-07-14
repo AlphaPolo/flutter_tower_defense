@@ -15,26 +15,36 @@ class SettingsDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      shape: const RoundedRectangleBorder(),
       width: 300,
       backgroundColor: _kWoodDark, // 深木底
       child: SafeArea(
         child: Column(
           children: [
-            // 標題
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 12, 12),
+            // 標題：木紋漸層帶 + 金銅底線（與建造列選中頁籤同材質）。
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 14),
+              decoration: const BoxDecoration(
+                gradient: _kSelTabGradient,
+                border:
+                    Border(bottom: BorderSide(color: _kGoldDeep, width: 1.5)),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.settings, color: _kGold, size: 24),
-                  SizedBox(width: 10),
-                  Text(
+                  _gi('cog', size: 24),
+                  const SizedBox(width: 10),
+                  const Text(
                     '設定',
-                    style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: _kGold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2),
                   ),
                 ],
               ),
             ),
-            const Divider(color: _kGoldDeep, height: 1),
 
             Expanded(
               child: CustomScrollView(
@@ -44,13 +54,13 @@ class SettingsDrawer extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: _switchTile(game.dimFlame,
                             () => game.dimFlame.value = !game.dimFlame.value,
-                        Icons.local_fire_department, '火焰特效變淡', Colors.orangeAccent),
+                        'flame', '火焰特效變淡', Colors.orangeAccent),
                   ),
                   SliverToBoxAdapter(
                     child: _switchTile(
                         game.waterReflection,
                             () => game.waterReflection.value = !game.waterReflection.value,
-                        Icons.water,
+                        'water_drop',
                         '水面倒影',
                         Colors.lightBlueAccent),
                   ),
@@ -59,7 +69,7 @@ class SettingsDrawer extends StatelessWidget {
                     child: _switchTile(
                         GameAudio.sfxOn,
                             () => GameAudio.sfxOn.value = !GameAudio.sfxOn.value,
-                        Icons.volume_up,
+                        'speaker',
                         '音效',
                         _kGold),
                   ),
@@ -76,7 +86,7 @@ class SettingsDrawer extends StatelessWidget {
                     child: _switchTile(
                         GameAudio.bgmOn,
                             () => GameAudio.bgmOn.value = !GameAudio.bgmOn.value,
-                        Icons.music_note,
+                        'musical_notes',
                         '音樂',
                         _kGold),
                   ),
@@ -84,16 +94,17 @@ class SettingsDrawer extends StatelessWidget {
                   // 返回主選單（清進度，需確認）。
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Align(
-                      alignment: AlignmentGeometry.bottomCenter,
+                    child: Container(
+                      alignment: Alignment.bottomCenter,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                             child: _WoodButton(
                               tone: _WoodTone.wood,
-                              icon: Icons.home,
+                              icon: 'house',
                               label: '返回主選單',
                               onPressed: () => _confirmBackToMenu(context),
                             ),
@@ -104,7 +115,8 @@ class SettingsDrawer extends StatelessWidget {
                             child: Text(
                               'Music: Alexandr Zhelanov (CC-BY 3.0)\n'
                                   'Victory theme by Marllon Silva (xDeviruchi)\n'
-                                  'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)',
+                                  'SFX: artisticdude (CC-BY 3.0), Kenney (CC0)\n'
+                                  'Icons: game-icons.net (CC-BY 3.0)',
                               style: const TextStyle(color: _kTextFaint, fontSize: 11),
                             ),
                           ),
@@ -127,7 +139,7 @@ class SettingsDrawer extends StatelessWidget {
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => _themedDialog(
-        icon: Icons.home,
+        icon: 'house',
         accent: _kGold,
         title: '返回主選單？',
         message: '目前的進度（金幣、生命、已蓋的塔）會全部清除，回到模式選擇畫面。',
@@ -162,24 +174,27 @@ class SettingsDrawer extends StatelessWidget {
 
   /// 單一開關列：圖示 + 標籤 + CupertinoSwitch；開啟時以 [onColor] 上色。
   Widget _switchTile(ValueListenable<bool> vn, VoidCallback onToggle,
-      IconData icon, String label, Color onColor) {
+      String icon, String label, Color onColor) {
     return ValueListenableBuilder<bool>(
       valueListenable: vn,
       builder: (context, on, _) => ListTile(
         dense: true,
         visualDensity: const VisualDensity(vertical: -2),
-        leading: Icon(icon, color: on ? onColor : Colors.grey[500]),
+        leading: _gi(icon, size: 24, color: on ? onColor : Colors.grey[500]!),
         title: Text(label,
             style: TextStyle(
                 color: on ? onColor : Colors.grey[300],
                 fontWeight: FontWeight.bold)),
-        trailing: CupertinoSwitch(
-            activeTrackColor: _kGoldDeep, // 家族簽名：開＝金銅，不用 Cupertino 綠
-            value: on,
-            onChanged: (_) {
-              GameAudio.ui('switch', volume: 0.6);
-              onToggle();
-            }),
+        trailing: Transform.scale(
+          scale: 0.8, // CupertinoSwitch 原尺寸在窄抽屜裡太搶，縮一階
+          child: CupertinoSwitch(
+              activeTrackColor: _kGoldDeep, // 家族簽名：開＝金銅
+              value: on,
+              onChanged: (_) {
+                GameAudio.ui('switch', volume: 0.6);
+                onToggle();
+              }),
+        ),
         onTap: () {
           GameAudio.ui('switch', volume: 0.6);
           onToggle();

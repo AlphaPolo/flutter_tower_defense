@@ -39,12 +39,15 @@ class LeftColOverlay extends StatelessWidget {
                 Align(
                   alignment: Alignment.bottomLeft,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: c.maxWidth),
+                    // maxHeight：矮螢幕（300 高）上長說明的圖鑑卡不撐爆左欄，
+                    // 卡片內文改為可捲（見 _enemyInfoCard 的 Flexible）。
+                    constraints: BoxConstraints(
+                        maxWidth: c.maxWidth, maxHeight: c.maxHeight),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _enemyInfoCard(),
+                        Flexible(child: _enemyInfoCard()),
                         SizedBox(height: 8.h),
                         _wavePreview(),
                         Row(
@@ -116,7 +119,7 @@ class LeftColOverlay extends StatelessWidget {
               ),
 
               _stat(
-                Icon(Icons.favorite, color: Colors.redAccent, size: 18.h),
+                _gi('hearts', size: 18.h, color: Colors.redAccent),
                 game.heart,
                 (v) => '$v',
               ),
@@ -236,7 +239,7 @@ class LeftColOverlay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   spacing: 6.h,
                   children: [
-                    Icon(Icons.settings, color: _kGold, size: 18.h),
+                    _gi('cog', size: 18.h),
                     Text('設定', style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: _kGold)),
                   ],
                 ),
@@ -252,7 +255,7 @@ class LeftColOverlay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   spacing: 6.h,
                   children: [
-                    Icon(Icons.refresh, color: _kGold, size: 18.h),
+                    _gi('clockwise_rotation', size: 18.h),
                     Text('重新開始', style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: _kGold)),
                   ],
                 ),
@@ -279,7 +282,7 @@ class LeftColOverlay extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               spacing: 6.h,
               children: [
-                Icon(Icons.bolt, color: color, size: 18.h),
+                _gi('power_lightning', size: 18.h, color: color),
                 Text(
                   '作弊模式${on ? '：開' : ''}',
                   style: TextStyle(fontSize: 13.h, fontWeight: FontWeight.bold, color: color),
@@ -298,7 +301,7 @@ class LeftColOverlay extends StatelessWidget {
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => _themedDialog(
-        icon: Icons.refresh,
+        icon: 'clockwise_rotation',
         accent: _kGold,
         title: '重新開始？',
         message: '目前的進度（金幣、生命、已蓋的塔）會全部清除，確定要重置嗎？',
@@ -372,7 +375,7 @@ class LeftColOverlay extends StatelessWidget {
     if (bp == game.targetLocation) {
       return (
         kind: _CellKind.castle,
-        icon: Icon(Icons.castle, color: Colors.green, size: 44.h),
+        icon: _gi('castle', size: 44.h, color: Colors.green),
         title: '主堡（終點）',
         lines: const ['守住這裡！', '敵人抵達會扣 1 生命', '生命歸零即遊戲結束'],
       );
@@ -380,7 +383,7 @@ class LeftColOverlay extends StatelessWidget {
     if (bp == game.spawnLocation) {
       return (
         kind: _CellKind.spawn,
-        icon: Icon(Icons.flag, color: Colors.redAccent, size: 44.h),
+        icon: _gi('flying_flag', size: 44.h, color: Colors.redAccent),
         title: '敵人出生點',
         lines: const ['敵人從這裡出現', '沿著路線前往主堡'],
       );
@@ -389,7 +392,7 @@ class LeftColOverlay extends StatelessWidget {
     if (e != null) {
       return (
         kind: _CellKind.environment,
-        icon: Icon(Icons.terrain, color: const Color(0xFF6D4C41), size: 44.h),
+        icon: _gi('peaks', size: 44.h, color: const Color(0xFF6D4C41)),
         title: e.label,
         lines: [e.desc, e.blocks ? '（阻擋路線）' : '（可經過）'],
       );
@@ -461,7 +464,7 @@ class LeftColOverlay extends StatelessWidget {
                   SizedBox(height: 12.h),
                   _WoodButton(
                     tone: _WoodTone.danger,
-                    icon: Icons.delete_outline,
+                    icon: 'trash_can',
                     label: '拆除',
                     onPressed: () => game.demolishAt(bp),
                   ),
@@ -470,7 +473,7 @@ class LeftColOverlay extends StatelessWidget {
                   SizedBox(height: 12.h),
                   _WoodButton(
                     tone: _WoodTone.warn,
-                    icon: Icons.cleaning_services,
+                    icon: 'broom',
                     label: '清除 (${TowerDefenseGame.envClearCost})',
                     onPressed: () => game.clearEnvironmentAt(bp),
                   ),
@@ -510,16 +513,14 @@ class LeftColOverlay extends StatelessWidget {
           children: [
             IconButton(
               onPressed: () => game.rotateLog(bp, -1),
-              icon: const Icon(Icons.rotate_left),
-              iconSize: 26.h,
-              color: Colors.brown,
+              icon: _gi('anticlockwise_rotation',
+                  size: 26.h, color: Colors.brown),
               tooltip: '逆時針',
             ),
             IconButton(
               onPressed: () => game.rotateLog(bp, 1),
-              icon: const Icon(Icons.rotate_right),
-              iconSize: 26.h,
-              color: Colors.brown,
+              icon: _gi('clockwise_rotation',
+                  size: 26.h, color: Colors.brown),
               tooltip: '順時針',
             ),
           ],
@@ -566,7 +567,7 @@ class LeftColOverlay extends StatelessWidget {
             _WoodButton(
               dense: true,
               tone: (has || picking) ? _WoodTone.wood : _WoodTone.gold,
-              icon: picking ? Icons.close : Icons.gps_fixed,
+              icon: picking ? 'cancel' : 'targeting',
               label: has
                   ? '解除標靶'
                   : picking
@@ -610,7 +611,7 @@ class LeftColOverlay extends StatelessWidget {
             _WoodButton(
               dense: true,
               tone: active ? _WoodTone.wood : _WoodTone.gold,
-              icon: active ? Icons.check : Icons.gps_fixed,
+              icon: active ? 'check_mark' : 'targeting',
               label: active ? '完成' : '指定塔',
               onPressed: () {
                 GameAudio.ui('select', volume: 0.6);
@@ -691,7 +692,7 @@ class LeftColOverlay extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.amber.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8).h,
-        border: Border.all(color: Colors.amber.shade700),
+        border: Border.all(color: _kGoldDeep.withValues(alpha: 0.8)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -702,7 +703,7 @@ class LeftColOverlay extends StatelessWidget {
               style: TextStyle(
                   fontSize: 12.h,
                   fontWeight: FontWeight.bold,
-                  color: Colors.brown)),
+                  color: _kGoldDeep)),
           SizedBox(height: 2.h),
           Text(node.desc,
               textAlign: TextAlign.center,
@@ -822,7 +823,7 @@ class LeftColOverlay extends StatelessWidget {
             child: Row(
               spacing: 4.h,
               children: [
-                Icon(Icons.play_circle, color: canStart ? Colors.white : disableForegroundColor, size: 24.h),
+                _gi('play_button', size: 24.h, color: canStart ? Colors.white : disableForegroundColor),
                 Text(label, style: TextStyle(fontSize: 16.h, fontWeight: FontWeight.bold, color: canStart ? Colors.white : disableForegroundColor)),
               ],
             ),
@@ -959,7 +960,7 @@ class LeftColOverlay extends StatelessWidget {
           color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? Colors.orangeAccent : Colors.white24,
+            color: selected ? _kGold : _kGoldDeep.withValues(alpha: 0.45),
             width: (selected ? 2.5 : 1.5).h,
           ),
         ),
@@ -977,7 +978,7 @@ class LeftColOverlay extends StatelessWidget {
       valueListenable: game.inspectingEnemy,
       builder: (context, kind, _) {
         if (kind == null) return const SizedBox.shrink();
-        return Container(
+        final card = Container(
           padding: const EdgeInsets.all(10),
           constraints: const BoxConstraints(maxWidth: 230),
           decoration: _panelBox(),
@@ -1004,7 +1005,12 @@ class LeftColOverlay extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(kind.desc, style: const TextStyle(fontSize: 12)),
+              // 空間不足時說明可捲動（矮螢幕＋長說明），數值行維持可見。
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(kind.desc, style: const TextStyle(fontSize: 12)),
+                ),
+              ),
               const SizedBox(height: 6),
               Text('血量：${_hpLabel(kind)}　速度：${_spdLabel(kind)}',
                   style: const TextStyle(fontSize: 12)),
@@ -1013,6 +1019,16 @@ class LeftColOverlay extends StatelessWidget {
             ],
           ),
         );
+        if (_reduceMotion(context)) return card;
+        // 與資訊面板同款進場（換敵人重播）。
+        return card.animate(key: ValueKey(kind)).fadeIn(
+              duration: 120.ms,
+              curve: Curves.easeOut,
+            ).scale(
+              begin: const Offset(0.92, 0.92),
+              duration: 160.ms,
+              curve: Curves.easeOutCubic,
+            );
       },
     );
   }
@@ -1075,7 +1091,7 @@ class _SniperSkillButtonState extends State<_SniperSkillButton> {
                 : '冷卻 ${(t.skillCdLeft / 1000).ceil()} 秒';
         return _WoodButton(
           tone: isAiming ? _WoodTone.warn : _WoodTone.danger,
-          icon: Icons.gps_fixed,
+          icon: 'targeting',
           label: label,
           onPressed: !ready && !isAiming
               ? null

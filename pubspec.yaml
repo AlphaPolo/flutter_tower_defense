@@ -43,6 +43,15 @@ flutter:
   - assets/audio/
   shaders:
   - assets/shaders/water.frag
+  # 霞鶩文楷 TC（OFL-1.1，github.com/lxgw/LxgwWenkaiTC）：
+  # 已子集化到遊戲用字（重生成方式見 assets/fonts/SOURCES.md）。
+  # 備選 Cubic_11.ttf（像素風）留在資料夾，換回時改這裡+ThemeData。
+  fonts:
+    - family: WenKaiTC
+      fonts:
+        - asset: assets/fonts/WenKaiTC-Regular.ttf
+        - asset: assets/fonts/WenKaiTC-Medium.ttf
+          weight: 700
 flutter_gen:
   output: lib/gen/
   line_length: 80

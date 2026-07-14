@@ -67,7 +67,7 @@ class ModeSelectOverlay extends StatelessWidget {
                     Text('選擇模式', style: TextStyle(color: _kTextDim, fontSize: 13.h)),
                     SizedBox(height: 18.h),
                     stagger(0, _modeCard(
-                      icon: Icons.play_circle,
+                      icon: 'play_button',
                       color: Colors.green,
                       title: '闖關模式',
                       subtitle: '守住 ${TowerDefenseGame.totalWaves} 波，贏得勝利',
@@ -77,7 +77,7 @@ class ModeSelectOverlay extends StatelessWidget {
                     stagger(1, ValueListenableBuilder<int>(
                       valueListenable: game.bestEndless,
                       builder: (context, best, _) => _modeCard(
-                        icon: Icons.all_inclusive,
+                        icon: 'infinity',
                         color: const Color(0xFF7E57C2),
                         title: '無盡模式',
                         subtitle: best > 0 ? '最佳紀錄：$best 波' : '波次無盡，拚最高紀錄',
@@ -96,8 +96,7 @@ class ModeSelectOverlay extends StatelessWidget {
                                 GameAudio.ui('click', volume: 0.5);
                                 showLeaderboardDialog(context);
                               },
-                              icon: const Icon(Icons.emoji_events,
-                                  color: _kGold, size: 20),
+                              icon: _gi('trophy_cup', size: 20),
                               label: const Text('排行榜',
                                   style: TextStyle(
                                       color: _kGold,
@@ -163,7 +162,7 @@ class ModeSelectOverlay extends StatelessWidget {
 
   /// 模式卡片：色塊圖示 + 標題 + 副標，整卡可點。
   Widget _modeCard({
-    required IconData icon,
+    required String icon,
     required Color color,
     required String title,
     required String subtitle,
@@ -185,7 +184,7 @@ class ModeSelectOverlay extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 30.h),
+            _gi(icon, size: 30.h, color: color),
             SizedBox(width: 12.h),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
