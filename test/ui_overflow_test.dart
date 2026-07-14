@@ -33,6 +33,9 @@ void main() {
     Size size, {
     void Function(TowerDefenseGame game)? configure,
     bool showMenu = false,
+    // 選單有氛圍光暈/浮動 logo 等「循環動畫」，pumpAndSettle 永遠等不到
+    // 靜止 → 這類畫面傳 false，改用固定幀數推進。
+    bool settle = true,
   }) async {
     final game = TowerDefenseGame();
     // 開始按鈕脈動是無限動畫會留 pending timer；預設用波次進行中關閉。
@@ -83,7 +86,15 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      // 推 1.2 秒讓進場動畫（彈窗 300ms + stagger 尾端 ~700ms）跑完；
+      // overflow 例外照樣會被 takeException 抓到。
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
   }
 
   for (final d in devices.entries) {
@@ -117,7 +128,7 @@ void main() {
       });
 
       testWidgets('開場模式選單', (tester) async {
-        await pumpApp(tester, d.value, showMenu: true);
+        await pumpApp(tester, d.value, showMenu: true, settle: false);
         expect(tester.takeException(), isNull);
       });
 
