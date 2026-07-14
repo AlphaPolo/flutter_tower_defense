@@ -35,6 +35,8 @@ class _BuildBarState extends State<BuildBar> {
 
   static const double _tabH = 34; // 分頁列高度
 
+  int? _hoverTab; // 滑鼠懸停中的分頁（桌面 hover 視覺用）
+
   @override
   Widget build(BuildContext context) {
     // Chrome 分頁感：頁籤嵌在底部 bar 上方；用 Stack 讓分頁畫在 bar 之上，選中頁籤
@@ -76,8 +78,9 @@ class _BuildBarState extends State<BuildBar> {
   /// 3px 與 bar 連成一體；未選＝暗底、較矮（凹陷感）。
   Widget _chromeTab(int i) {
     final sel = i == _tab;
+    final hover = _hoverTab == i && !sel;
     final borderSide = BorderSide(
-      color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: 0.4),
+      color: sel ? _kGoldDeep : _kGoldDeep.withValues(alpha: hover ? 0.7 : 0.4),
       width: (sel ? 2 : 1).h,
     );
     final tab = Container(
@@ -95,15 +98,20 @@ class _BuildBarState extends State<BuildBar> {
       child: Text(
         _cats[i].$1,
         style: TextStyle(
-          color: sel ? _kGold : _kTextFaint,
+          color: sel ? _kGold : (hover ? _kTextDim : _kTextFaint),
           fontWeight: FontWeight.bold,
           fontSize: 13.h,
         ),
       ),
     );
     return MouseRegion(
-      // 桌面滑鼠懸停的輕微音（觸控裝置無 hover、不觸發）。
-      onEnter: (_) => GameAudio.ui('hover', volume: 0.3, throttleMs: 90),
+      cursor: SystemMouseCursors.click,
+      // 桌面滑鼠懸停：輕微音 + 提亮（觸控裝置無 hover、不觸發）。
+      onEnter: (_) {
+        GameAudio.ui('hover', volume: 0.3, throttleMs: 90);
+        setState(() => _hoverTab = i);
+      },
+      onExit: (_) => setState(() => _hoverTab = null),
       child: GestureDetector(
         onTap: () {
           GameAudio.ui('click', volume: 0.5);
@@ -214,6 +222,7 @@ class _BuildBarState extends State<BuildBar> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           customBorder: const CircleBorder(),
+          hoverColor: _kGold.withValues(alpha: 0.22), // 桌面 hover 金色微亮
           // 桌面滑鼠懸停的輕微音（觸控裝置無 hover、不觸發）。
           onHover: (h) {
             if (h) GameAudio.ui('hover', volume: 0.3, throttleMs: 90);

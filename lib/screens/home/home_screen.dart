@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../game/audio/game_audio.dart';
 import '../../game/overlays/game_overlays.dart';
@@ -63,7 +64,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 桌面鍵盤快捷鍵：空白鍵＝開波、Esc＝取消選取、1/2/3＝遊戲倍速。
+  /// 彈窗是獨立 focus scope、輸入框聚焦時另有 EditableText 守門 →
+  /// 打字不會誤觸。
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (!_modeChosen) return KeyEventResult.ignored;
+    final ended = game.gameOver.value || game.gameWon.value;
+    if (ended) return KeyEventResult.ignored;
+    if (FocusManager.instance.primaryFocus?.context
+            ?.findAncestorStateOfType<EditableTextState>() !=
+        null) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      final allDone = !game.endless.value &&
+          game.waveNumber >= TowerDefenseGame.totalWaves;
+      if (!game.waveRunning.value && !allDone) game.startGame();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      game.cancelSelection();
+      return KeyEventResult.handled;
+    }
+    final d = int.tryParse(event.character ?? '');
+    if (d != null && d >= 1 && d <= 3) {
+      if (game.gameSpeed.value != d) {
+        GameAudio.ui('click', volume: 0.5);
+        game.gameSpeed.value = d;
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   Widget _body() {
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: _stack(),
+    );
+  }
+
+  Widget _stack() {
     return Stack(
       children: [
         Column(
