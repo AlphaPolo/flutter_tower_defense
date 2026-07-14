@@ -7,10 +7,14 @@ import 'package:flutter/services.dart';
 import 'package:tower_defense/game/audio/game_audio.dart';
 import 'package:tower_defense/game/leaderboard/leaderboard.dart';
 import 'package:tower_defense/screens/my_app.dart';
+import 'package:tower_defense/utils/debug_overflow.dart';
 
 
 
 void main() async {
+  // debug 時只靜音「掛了 kAllowOverflow 標籤」的溢出紅字；未標籤的照常
+  // 大聲回報（矩陣測試不經過 main()，一樣照抓）。用法見 debug_overflow.dart。
+  installOverflowFilter();
   await createStrategyInit().init();
   GameAudio.loadPrefs(); // 音訊設定（開關/音量）持久化：載入不阻塞啟動
   Leaderboard.init(); // 排行榜（Firebase）：失敗安靜降級、不阻塞啟動

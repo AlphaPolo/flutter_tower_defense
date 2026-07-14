@@ -118,7 +118,25 @@ class _BuildBarState extends State<BuildBar> {
           setState(() => _tab = i);
         },
         child: sel
-            ? Transform.translate(offset: Offset(0, 2.h), child: tab)
+            // 選中分頁下沉與 bar 金色頂線等距相接；tab 底緣的抗鋸齒縫用
+            // 一條同色補丁蓋掉——Positioned 出血、不佔版面（Column 疊加會把
+            // 頁籤列撐高造成溢出），寬度讓開兩側金邊、側線不會突下去。
+            ? Transform.translate(
+                offset: Offset(0, 2.h),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    tab,
+                    Positioned(
+                      left: 2.h,
+                      right: 2.h,
+                      bottom: -1,
+                      height: 2.5,
+                      child: const ColoredBox(color: _kWoodMid),
+                    ),
+                  ],
+                ),
+              )
             : tab,
       ),
     );
