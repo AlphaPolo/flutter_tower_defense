@@ -141,6 +141,9 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   /// 玩家遊戲速度（1/2/3×）：與 demoSpeed 相乘決定每幀模擬子步數。
   final ValueNotifier<int> gameSpeed = ValueNotifier(1);
 
+  /// Boss 血條（HUD 用）：場上巨獸的 (目前血量, 總血量) 彙總；無 Boss＝null。
+  final ValueNotifier<(double, double)?> bossHp = ValueNotifier(null);
+
   // ── 無盡模式 ─────────────────────────────────────────────
   /// true＝無盡模式（開打前由 UI 選擇；無勝利條件、25 波後難度續漲）。
   final ValueNotifier<bool> endless = ValueNotifier(false);
@@ -967,6 +970,8 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     wave.value = waveNumber;
     waveRunning.value = true;
     GameAudio.bgmBattle(); // 開打 → crossfade 到戰鬥曲（冪等，之後波次無動作）
+    // Boss 波開場低鳴（暫以雷聲代戰鼓；正式號角素材之後再換）。
+    if (isBossWave(waveNumber)) GameAudio.ui('thunder', volume: 0.5);
     _spawner = WaveSpawnerComponent(
       schedule: buildWaveSchedule(waveNumber),
       base: enemyStatusForWave(waveNumber),
@@ -1121,8 +1126,22 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
     return EnemyStatus(totalHp: hp, currentHp: hp, speed: speed);
   }
 
+  /// 彙總場上巨獸血量給 HUD 的 Boss 血條（無 Boss → null）。
+  void _syncBossHp() {
+    var cur = 0.0, tot = 0.0;
+    for (final e in enemies) {
+      if (e.kind == EnemyKind.juggernaut) {
+        cur += e.status.currentHp;
+        tot += e.status.totalHp;
+      }
+    }
+    final next = tot > 0 ? (cur, tot) : null;
+    if (bossHp.value != next) bossHp.value = next;
+  }
+
   @override
   void update(double dt) {
+    _syncBossHp();
     _advanceFling(dt); // 甩動慣性滑行（UI 手感，用真實 dt、每幀一次）
     // 3D 音訊 listener 跟著相機（拉遠變小聲、偏左的音源偏左耳）。
     GameAudio.updateListener(camera.viewfinder.position, camera.viewfinder.zoom);
@@ -1263,6 +1282,7 @@ class TowerDefenseGame extends FlameGame with ScrollDetector, ScaleDetector {
   void onRemove() {
     coin.dispose();
     heart.dispose();
+    bossHp.dispose();
     freeObstacle.dispose();
     cheat.dispose();
     selecting.dispose();

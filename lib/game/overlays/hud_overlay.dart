@@ -35,6 +35,9 @@ class LeftColOverlay extends StatelessWidget {
                     ],
                   ),
                 ),
+                // 頂部置中：Boss 血條（場上有巨獸才顯示）。
+                Align(alignment: Alignment.topCenter, child: _bossBar()),
+
                 // 左下：敵人資訊卡 +（開始鈕 + 敵人圖鑑）
                 Align(
                   alignment: Alignment.bottomLeft,
@@ -496,6 +499,66 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
+  /// Boss 血條：Boss 在場時頂部置中顯示彙總血量（含分裂/多 Boss 波）。
+  Widget _bossBar() {
+    return ValueListenableBuilder<(double, double)?>(
+      valueListenable: game.bossHp,
+      builder: (context, hp, _) {
+        if (hp == null) return const SizedBox.shrink();
+        final frac = (hp.$1 / hp.$2).clamp(0.0, 1.0);
+        final bar = Container(
+          width: 280.h,
+          padding: EdgeInsets.symmetric(horizontal: 10.h, vertical: 6.h),
+          decoration: _woodBox(radius: 12.h, strong: false),
+          child: Row(
+            spacing: 6.h,
+            children: [
+              _gi('death_skull', size: 16.h, color: const Color(0xFFFF6B5E)),
+              Text('巨獸',
+                  style: TextStyle(
+                      color: _kTextSoft,
+                      fontSize: 12.h,
+                      fontWeight: FontWeight.bold)),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4.h),
+                  child: SizedBox(
+                    height: 10.h,
+                    child: Stack(children: [
+                      const SizedBox.expand(
+                          child: ColoredBox(color: Colors.black45)),
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: frac,
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              Color(0xFFD64541),
+                              Color(0xFF8E2B26),
+                            ]),
+                          ),
+                          child: SizedBox.expand(),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (_reduceMotion(context)) return bar;
+        // 進場：從畫面頂滑入（rebuild 不重播，只在出現那次）。
+        return bar.animate().fadeIn(duration: 200.ms).slideY(
+              begin: -0.6,
+              end: 0,
+              duration: 260.ms,
+              curve: Curves.easeOutCubic,
+            );
+      },
+    );
+  }
+
   /// 滾木塔的方向控制（非滾木塔隱藏）。
   Widget _logRotateControl(BoardPoint bp) {
     if (!game.isLogTower(bp)) return const SizedBox.shrink();
@@ -856,10 +919,14 @@ class LeftColOverlay extends StatelessWidget {
         for (final k in game.waveLineup(next)) {
           counts[k] = (counts[k] ?? 0) + 1;
         }
-        return Container(
+        final boss = game.isBossWave(next);
+        Widget card = Container(
           margin: const EdgeInsets.only(bottom: 8).h,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6).h,
-          decoration: _woodBox(radius: 14, strong: false),
+          decoration: _woodBox(
+              radius: 14,
+              strong: false,
+              borderColor: boss ? const Color(0xFFD64541) : null),
           // 後期敵種多時可橫向捲動，窄螢幕不爆版。
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -867,9 +934,9 @@ class LeftColOverlay extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '下一波',
+                  boss ? '巨獸來襲' : '下一波',
                   style: TextStyle(
-                    color: _kGold,
+                    color: boss ? const Color(0xFFFF6B5E) : _kGold,
                     fontSize: 12.h,
                     fontWeight: FontWeight.bold,
                   ),
@@ -886,6 +953,28 @@ class LeftColOverlay extends StatelessWidget {
             ),
           ),
         );
+        if (boss && !_reduceMotion(context)) {
+          // Boss 波：卡片外圈紅光呼吸脈動（0.9 秒往返）。
+          card = card.animate(onPlay: (c) => c.repeat(reverse: true)).custom(
+                duration: 900.ms,
+                curve: Curves.easeInOut,
+                builder: (context, v, child) => DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14.h),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFD64541)
+                            .withValues(alpha: 0.2 + 0.3 * v),
+                        blurRadius: 8 + 8 * v,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: child,
+                ),
+              );
+        }
+        return card;
       },
     );
   }

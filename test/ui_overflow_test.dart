@@ -128,6 +128,13 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
+      testWidgets('Boss 血條', (tester) async {
+        await pumpApp(tester, d.value, configure: (g) {
+          g.bossHp.value = (5200, 8000);
+        });
+        expect(tester.takeException(), isNull);
+      });
+
       testWidgets('敵人圖鑑卡', (tester) async {
         await pumpApp(tester, d.value, configure: (g) {
           g.inspectingEnemy.value = EnemyKind.turtle; // 說明文最長的敵人

@@ -35,11 +35,14 @@ const LinearGradient _kSelTabGradient = LinearGradient(
 
 /// 木質膠囊/列的通用外框：木紋漸層 + 金銅細邊 + 柔和陰影。
 /// [strong] 決定陰影深淺（大面板用深、小晶片用淺）。
-BoxDecoration _woodBox({double radius = 20, bool strong = true}) =>
+BoxDecoration _woodBox(
+        {double radius = 20, bool strong = true, Color? borderColor}) =>
     BoxDecoration(
       gradient: _kWoodGradient,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: _kGoldDeep.withValues(alpha: 0.85), width: 1.3),
+      border: Border.all(
+          color: borderColor ?? _kGoldDeep.withValues(alpha: 0.85),
+          width: 1.3),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: strong ? 0.45 : 0.3),

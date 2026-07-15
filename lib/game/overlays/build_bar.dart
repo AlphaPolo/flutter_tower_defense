@@ -16,21 +16,22 @@ class _BuildBarState extends State<BuildBar> {
   int _tab = 0;
 
   /// 建造分類頁籤（涵蓋全部塔種）。
-  static const List<(String, List<TowerType>)> _cats = [
-    ('元素', [
+  /// (分頁名, gi 圖示, 塔清單)。
+  static const List<(String, String, List<TowerType>)> _cats = [
+    ('元素', 'crystal_ball', [
       TowerType.flame,
       TowerType.freezing,
       TowerType.thunder,
       TowerType.poison,
     ]),
-    ('物理', [
+    ('物理', 'crossed_sabres', [
       TowerType.log,
       TowerType.cannon,
       TowerType.airBlade,
       TowerType.sniper,
     ]),
-    ('陷阱', [TowerType.spike, TowerType.vortex, TowerType.beacon]),
-    ('支援', [TowerType.multishot, TowerType.obstacle]),
+    ('陷阱', 'wolf_trap', [TowerType.spike, TowerType.vortex, TowerType.beacon]),
+    ('支援', 'flying_flag', [TowerType.multishot, TowerType.obstacle]),
   ];
 
   static const double _tabH = 34; // 分頁列高度
@@ -95,13 +96,22 @@ class _BuildBarState extends State<BuildBar> {
           right: borderSide,
         ),
       ),
-      child: Text(
-        _cats[i].$1,
-        style: TextStyle(
-          color: sel ? _kGold : (hover ? _kTextDim : _kTextFaint),
-          fontWeight: FontWeight.bold,
-          fontSize: 13.h,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 5.h,
+        children: [
+          _gi(_cats[i].$2,
+              size: 13.h,
+              color: sel ? _kGold : (hover ? _kTextDim : _kTextFaint)),
+          Text(
+            _cats[i].$1,
+            style: TextStyle(
+              color: sel ? _kGold : (hover ? _kTextDim : _kTextFaint),
+              fontWeight: FontWeight.bold,
+              fontSize: 13.h,
+            ),
+          ),
+        ],
       ),
     );
     return MouseRegion(
@@ -195,7 +205,7 @@ class _BuildBarState extends State<BuildBar> {
             mainAxisSize: MainAxisSize.min,
             spacing: 12.h,
             children: [
-              for (final type in _cats[_tab].$2) _icon(type),
+              for (final type in _cats[_tab].$3) _icon(type),
             ],
           ),
         ),

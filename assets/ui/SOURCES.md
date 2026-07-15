@@ -30,6 +30,9 @@
 - gi_trophy_cup  ←  delapouite/trophy-cup
 - gi_water_drop  ←  lorc/drop
 
+- gi_crystal_ball ← lorc/crystal-ball（建造列「元素」分頁）
+- gi_wolf_trap ← lorc/wolf-trap（建造列「陷阱」分頁）
+- gi_crossed_sabres ← lorc/crossed-sabres（建造列「物理」分頁，同下）
 - crossed_sabres.png ← lorc/crossed-sabres（狀態列波次圖示，先前已引入）
 
 ## Kenney（CC0）
