@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -20,6 +22,18 @@ class MyApp extends StatelessWidget {
       builder: (context, _) => MaterialApp(
         title: 'Flutter Tower Defense',
         debugShowCheckedModeBanner: false,
+        // 桌面/web：滑鼠加入拖曳白名單 → 橫向清單（圖鑑/建造列/頁籤）可用
+        // 滑鼠按住拖（預設只有觸控類能拖；橫向區只吃滾輪 dx，直向滾輪無效、
+        // Shift+滾輪可用）。底座用 MaterialScrollBehavior：保留桌面捲軸與
+        // Android 過捲光暈等平台裝飾。
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          dragDevices: {
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.touch,
+            PointerDeviceKind.stylus,
+            PointerDeviceKind.trackpad,
+          },
+        ),
         // 頂部木質 toast（showTopMessage）從這把 key 取得 overlay。
         navigatorKey: gameNavigatorKey,
         theme: ThemeData(

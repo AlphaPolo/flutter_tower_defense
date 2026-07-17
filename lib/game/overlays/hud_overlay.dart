@@ -1014,7 +1014,8 @@ class LeftColOverlay extends StatelessWidget {
     );
   }
 
-  /// 敵人圖鑑：已解鎖敵人的頭像列（水平可捲動），點擊浮出資訊卡。
+  /// 敵人圖鑑：已解鎖敵人的頭像列，最多露出 3.5 顆頭像（暗示可捲動）。
+  /// FadeEdgeScrollView（自家 widget）：僅在該側還有內容時亮起邊緣暗影。
   Widget _enemyBestiary() {
     return ValueListenableBuilder<int>(
       valueListenable: game.wave,
@@ -1022,15 +1023,26 @@ class LeftColOverlay extends StatelessWidget {
         final kinds = game.unlockedKinds();
         return ValueListenableBuilder<EnemyKind?>(
           valueListenable: game.inspectingEnemy,
-          builder: (context, sel, ___) => SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6.h,
-              children: [
-                for (final k in kinds)
-                  _enemyAvatarButton(k, sel == k),
-              ],
+          // 木質膠囊容器（與狀態列同家族）：截斷發生在「框內」才有語義；
+          // fade 蓋色＝容器底色 → 邊緣頭像像沉入框內陰影，不再是硬切。
+          builder: (context, sel, ___) => ConstrainedBox(
+            // 3 顆全臉 + 3 個間距 + 半顆 = 最多 3.5 顆，之後靠捲動。
+            constraints: BoxConstraints(maxWidth: (3 * 46 + 20).h),
+            child: ClipPath(
+              clipper: const ShapeBorderClipper(shape: StadiumBorder()),
+              child: FadeEdgeScrollView(
+                axis: Axis.horizontal,
+                size: 18.h,
+                color: _kWoodDark,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6.h,
+                  children: [
+                    for (final k in kinds)
+                      _enemyAvatarButton(k, sel == k),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -1040,8 +1052,7 @@ class LeftColOverlay extends StatelessWidget {
 
   Widget _enemyAvatarButton(EnemyKind kind, bool selected) {
     return GestureDetector(
-      onTap: () =>
-          game.inspectingEnemy.value = selected ? null : kind,
+      onTap: () => game.inspectingEnemy.value = selected ? null : kind,
       child: Container(
         width: 40.h,
         height: 40.h,
@@ -1210,3 +1221,4 @@ typedef _InspectInfo = ({
   String title,
   List<String> lines,
 });
+
