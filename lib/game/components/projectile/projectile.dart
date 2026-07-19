@@ -11,7 +11,6 @@ import '../../effects/effect.dart';
 import '../../effects/particles.dart';
 import '../../tower_defense_game.dart';
 import '../enemy_component.dart';
-import 'chain_targets.dart';
 
 final _rnd = Random();
 
@@ -502,12 +501,36 @@ class ThunderProjectileComponent extends ProjectileComponent {
   final double paralyzeChance;
   final int paralyzeMs;
 
-  /// 連鎖確定後的「邊」快照（from→to 邏輯座標）——依實際 BFS 接力路徑繪製，
-  /// 而不是全部畫回落點的星形（視覺要跟演算法一致）。
-  List<(Vector2, Vector2)>? bindEdges;
-  final Vector2 _start = Vector2.zero();
+  /// 彈跳版連鎖：命中「當下」才找下一個目標彈射過去（投射物優先原則），
+  /// 不再是落地瞬間整條鏈同幀結算。[_hit] 記錄已命中者避免回跳；
+  /// [_trail] 是走過的鏈路（含出生時刻），殘影漸淡後移除。
+  final Set<EnemyComponent> _hit = {};
+  final List<(Vector2, Vector2, double)> _trail = []; // (from, to, 出生clock)
+  int _hops = 0; // 已命中數（含第一發）
+  double _worldClock = 0; // 不隨換段歸零的總時鐘（殘影計時用）
+  bool _fading = false; // 鏈結束，等殘影淡完
 
-  bool get isChainState => bindEdges != null && bindEdges!.isNotEmpty;
+  /// 彈跳段時長下限/上限（ms）：相鄰敵人間距很短，不設下限一跳只有
+  /// ~70ms、眼睛跟不上；設上限避免遠跳拖泥帶水。
+  static const double _hopMinMs = 170;
+  static const double _hopMaxMs = 320;
+
+  /// 彈跳段的速度曲線：慢出手→中段加速→減速落地（與拋物線共用同一條
+  /// 進度，弧頂時機跟水平運動一致）。
+  static const Curve _hopCurve = Curves.easeInOutCubic;
+
+  /// 每次命中後的停頓（ms）：打-停-彈的節奏，讓每一跳都讀得到。
+  static const double _dwellMs = 55;
+
+  /// 彈跳段的飛行速度倍率。
+  static const double _hopSpeedMul = 2.4;
+
+  /// 殘影停留時間（ms）。
+  static const double _trailMs = 700;
+
+  final Vector2 _start = Vector2.zero();
+  double _dwellLeft = 0; // 命中停頓倒數
+  bool _isHop = false; // 目前航段是否為彈跳段（套速度曲線）
 
   @override
   void onMount() {
@@ -524,104 +547,193 @@ class ThunderProjectileComponent extends ProjectileComponent {
   @override
   void onTick(double dtMs) {
     clock += dtMs;
+    _worldClock += dtMs;
+    _trail.removeWhere((t) => _worldClock - t.$3 > _trailMs);
 
-    if (isChainState) {
-      if (clock >= lifeTime) dead = true;
+    if (_fading) {
+      if (_trail.isEmpty) dead = true;
+      return;
+    }
+
+    // 命中停頓：光球停在受害者身上一瞬（render 畫放大脈衝）再彈出。
+    if (_dwellLeft > 0) {
+      _dwellLeft -= dtMs;
+      if (_dwellLeft > 0) return;
+      _launchHop();
       return;
     }
 
     if (clock < lifeTime) {
-      lerpLogical(_start, goalLogical!,
-          lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0));
+      lerpLogical(_start, goalLogical!, _legT());
       return;
     }
 
-    logical.setFrom((target.isMounted && !target.isDead)
-        ? target.logicalPos
-        : goalLogical!);
-
-    final live = game.enemies.where((e) => !e.isDead).toList();
-    final edges = chainEdges(
-      origin: logical,
-      positions: [for (final e in live) e.logicalPos],
-      maxDistance: game.board.hexagonRadius * chainDistance,
-      limit: chainLimit,
-    );
-    final list = <(Vector2, Vector2)>[];
-    for (final edge in edges) {
-      final e = live[edge.index];
-      // 命中必定麻痺（速度設為 0），時間依塔等級。
-      if (_rnd.nextDouble() < paralyzeChance) {
-        e.addEffect(
-            SlowMovementEffect.flat(kThunderEffectType, paralyzeMs, 0.0, 300));
+    // ── 抵達：結算當前目標（若途中死亡則就地改鎖最近目標）─────────
+    if (!target.isMounted || target.isDead) {
+      final retargeted = _nextTarget();
+      if (retargeted == null) {
+        _fading = true;
+        return;
       }
-      e.dealDamage(damage, physical: false); // 雷電＝元素傷害
-      // 邊快照：from＝parent（-1＝落點，否則為中繼敵人當下位置）。
-      final from = edge.parent == -1
-          ? logical.clone()
-          : live[edge.parent].logicalPos.clone();
-      list.add((from, e.logicalPos.clone()));
-      game.world.add(sparkBurst(game.logicalToScreen(e.logicalPos), s));
+      target = retargeted;
     }
-    if (list.isEmpty) {
-      dead = true;
+    logical.setFrom(target.logicalPos);
+    if (_rnd.nextDouble() < paralyzeChance) {
+      target.addEffect(
+          SlowMovementEffect.flat(kThunderEffectType, paralyzeMs, 0.0, 300));
+    }
+    target.dealDamage(damage, physical: false); // 雷電＝元素傷害
+    game.world.add(sparkBurst(game.logicalToScreen(logical), s));
+    _hit.add(target);
+    _hops++;
+    _trail.add((_start.clone(), logical.clone(), _worldClock));
+
+    // ── 命中當下才找下一跳，先停頓再彈射 ─────────────────────
+    final next = _hops < chainLimit ? _nextTarget() : null;
+    if (next == null) {
+      _fading = true;
       return;
     }
-    bindEdges = list;
-    lifeTime = 1000;
+    target = next;
+    _dwellLeft = _dwellMs;
+  }
+
+  /// 停頓結束 → 朝 [target] 發射彈跳段（時長夾限＋拋物線高度依距離）。
+  void _launchHop() {
+    if (!target.isMounted || target.isDead) {
+      final retargeted = _nextTarget();
+      if (retargeted == null) {
+        _fading = true;
+        return;
+      }
+      target = retargeted;
+    }
+    _start.setFrom(logical);
+    goalLogical = target.logicalPos.clone();
+    final raw =
+        flyingTime(_start, goalLogical!, speed * _hopSpeedMul).toDouble();
+    lifeTime = raw.clamp(_hopMinMs, _hopMaxMs);
+    _isHop = true;
     clock = 0;
   }
 
-  /// 從落點 [logical] 起，沿存活敵群連鎖（最近優先、上限 [chainLimit]、
-  /// 每跳間距上限 [chainDistance] 格）。實際演算法見 [chainTargets]（純函式、有測試）。
-  void _bolt(Canvas canvas, Offset a, Offset b, Paint paint) {
-    const segs = 6;
+  /// 本航段進度（0..1）：彈跳段套 [_hopCurve]，首段（塔→首目標）維持線性。
+  double _legT() {
+    final raw = lifeTime <= 0 ? 1.0 : (clock / lifeTime).clamp(0.0, 1.0);
+    return _isHop ? _hopCurve.transform(raw) : raw;
+  }
+
+  /// 從當前位置找範圍內最近、未命中的存活敵人（彈跳的下一站）。
+  EnemyComponent? _nextTarget() {
+    final maxD = game.board.hexagonRadius * chainDistance;
+    EnemyComponent? best;
+    var bestD = double.infinity;
+    for (final e in game.enemies) {
+      if (e.isDead || _hit.contains(e)) continue;
+      final d = logical.distanceTo(e.logicalPos);
+      if (d <= maxD && d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /// 一股鋸齒折線：兩端錨定、中段擺幅最大（sin 包絡），擺幅隨段長縮放。
+  /// [wild] 越大越狂野（第二股用）。每幀重生 → 電流蠕動感。
+  List<Offset> _boltPoints(Offset a, Offset b, {double wild = 1}) {
+    const segs = 12;
     final dir = b - a;
     final len = dir.distance == 0 ? 1.0 : dir.distance;
     final nx = -dir.dy / len, ny = dir.dx / len;
-    final path = Path()..moveTo(a.dx, a.dy);
+    final amp = (len * 0.14).clamp(4.0, 16.0 * s) * wild;
+    final pts = <Offset>[a];
     for (var i = 1; i < segs; i++) {
       final t = i / segs;
+      final envelope = sin(t * pi); // 端點 0、中段 1
       final mid = Offset.lerp(a, b, t)!;
-      final j = (_rnd.nextDouble() * 2 - 1) * 8 * s;
-      path.lineTo(mid.dx + nx * j, mid.dy + ny * j);
+      final j = (_rnd.nextDouble() * 2 - 1) * amp * envelope;
+      pts.add(Offset(mid.dx + nx * j, mid.dy + ny * j));
     }
-    path.lineTo(b.dx, b.dy);
-    canvas.drawPath(path, paint);
+    pts.add(b);
+    return pts;
+  }
+
+  Path _pathOf(List<Offset> pts) {
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (final p in pts.skip(1)) {
+      path.lineTo(p.dx, p.dy);
+    }
+    return path;
+  }
+
+  /// WC3 風閃電鏈的一段：兩股交纏（主股亮、副股野）＋隨機短分叉＋
+  /// 寬柔光/中光/白芯三層 ＋ 落點亮斑。[alpha] 由殘影年齡驅動。
+  void _lightning(Canvas canvas, Offset a, Offset b, double alpha) {
+    final main = _boltPoints(a, b);
+    final side = _boltPoints(a, b, wild: 1.7);
+    final mainPath = _pathOf(main);
+    final sidePath = _pathOf(side);
+
+    Paint stroke(Color c, double w, double al, {bool add = true}) {
+      final p = Paint()
+        ..color = c.withValues(alpha: al * alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w
+        ..strokeJoin = StrokeJoin.round;
+      if (add) p.blendMode = BlendMode.plus;
+      return p;
+    }
+
+    // 寬柔光（兩股共享底光）→ 副股（暗、細）→ 主股中光 → 白芯。
+    canvas.drawPath(mainPath, stroke(Colors.amber, 7 * s, 0.35));
+    canvas.drawPath(sidePath, stroke(Colors.yellow, 1.6 * s, 0.5));
+    canvas.drawPath(mainPath, stroke(Colors.yellow, 3 * s, 0.85));
+    canvas.drawPath(mainPath, stroke(Colors.white, 1.4 * s, 1.0, add: false));
+
+    // 隨機短分叉：從主股中段某頂點岔出（細、只有一層）。
+    if (main.length > 6) {
+      final i = 3 + _rnd.nextInt(main.length - 6);
+      final from = main[i];
+      final seg = main[i + 1] - main[i];
+      final segLen = seg.distance == 0 ? 1.0 : seg.distance;
+      // 沿段方向旋轉 ±(35°~65°) 岔出。
+      final ang = (0.6 + _rnd.nextDouble() * 0.55) *
+          (_rnd.nextBool() ? 1 : -1);
+      final ca = cos(ang), sa = sin(ang);
+      final d = Offset(
+          (seg.dx * ca - seg.dy * sa) / segLen, (seg.dx * sa + seg.dy * ca) / segLen);
+      final tip = from + d * ((b - a).distance * (0.12 + _rnd.nextDouble() * 0.12));
+      final fork = _pathOf(_boltPoints(from, tip, wild: 1.4));
+      canvas.drawPath(fork, stroke(Colors.yellow, 1.4 * s, 0.6));
+    }
+
+    // 落點亮斑：電流注入處的輝光。
+    canvas.drawCircle(
+        b,
+        7 * s,
+        Paint()
+          ..color = Colors.yellow.withValues(alpha: 0.5 * alpha)
+          ..blendMode = BlendMode.plus
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    canvas.drawCircle(
+        b, 2.5 * s, Paint()..color = Colors.white.withValues(alpha: alpha));
   }
 
   @override
   void render(Canvas canvas) {
-    if (!isChainState) {
-      canvas.drawCircle(Offset.zero, 8 * s,
-          Paint()..color = Colors.yellow..blendMode = BlendMode.plus);
-      canvas.drawCircle(Offset.zero, 4 * s, Paint()..color = Colors.white);
-      return;
-    }
-
-    final glow = Paint()
-      ..color = Colors.yellow.withValues(alpha: 0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3 * s
-      ..blendMode = BlendMode.plus;
-    final core = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4 * s;
-
-    // 沿「連鎖邊」逐段繪製（BFS 順序 → 電流一段段竄出去的感覺），
-    // 反映實際接力路徑，而不是全部連回落點。
     final center = game.logicalToScreen(logical);
-    final edges = bindEdges!;
-    for (var i = 0; i < edges.length; i++) {
-      if (clock < i * 20) continue;
-      final aScr = game.logicalToScreen(edges[i].$1) - center;
-      final bScr = game.logicalToScreen(edges[i].$2) - center;
-      final a = Offset(aScr.x, aScr.y);
-      final b = Offset(bScr.x, bScr.y);
-      _bolt(canvas, a, b, glow);
-      _bolt(canvas, a, b, core);
+
+    // 殘影鏈路：越舊越淡（每幀重生鋸齒 → 電流蠕動），WC3 風多股閃電。
+    for (final t in _trail) {
+      final alpha = (1 - (_worldClock - t.$3) / _trailMs).clamp(0.0, 1.0);
+      final aScr = game.logicalToScreen(t.$1) - center;
+      final bScr = game.logicalToScreen(t.$2) - center;
+      _lightning(
+          canvas, Offset(aScr.x, aScr.y), Offset(bScr.x, bScr.y), alpha);
     }
+
+    // 試驗中：雷球全程透明（首段與彈跳段都不畫），只留 WC3 閃電鏈演出。
   }
 }
 
